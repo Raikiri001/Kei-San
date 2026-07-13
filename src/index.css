@@ -1,0 +1,151 @@
+@import "tailwindcss";
+
+@theme {
+  --font-mono: "JetBrains Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+  --color-accent: #0ea5ff;
+  --color-accent-dim: #0a6fb0;
+}
+
+:root {
+  color-scheme: dark;
+  --chrome-bg: 10 12 14;
+  --chrome-glass: 255 255 255;
+  --chrome-border: 255 255 255;
+  --chrome-text: 226 232 236;
+  --chrome-text-dim: 138 148 156;
+  --status-active: #3ddc84;
+  --status-moderate: #f2b84b;
+  --status-inactive: #ef5a5a;
+  /* Neon accent: blue in dark mode, red in light mode (set below). Kept as raw
+     "r g b" triplets (matching --chrome-* above) so utilities can compose their
+     own alpha via rgb(var(--x) / <alpha>) instead of baking opacity into the token. */
+  --color-accent-glow: 56 189 248;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --chrome-bg: 238 240 242;
+  --chrome-glass: 20 22 26;
+  --chrome-border: 20 22 26;
+  --chrome-text: 20 22 26;
+  --chrome-text-dim: 90 98 106;
+  --color-accent: #ff2244;
+  --color-accent-dim: #b0102c;
+  --color-accent-glow: 255 84 112;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: rgb(var(--chrome-bg));
+  color: rgb(var(--chrome-text));
+  font-family: var(--font-mono);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* Glass panel: frosted translucent surface used by dock / radial menu / drawer */
+.glass-panel {
+  background: rgb(var(--chrome-glass) / 0.06);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgb(var(--chrome-border) / 0.12);
+}
+
+/* Corner-bracket frame: four tick marks instead of a full border rectangle */
+/* NOTE: intentionally no `position` here. This file's rules sit outside Tailwind's
+   cascade layers, so an unlayered `position` would always beat Tailwind's layered
+   .relative/.absolute/.fixed utilities regardless of class order. Callers must pair
+   .corner-frame with an explicit Tailwind position class (usually `relative`). */
+.corner-frame::before,
+.corner-frame::after,
+.corner-frame > .corner-bl,
+.corner-frame > .corner-br {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+.corner-frame::before {
+  top: -1px;
+  left: -1px;
+  border-top: 1.5px solid rgb(var(--chrome-border) / 0.55);
+  border-left: 1.5px solid rgb(var(--chrome-border) / 0.55);
+}
+.corner-frame::after {
+  top: -1px;
+  right: -1px;
+  border-top: 1.5px solid rgb(var(--chrome-border) / 0.55);
+  border-right: 1.5px solid rgb(var(--chrome-border) / 0.55);
+}
+.corner-frame > .corner-bl {
+  bottom: -1px;
+  left: -1px;
+  border-bottom: 1.5px solid rgb(var(--chrome-border) / 0.55);
+  border-left: 1.5px solid rgb(var(--chrome-border) / 0.55);
+}
+.corner-frame > .corner-br {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 1.5px solid rgb(var(--chrome-border) / 0.55);
+  border-right: 1.5px solid rgb(var(--chrome-border) / 0.55);
+}
+
+.label-jp {
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: rgb(var(--chrome-text-dim));
+  display: block;
+  line-height: 1.4;
+}
+
+::selection {
+  background: rgb(var(--color-accent-glow) / 0.35);
+}
+
+@keyframes radial-appear {
+  from {
+    opacity: 0;
+    transform: scale(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.radial-appear {
+  animation: radial-appear 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+/* thin custom scrollbar for the designs drawer */
+.thin-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: rgb(var(--chrome-border) / 0.3);
+  border-radius: 4px;
+}
