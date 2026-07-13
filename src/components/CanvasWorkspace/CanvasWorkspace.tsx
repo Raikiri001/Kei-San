@@ -81,7 +81,7 @@ export function CanvasWorkspace() {
         </div>
       </div>
 
-      <div className="glass-panel corner-frame absolute bottom-5 right-5 flex items-center gap-1 rounded-lg px-2 py-1.5">
+      <div className="glass-panel corner-frame absolute bottom-5 right-5 flex items-center gap-1 px-2 py-1.5">
         <span className="corner-bl" />
         <span className="corner-br" />
         <button

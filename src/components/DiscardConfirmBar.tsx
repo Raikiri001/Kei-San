@@ -9,7 +9,7 @@ export function DiscardConfirmBar() {
   if (!pendingDiscardAction) return null;
 
   return (
-    <div className="radial-appear glass-panel corner-frame fixed left-1/2 top-6 z-[60] -translate-x-1/2 rounded-lg px-4 py-2.5">
+    <div className="radial-appear glass-panel corner-frame fixed left-1/2 top-6 z-[60] -translate-x-1/2 px-4 py-2.5">
       <span className="corner-bl" />
       <span className="corner-br" />
       <div className="flex items-center gap-3 text-[12px]">

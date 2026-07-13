@@ -15,8 +15,12 @@ export interface ImageElement {
   circleMask: boolean;
   /** Which halftone fill to use when circleMask is on. */
   halftoneMode: "color" | "ink";
+  /** Halftone dot pitch in true canvas px — smaller = more/finer circles. */
+  halftoneDotPitch: number;
   /** Soft glow, sampled from the image's own edge color, blended into the background. */
   edgeBlend: boolean;
+  /** Edge-blend glow size in true canvas px, seeded from an auto-formula at upload then user-adjustable. */
+  edgeBlendMargin: number;
 }
 
 export type TextOrientation = "horizontal" | "vertical";

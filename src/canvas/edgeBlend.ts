@@ -43,14 +43,22 @@ export const EDGE_BLEND = {
   alpha: 0.6,
 };
 
-function resolveMargin(w: number, h: number): number {
+/** Auto-formula used only to seed a starting `edgeBlendMargin` value at upload time — the margin is a user-adjustable, independently stored value afterward. */
+export function resolveDefaultMargin(w: number, h: number): number {
   const raw = Math.min(w, h) * EDGE_BLEND.marginRatio;
   return Math.min(EDGE_BLEND.marginMax, Math.max(EDGE_BLEND.marginMin, raw));
 }
 
-/** Draws a soft, size-relative blurred glow behind an image's box, using its own sampled edge color. */
-export function drawEdgeGlow(ctx: CanvasRenderingContext2D, color: RGB, x: number, y: number, w: number, h: number) {
-  const margin = resolveMargin(w, h);
+/** Draws a soft blurred glow behind an image's box, using its own sampled edge color and an explicit margin size. */
+export function drawEdgeGlow(
+  ctx: CanvasRenderingContext2D,
+  color: RGB,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  margin: number,
+) {
   const blur = margin * EDGE_BLEND.blurRatio;
 
   ctx.save();
@@ -60,9 +68,8 @@ export function drawEdgeGlow(ctx: CanvasRenderingContext2D, color: RGB, x: numbe
   ctx.restore();
 }
 
-/** Size-relative CSS box-shadow string approximating drawEdgeGlow for the DOM preview. */
-export function getEdgeGlowBoxShadow(color: RGB, w: number, h: number): string {
-  const margin = resolveMargin(w, h);
+/** CSS box-shadow string approximating drawEdgeGlow for the DOM preview, given the same explicit margin. */
+export function getEdgeGlowBoxShadow(color: RGB, margin: number): string {
   const blur = margin * EDGE_BLEND.blurRatio;
   return `0 0 ${blur}px ${margin * 0.5}px rgba(${Math.round(color.r)}, ${Math.round(color.g)}, ${Math.round(color.b)}, ${EDGE_BLEND.alpha})`;
 }

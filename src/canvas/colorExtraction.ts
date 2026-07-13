@@ -20,6 +20,24 @@ export function rgbToHex({ r, g, b }: RGB): string {
   return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
 }
 
+/** Parses a #rgb or #rrggbb hex string into RGB, or null if it isn't valid. */
+export function hexToRgb(hex: string): RGB | null {
+  const trimmed = hex.trim().replace(/^#/, "");
+  const normalized =
+    trimmed.length === 3
+      ? trimmed
+          .split("")
+          .map((c) => c + c)
+          .join("")
+      : trimmed;
+  if (!/^[0-9a-fA-F]{6}$/.test(normalized)) return null;
+  return {
+    r: parseInt(normalized.slice(0, 2), 16),
+    g: parseInt(normalized.slice(2, 4), 16),
+    b: parseInt(normalized.slice(4, 6), 16),
+  };
+}
+
 export function rgbToHsl({ r, g, b }: RGB): { h: number; s: number; l: number } {
   const rn = r / 255;
   const gn = g / 255;

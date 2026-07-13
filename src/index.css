@@ -49,12 +49,19 @@ body {
   overflow: hidden;
 }
 
-/* Glass panel: frosted translucent surface used by dock / radial menu / drawer */
+/* Glass panel: frosted translucent surface used by dock / radial menu / drawer.
+   Background/border alpha and the drop shadow are deliberately strong enough to
+   stay legible even when the canvas background happens to be a similar tone —
+   backdrop-blur alone isn't enough separation when both sides are dark (or both
+   light). */
 .glass-panel {
-  background: rgb(var(--chrome-glass) / 0.06);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  border: 1px solid rgb(var(--chrome-border) / 0.12);
+  background: rgb(var(--chrome-glass) / 0.18);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgb(var(--chrome-border) / 0.28);
+  box-shadow:
+    0 8px 30px rgb(0 0 0 / 0.35),
+    0 1px 2px rgb(0 0 0 / 0.4);
 }
 
 /* Corner-bracket frame: four tick marks instead of a full border rectangle */
@@ -95,14 +102,6 @@ body {
   right: -1px;
   border-bottom: 1.5px solid rgb(var(--chrome-border) / 0.55);
   border-right: 1.5px solid rgb(var(--chrome-border) / 0.55);
-}
-
-.label-jp {
-  font-size: 9px;
-  letter-spacing: 0.08em;
-  color: rgb(var(--chrome-text-dim));
-  display: block;
-  line-height: 1.4;
 }
 
 ::selection {

@@ -34,11 +34,21 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
 
       if (image.edgeBlend) {
         const edgeColor = edgeColorCache.get(image.dataUrl) ?? getEdgeAverageColor(img);
-        drawEdgeGlow(ctx, edgeColor, drawX, drawY, image.displayWidth, image.displayHeight);
+        drawEdgeGlow(ctx, edgeColor, drawX, drawY, image.displayWidth, image.displayHeight, image.edgeBlendMargin);
       }
 
       if (image.circleMask) {
-        drawHalftone(ctx, img, drawX, drawY, image.displayWidth, image.displayHeight, image.halftoneMode, inkColor);
+        drawHalftone(
+          ctx,
+          img,
+          drawX,
+          drawY,
+          image.displayWidth,
+          image.displayHeight,
+          image.halftoneMode,
+          inkColor,
+          image.halftoneDotPitch,
+        );
       } else {
         const src = computeCoverSourceRect(img.naturalWidth, img.naturalHeight, image.displayWidth, image.displayHeight);
         ctx.drawImage(img, src.x, src.y, src.width, src.height, drawX, drawY, image.displayWidth, image.displayHeight);

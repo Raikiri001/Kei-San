@@ -14,6 +14,8 @@ export function TextElementView({ text }: { text: TextElement }) {
   const updateText = useProjectStore((s) => s.updateText);
   const zoom = useUIStore((s) => s.zoom);
   const openRadialMenu = useUIStore((s) => s.openRadialMenu);
+  const moveRadialMenu = useUIStore((s) => s.moveRadialMenu);
+  const radialMenu = useUIStore((s) => s.radialMenu);
   const selectedElementId = useUIStore((s) => s.selectedElementId);
 
   const [preview, setPreview] = useState<{ x: number; y: number } | null>(null);
@@ -35,7 +37,21 @@ export function TextElementView({ text }: { text: TextElement }) {
     [openRadialMenu, text.id],
   );
 
-  const { onPointerDown, onPointerMove, onPointerUp } = useDrag({ getPosition, zoom, onPreview, onCommit, onTap });
+  const onDragMove = useCallback(
+    (screenX: number, screenY: number) => {
+      if (radialMenu?.open && radialMenu.targetId === text.id) moveRadialMenu(screenX, screenY);
+    },
+    [radialMenu, moveRadialMenu, text.id],
+  );
+
+  const { onPointerDown, onPointerMove, onPointerUp } = useDrag({
+    getPosition,
+    zoom,
+    onPreview,
+    onCommit,
+    onTap,
+    onDragMove,
+  });
 
   const pos = preview ?? { x: text.x, y: text.y };
   const isSelected = selectedElementId === text.id;

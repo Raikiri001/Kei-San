@@ -1,12 +1,14 @@
 import { useRef, type ReactNode } from "react";
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
+import { useDraftNumber } from "@/hooks/useDraftNumber";
 import { downloadCanvas, renderProjectToCanvas } from "@/canvas/exportEngine";
 import { saveCurrentProject } from "@/store/persistence";
 import { fileToDataUrl, loadImage } from "@/utils/fileToDataUrl";
 import { getColorSuggestions } from "@/canvas/colorExtraction";
 import { getEdgeAverageColor } from "@/canvas/edgeBlend";
 import { colorSuggestionsCache, edgeColorCache } from "@/canvas/analysisCaches";
+import { GRID_PRESETS, RESOLUTION_PRESETS } from "@/constants/defaults";
 import {
   DownloadIcon,
   FolderIcon,
@@ -17,13 +19,10 @@ import {
   UploadIcon,
 } from "@/components/RadialMenu/icons";
 
-function DockField({ label, jpLabel, children }: { label: string; jpLabel: string; children: React.ReactNode }) {
+function DockField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="flex flex-col leading-none">
-        <span className="text-[10px] uppercase tracking-wide opacity-70">{label}</span>
-        <span className="label-jp">{jpLabel}</span>
-      </span>
+      <span className="text-[10px] uppercase tracking-wide opacity-70">{label}</span>
       {children}
     </label>
   );
@@ -31,13 +30,15 @@ function DockField({ label, jpLabel, children }: { label: string; jpLabel: strin
 
 const inputClass =
   "glass-panel h-8 w-16 rounded px-2 text-[12px] tabular-nums outline-none focus:border-accent/60";
+const selectClass =
+  "glass-panel h-8 rounded px-2 text-[11px] outline-none focus:border-accent/60";
 
 function DockButton({ onClick, icon, children }: { onClick: () => void; icon: ReactNode; children: ReactNode }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="corner-frame glass-panel group relative flex flex-col items-center gap-1 rounded-md px-3 py-1.5 text-[11px] uppercase tracking-wide transition-colors hover:border-accent/50 hover:text-accent"
+      className="corner-frame glass-panel group relative flex flex-col items-center gap-1 px-3 py-1.5 text-[11px] uppercase tracking-wide transition-colors hover:border-accent/50 hover:text-accent"
     >
       <span className="corner-bl" />
       <span className="corner-br" />
@@ -63,6 +64,39 @@ export function ControlDock() {
   const openRadialMenu = useUIStore((s) => s.openRadialMenu);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const widthDraft = useDraftNumber(project.width, {
+    min: 64,
+    max: 7680,
+    onCommit: (width) => {
+      setDimensions(width, project.height);
+      saveCurrentProject(project);
+    },
+  });
+  const heightDraft = useDraftNumber(project.height, {
+    min: 64,
+    max: 7680,
+    onCommit: (height) => {
+      setDimensions(project.width, height);
+      saveCurrentProject(project);
+    },
+  });
+  const colsDraft = useDraftNumber(project.cols, {
+    min: 1,
+    max: 24,
+    onCommit: (cols) => {
+      setGrid(cols, project.rows);
+      saveCurrentProject(project);
+    },
+  });
+  const rowsDraft = useDraftNumber(project.rows, {
+    min: 1,
+    max: 24,
+    onCommit: (rows) => {
+      setGrid(project.cols, rows);
+      saveCurrentProject(project);
+    },
+  });
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -104,12 +138,26 @@ export function ControlDock() {
     guardDirty(() => resetToNewDesign(), "Discard unsaved changes and start a new design?");
   }
 
+  function handleResolutionPreset(e: React.ChangeEvent<HTMLSelectElement>) {
+    const preset = RESOLUTION_PRESETS[Number(e.target.value)];
+    if (!preset) return;
+    setDimensions(preset.width, preset.height);
+    saveCurrentProject(project);
+  }
+
+  function handleGridPreset(e: React.ChangeEvent<HTMLSelectElement>) {
+    const preset = GRID_PRESETS[Number(e.target.value)];
+    if (!preset) return;
+    setGrid(preset.cols, preset.rows);
+    saveCurrentProject(project);
+  }
+
   return (
-    <div className="glass-panel corner-frame pointer-events-auto relative flex flex-wrap items-end gap-4 rounded-xl px-5 py-3">
+    <div className="glass-panel corner-frame pointer-events-auto relative flex flex-wrap items-end gap-4 px-5 py-3">
       <span className="corner-bl" />
       <span className="corner-br" />
 
-      <DockField label="Project" jpLabel="プロジェクト名">
+      <DockField label="Project">
         <input
           value={project.name}
           onChange={(e) => setName(e.target.value)}
@@ -119,52 +167,78 @@ export function ControlDock() {
         />
       </DockField>
 
-      <DockField label="Width" jpLabel="幅">
+      <DockField label="Width">
         <input
           type="number"
-          min={64}
-          max={7680}
-          value={project.width}
-          onChange={(e) => setDimensions(Number(e.target.value) || project.width, project.height)}
-          onBlur={() => saveCurrentProject(project)}
+          value={widthDraft.draft}
+          onChange={widthDraft.onChange}
+          onFocus={widthDraft.onFocus}
+          onBlur={widthDraft.onBlur}
+          onKeyDown={widthDraft.onKeyDown}
           className={inputClass}
         />
       </DockField>
 
-      <DockField label="Height" jpLabel="高さ">
+      <DockField label="Height">
         <input
           type="number"
-          min={64}
-          max={7680}
-          value={project.height}
-          onChange={(e) => setDimensions(project.width, Number(e.target.value) || project.height)}
-          onBlur={() => saveCurrentProject(project)}
+          value={heightDraft.draft}
+          onChange={heightDraft.onChange}
+          onFocus={heightDraft.onFocus}
+          onBlur={heightDraft.onBlur}
+          onKeyDown={heightDraft.onKeyDown}
           className={inputClass}
         />
       </DockField>
 
-      <DockField label="Cols" jpLabel="列">
+      <DockField label="Resolution">
+        <select defaultValue="" onChange={handleResolutionPreset} className={selectClass}>
+          <option value="" disabled>
+            Preset…
+          </option>
+          {RESOLUTION_PRESETS.map((preset, idx) => (
+            <option key={preset.label} value={idx}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
+      </DockField>
+
+      <DockField label="Cols">
         <input
           type="number"
-          min={1}
-          max={24}
-          value={project.cols}
-          onChange={(e) => setGrid(Number(e.target.value) || project.cols, project.rows)}
-          onBlur={() => saveCurrentProject(project)}
+          value={colsDraft.draft}
+          onChange={colsDraft.onChange}
+          onFocus={colsDraft.onFocus}
+          onBlur={colsDraft.onBlur}
+          onKeyDown={colsDraft.onKeyDown}
           className={inputClass}
         />
       </DockField>
 
-      <DockField label="Rows" jpLabel="行">
+      <DockField label="Rows">
         <input
           type="number"
-          min={1}
-          max={24}
-          value={project.rows}
-          onChange={(e) => setGrid(project.cols, Number(e.target.value) || project.rows)}
-          onBlur={() => saveCurrentProject(project)}
+          value={rowsDraft.draft}
+          onChange={rowsDraft.onChange}
+          onFocus={rowsDraft.onFocus}
+          onBlur={rowsDraft.onBlur}
+          onKeyDown={rowsDraft.onKeyDown}
           className={inputClass}
         />
+      </DockField>
+
+      <DockField label="Grid">
+        <select defaultValue="" onChange={handleGridPreset} className={selectClass}>
+          <option value="" disabled>
+            Preset…
+          </option>
+          {GRID_PRESETS.map((preset, idx) => (
+            <option key={preset.label} value={idx}>
+              {preset.label}
+            </option>
+          ))}
+        </select>
       </DockField>
 
       <div className="mx-1 h-9 w-px bg-white/10" />

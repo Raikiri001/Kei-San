@@ -12,6 +12,8 @@ interface UseDragOptions {
   onCommit: (x: number, y: number) => void;
   /** Called once on release if the pointer barely moved — treat as a click/tap. */
   onTap?: (screenX: number, screenY: number) => void;
+  /** Called continuously while actively dragging with the raw pointer screen coords (not canvas-space) — lets a caller keep something anchored to the cursor/element in sync, e.g. an already-open radial menu. */
+  onDragMove?: (screenX: number, screenY: number) => void;
 }
 
 /**
@@ -19,7 +21,7 @@ interface UseDragOptions {
  * (dividing by the current zoom factor) and distinguishes a drag from a tap so the
  * same pointerdown can either reposition an element or open its radial menu.
  */
-export function useDrag({ getPosition, zoom, onPreview, onCommit, onTap }: UseDragOptions) {
+export function useDrag({ getPosition, zoom, onPreview, onCommit, onTap, onDragMove }: UseDragOptions) {
   const dragState = useRef<{
     startScreenX: number;
     startScreenY: number;
@@ -55,9 +57,10 @@ export function useDrag({ getPosition, zoom, onPreview, onCommit, onTap }: UseDr
       }
       if (state.dragging) {
         onPreview(state.startX + deltaScreenX / zoom, state.startY + deltaScreenY / zoom);
+        onDragMove?.(e.clientX, e.clientY);
       }
     },
-    [zoom, onPreview],
+    [zoom, onPreview, onDragMove],
   );
 
   const onPointerUp = useCallback(

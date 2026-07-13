@@ -12,7 +12,7 @@ import {
   SizeIcon,
   TextContentIcon,
 } from "@/components/RadialMenu/icons";
-import { ColorSwatchPanel } from "@/components/RadialMenu/contexts/ColorSwatchPanel";
+import { ColorPickerPanel } from "@/components/RadialMenu/contexts/ColorPickerPanel";
 import type { RingItem } from "@/components/RadialMenu/RadialMenu";
 
 export function useTextContextItems(targetId: string | null): RingItem[] {
@@ -94,9 +94,8 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
       key: "colors",
       icon: <PaletteIcon />,
       label: "Colors",
-      wide: true,
-      expandedContent: (
-        <ColorSwatchPanel suggestions={suggestions} onPick={(color) => updateText(id, { color })} />
+      popoverContent: (
+        <ColorPickerPanel suggestions={suggestions} value={text.color} onChange={(color) => updateText(id, { color })} />
       ),
     });
   }

@@ -21,6 +21,8 @@ interface UIStore {
   setSelectedElementId: (id: string | null) => void;
   openRadialMenu: (x: number, y: number, context: RadialMenuContext, targetId: string | null) => void;
   closeRadialMenu: () => void;
+  /** Repositions the currently-open menu (e.g. to keep it glued to an element being dragged) without changing its context/target. */
+  moveRadialMenu: (x: number, y: number) => void;
   setDesignsDrawerOpen: (open: boolean) => void;
   markDirty: () => void;
   markClean: () => void;
@@ -60,6 +62,9 @@ export const useUIStore = create<UIStore>((set, get) => ({
     set({ radialMenu: { open: true, x, y, context, targetId }, selectedElementId: targetId }),
 
   closeRadialMenu: () => set({ radialMenu: null }),
+
+  moveRadialMenu: (x, y) =>
+    set((s) => (s.radialMenu ? { radialMenu: { ...s.radialMenu, x, y } } : {})),
 
   setDesignsDrawerOpen: (designsDrawerOpen) => set({ designsDrawerOpen }),
 

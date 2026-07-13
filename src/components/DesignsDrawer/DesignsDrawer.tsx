@@ -38,8 +38,7 @@ export function DesignsDrawer() {
           className="glass-panel corner-frame fixed right-0 top-0 z-50 h-full w-[320px] overflow-y-auto p-4 shadow-2xl outline-none data-[state=open]:animate-[slide-in-right_200ms_ease-out]"
         >
           <span className="corner-bl" />
-          <Dialog.Title className="mb-1 text-[12px] uppercase tracking-wide">My Designs</Dialog.Title>
-          <span className="label-jp mb-4 block">マイデザイン</span>
+          <Dialog.Title className="mb-4 text-[12px] uppercase tracking-wide">My Designs</Dialog.Title>
 
           {designs.length === 0 ? (
             <p className="mt-8 text-center text-[12px] opacity-50">No saved designs yet.</p>

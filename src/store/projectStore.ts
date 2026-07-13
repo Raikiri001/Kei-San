@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { useUIStore } from "@/store/uiStore";
 import { createId } from "@/utils/id";
 import { DEFAULT_FONT_SIZE } from "@/constants/fonts";
+import { DOT_PITCH } from "@/canvas/halftone";
+import { resolveDefaultMargin } from "@/canvas/edgeBlend";
 import {
   DEFAULT_BACKGROUND,
   DEFAULT_COLS,
@@ -26,8 +28,11 @@ function createBaselineProject(): ProjectState {
   };
 }
 
-type NewImageInput = Omit<ImageElement, "id" | "x" | "y" | "circleMask" | "halftoneMode" | "edgeBlend"> &
-  Partial<Pick<ImageElement, "circleMask" | "halftoneMode" | "edgeBlend">>;
+type NewImageInput = Omit<
+  ImageElement,
+  "id" | "x" | "y" | "circleMask" | "halftoneMode" | "halftoneDotPitch" | "edgeBlend" | "edgeBlendMargin"
+> &
+  Partial<Pick<ImageElement, "circleMask" | "halftoneMode" | "halftoneDotPitch" | "edgeBlend" | "edgeBlendMargin">>;
 
 interface ProjectStore {
   project: ProjectState;
@@ -84,7 +89,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       id,
       circleMask: false,
       halftoneMode: "color",
+      halftoneDotPitch: DOT_PITCH,
       edgeBlend: false,
+      edgeBlendMargin: resolveDefaultMargin(partial.displayWidth, partial.displayHeight),
       x: project.width / 2 + cascade * partial.displayWidth * 0.06,
       y: project.height / 2 + cascade * partial.displayHeight * 0.06,
       ...partial,

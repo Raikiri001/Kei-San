@@ -5,14 +5,36 @@ function Swatch({ color, onPick }: { color: string; onPick: (hex: string) => voi
     <button
       type="button"
       aria-label={`Apply color ${color}`}
+      title={color}
       onClick={() => onPick(color)}
-      className="h-5 w-5 shrink-0 rounded-full border border-white/25"
+      className="h-6 w-6 shrink-0 rounded-full border border-white/25"
       style={{ background: color }}
     />
   );
 }
 
-/** Shared swatch layout for the "Colors" pill, used by both ImageContextMenu (-> background) and TextContextMenu (-> text color). */
+function SwatchGroup({
+  label,
+  colors,
+  onPick,
+}: {
+  label: string;
+  colors: string[];
+  onPick: (hex: string) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="w-14 shrink-0 text-[9px] uppercase tracking-wide opacity-60">{label}</span>
+      <div className="flex flex-1 items-center gap-1.5">
+        {colors.map((color) => (
+          <Swatch key={color} color={color} onPick={onPick} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Grouped, labeled suggestion swatches — used inside ColorPickerPanel for both image/text "Colors". */
 export function ColorSwatchPanel({
   suggestions,
   onPick,
@@ -21,20 +43,10 @@ export function ColorSwatchPanel({
   onPick: (hex: string) => void;
 }) {
   return (
-    <span className="flex items-center gap-2.5 pr-1">
-      <span className="flex items-center gap-1">
-        {suggestions.monochromatic.map((color) => (
-          <Swatch key={color} color={color} onPick={onPick} />
-        ))}
-      </span>
-      <span className="flex items-center gap-1">
-        <Swatch color={suggestions.complementary} onPick={onPick} />
-      </span>
-      <span className="flex items-center gap-1">
-        {suggestions.analogous.map((color) => (
-          <Swatch key={color} color={color} onPick={onPick} />
-        ))}
-      </span>
-    </span>
+    <div className="flex flex-col gap-2">
+      <SwatchGroup label="Mono" colors={suggestions.monochromatic} onPick={onPick} />
+      <SwatchGroup label="Comp" colors={[suggestions.complementary]} onPick={onPick} />
+      <SwatchGroup label="Analog" colors={suggestions.analogous} onPick={onPick} />
+    </div>
   );
 }

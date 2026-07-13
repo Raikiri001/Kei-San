@@ -19,6 +19,8 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const updateImage = useProjectStore((s) => s.updateImage);
   const zoom = useUIStore((s) => s.zoom);
   const openRadialMenu = useUIStore((s) => s.openRadialMenu);
+  const moveRadialMenu = useUIStore((s) => s.moveRadialMenu);
+  const radialMenu = useUIStore((s) => s.radialMenu);
   const selectedElementId = useUIStore((s) => s.selectedElementId);
 
   const [preview, setPreview] = useState<{ x: number; y: number } | null>(null);
@@ -48,7 +50,21 @@ export function ImageElementView({ image }: { image: ImageElement }) {
     [openRadialMenu, image.id],
   );
 
-  const { onPointerDown, onPointerMove, onPointerUp } = useDrag({ getPosition, zoom, onPreview, onCommit, onTap });
+  const onDragMove = useCallback(
+    (screenX: number, screenY: number) => {
+      if (radialMenu?.open && radialMenu.targetId === image.id) moveRadialMenu(screenX, screenY);
+    },
+    [radialMenu, moveRadialMenu, image.id],
+  );
+
+  const { onPointerDown, onPointerMove, onPointerUp } = useDrag({
+    getPosition,
+    zoom,
+    onPreview,
+    onCommit,
+    onTap,
+    onDragMove,
+  });
 
   // Redraws only when the halftone-relevant inputs change — deliberately excludes
   // x/y, which are handled entirely by this wrapper's CSS transform below.
@@ -60,8 +76,26 @@ export function ImageElementView({ image }: { image: ImageElement }) {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     const inkColor = resolveInkColor(backgroundColor);
-    drawHalftone(ctx, loadedImg, 0, 0, image.displayWidth, image.displayHeight, image.halftoneMode, inkColor);
-  }, [loadedImg, image.displayWidth, image.displayHeight, image.circleMask, image.halftoneMode, backgroundColor]);
+    drawHalftone(
+      ctx,
+      loadedImg,
+      0,
+      0,
+      image.displayWidth,
+      image.displayHeight,
+      image.halftoneMode,
+      inkColor,
+      image.halftoneDotPitch,
+    );
+  }, [
+    loadedImg,
+    image.displayWidth,
+    image.displayHeight,
+    image.circleMask,
+    image.halftoneMode,
+    image.halftoneDotPitch,
+    backgroundColor,
+  ]);
 
   const pos = preview ?? { x: image.x, y: image.y };
   const isSelected = selectedElementId === image.id;
@@ -102,7 +136,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
         transform: `translate(${pos.x - image.displayWidth / 2}px, ${pos.y - image.displayHeight / 2}px)`,
         outline: isSelected ? "1.5px solid rgb(var(--color-accent-glow) / 0.8)" : "none",
         outlineOffset: 2,
-        boxShadow: edgeColor ? getEdgeGlowBoxShadow(edgeColor, image.displayWidth, image.displayHeight) : undefined,
+        boxShadow: edgeColor ? getEdgeGlowBoxShadow(edgeColor, image.edgeBlendMargin) : undefined,
       }}
     >
       {image.circleMask ? (

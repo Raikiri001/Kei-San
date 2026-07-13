@@ -1,20 +1,24 @@
 import { HISTORY_STORAGE_KEY, MAX_HISTORY_ENTRIES } from "@/constants/defaults";
 import { generateThumbnail, generateThumbnailFromCanvas } from "@/canvas/exportEngine";
+import { DOT_PITCH } from "@/canvas/halftone";
+import { resolveDefaultMargin } from "@/canvas/edgeBlend";
 import type { ImageElement, ProjectState, SavedDesign } from "@/store/types";
 
-/** Legacy (pre-multi-image) shape a SavedDesign may have been persisted as. */
+/** Legacy (pre-multi-image / pre-Phase-3) shape a SavedDesign may have been persisted as. */
 interface LegacySavedDesign extends Omit<SavedDesign, "images"> {
   images?: ImageElement[];
   image?: ImageElement | null;
 }
 
-/** Migrates any pre-Phase-2 saved entry forward so old localStorage data never crashes the app. */
+/** Migrates any older saved entry forward so old localStorage data never crashes the app. */
 function normalizeDesign(raw: LegacySavedDesign): SavedDesign {
   const rawImages = Array.isArray(raw.images) ? raw.images : raw.image ? [raw.image] : [];
   const images = rawImages.map((img) => ({
     ...img,
     halftoneMode: img.halftoneMode ?? ("color" as const),
+    halftoneDotPitch: img.halftoneDotPitch ?? DOT_PITCH,
     edgeBlend: img.edgeBlend ?? false,
+    edgeBlendMargin: img.edgeBlendMargin ?? resolveDefaultMargin(img.displayWidth, img.displayHeight),
   }));
   return { ...raw, images };
 }
