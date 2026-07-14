@@ -1,16 +1,29 @@
 import { FONT_STACKS } from "@/constants/fonts";
 import { loadImage } from "@/utils/fileToDataUrl";
 import { computeCoverSourceRect } from "@/utils/coverFit";
-import type { ProjectState } from "@/store/types";
+import type { ImageElement, ProjectState, TextElement } from "@/store/types";
 import { drawVerticalText } from "@/canvas/verticalText";
 import { drawHalftone, resolveInkColor } from "@/canvas/halftone";
 import { drawEdgeGlow, getEdgeAverageColor } from "@/canvas/edgeBlend";
 import { edgeColorCache } from "@/canvas/analysisCaches";
 
+/** `ctx.fillText` ignores "\n", so multi-line paragraphs need each line drawn separately. */
+function drawMultilineText(ctx: CanvasRenderingContext2D, content: string, x: number, y: number, fontSize: number) {
+  const lines = content.split("\n");
+  const lineHeight = fontSize * 1.2;
+  const totalHeight = lineHeight * Math.max(lines.length - 1, 0);
+  const startY = y - totalHeight / 2;
+  lines.forEach((line, idx) => ctx.fillText(line, x, startY + idx * lineHeight));
+}
+
+type OrderedElement = { kind: "image"; el: ImageElement } | { kind: "text"; el: TextElement };
+
 /**
  * Draws the given project onto a fresh, never-attached canvas at its true pixel
  * dimensions. Shared by both the full-resolution download and thumbnail
- * generation so the two never drift out of sync with each other.
+ * generation so the two never drift out of sync with each other. Images and
+ * texts are interleaved by their shared zIndex rather than drawn as two fixed
+ * "all images then all texts" passes, matching the live canvas preview.
  */
 export async function renderProjectToCanvas(project: ProjectState): Promise<HTMLCanvasElement> {
   const canvas = document.createElement("canvas");
@@ -22,13 +35,23 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
   ctx.fillStyle = project.backgroundColor;
   ctx.fillRect(0, 0, project.width, project.height);
 
-  if (project.images.length) {
-    const inkColor = resolveInkColor(project.backgroundColor);
-    const loaded = await Promise.all(
-      project.images.map(async (image) => ({ image, img: await loadImage(image.dataUrl) })),
-    );
+  const inkColor = resolveInkColor(project.backgroundColor);
+  const loadedImages = new Map(
+    await Promise.all(
+      project.images.map(async (image) => [image.id, await loadImage(image.dataUrl)] as const),
+    ),
+  );
 
-    for (const { image, img } of loaded) {
+  const ordered: OrderedElement[] = [
+    ...project.images.map((el) => ({ kind: "image" as const, el })),
+    ...project.texts.map((el) => ({ kind: "text" as const, el })),
+  ].sort((a, b) => a.el.zIndex - b.el.zIndex);
+
+  for (const entry of ordered) {
+    if (entry.kind === "image") {
+      const image = entry.el;
+      const img = loadedImages.get(image.id);
+      if (!img) continue;
       const drawX = image.x - image.displayWidth / 2;
       const drawY = image.y - image.displayHeight / 2;
 
@@ -53,19 +76,18 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
         const src = computeCoverSourceRect(img.naturalWidth, img.naturalHeight, image.displayWidth, image.displayHeight);
         ctx.drawImage(img, src.x, src.y, src.width, src.height, drawX, drawY, image.displayWidth, image.displayHeight);
       }
-    }
-  }
-
-  for (const text of project.texts) {
-    ctx.font = `${text.fontSize}px ${FONT_STACKS[text.fontFamily]}`;
-    ctx.fillStyle = text.color;
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-
-    if (text.orientation === "vertical") {
-      drawVerticalText(ctx, text.content, text.x, text.y, text.fontSize);
     } else {
-      ctx.fillText(text.content, text.x, text.y);
+      const text = entry.el;
+      ctx.font = `${text.fontSize}px ${FONT_STACKS[text.fontFamily]}`;
+      ctx.fillStyle = text.color;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      if (text.orientation === "vertical") {
+        drawVerticalText(ctx, text.content, text.x, text.y, text.fontSize);
+      } else {
+        drawMultilineText(ctx, text.content, text.x, text.y, text.fontSize);
+      }
     }
   }
 

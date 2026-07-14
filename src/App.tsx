@@ -2,6 +2,7 @@ import { CanvasWorkspace } from "@/components/CanvasWorkspace/CanvasWorkspace";
 import { ControlDock } from "@/components/ControlDock/ControlDock";
 import { RadialMenu } from "@/components/RadialMenu/RadialMenu";
 import { DesignsDrawer } from "@/components/DesignsDrawer/DesignsDrawer";
+import { UploadDialog } from "@/components/UploadDialog/UploadDialog";
 import { DiscardConfirmBar } from "@/components/DiscardConfirmBar";
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
 
       <RadialMenu />
       <DesignsDrawer />
+      <UploadDialog />
       <DiscardConfirmBar />
     </div>
   );

@@ -1,13 +1,9 @@
-import { useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
 import { useDraftNumber } from "@/hooks/useDraftNumber";
 import { downloadCanvas, renderProjectToCanvas } from "@/canvas/exportEngine";
 import { saveCurrentProject } from "@/store/persistence";
-import { fileToDataUrl, loadImage } from "@/utils/fileToDataUrl";
-import { getColorSuggestions } from "@/canvas/colorExtraction";
-import { getEdgeAverageColor } from "@/canvas/edgeBlend";
-import { colorSuggestionsCache, edgeColorCache } from "@/canvas/analysisCaches";
 import { GRID_PRESETS, RESOLUTION_PRESETS } from "@/constants/defaults";
 import {
   DownloadIcon,
@@ -25,6 +21,17 @@ function DockField({ label, children }: { label: string; children: React.ReactNo
       <span className="text-[10px] uppercase tracking-wide opacity-70">{label}</span>
       {children}
     </label>
+  );
+}
+
+/** Groups related fields (e.g. width/height/resolution) into their own themed sub-panel. */
+function DockGroup({ children }: { children: ReactNode }) {
+  return (
+    <div className="corner-frame glass-panel relative flex items-end gap-3 px-3 py-2">
+      <span className="corner-bl" />
+      <span className="corner-br" />
+      {children}
+    </div>
   );
 }
 
@@ -53,7 +60,6 @@ export function ControlDock() {
   const setName = useProjectStore((s) => s.setName);
   const setDimensions = useProjectStore((s) => s.setDimensions);
   const setGrid = useProjectStore((s) => s.setGrid);
-  const addImage = useProjectStore((s) => s.addImage);
   const addText = useProjectStore((s) => s.addText);
   const resetToNewDesign = useProjectStore((s) => s.resetToNewDesign);
 
@@ -61,9 +67,9 @@ export function ControlDock() {
   const toggleTheme = useUIStore((s) => s.toggleTheme);
   const guardDirty = useUIStore((s) => s.guardDirty);
   const setDesignsDrawerOpen = useUIStore((s) => s.setDesignsDrawerOpen);
-  const openRadialMenu = useUIStore((s) => s.openRadialMenu);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const setUploadDialogOpen = useUIStore((s) => s.setUploadDialogOpen);
+  const setSelectedElementId = useUIStore((s) => s.setSelectedElementId);
+  const setEditingTextId = useUIStore((s) => s.setEditingTextId);
 
   const widthDraft = useDraftNumber(project.width, {
     min: 64,
@@ -98,34 +104,10 @@ export function ControlDock() {
     },
   });
 
-  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-
-    const dataUrl = await fileToDataUrl(file);
-    const img = await loadImage(dataUrl);
-    const maxDim = Math.min(project.width, project.height) * 0.6;
-    const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
-
-    // Eagerly compute and cache derived values now (while we already have the
-    // decoded image) so the Colors/Edge-Blend tools have no async wait — and no
-    // radial-menu ring-reflow glitch — the first time this image's menu opens.
-    colorSuggestionsCache.set(dataUrl, getColorSuggestions(img));
-    edgeColorCache.set(dataUrl, getEdgeAverageColor(img));
-
-    addImage({
-      dataUrl,
-      naturalWidth: img.naturalWidth,
-      naturalHeight: img.naturalHeight,
-      displayWidth: img.naturalWidth * scale,
-      displayHeight: img.naturalHeight * scale,
-    });
-  }
-
   function handleAddText() {
     const id = addText();
-    openRadialMenu(window.innerWidth / 2, window.innerHeight / 2, "text", id);
+    setSelectedElementId(id);
+    setEditingTextId(id);
   }
 
   async function handleExport() {
@@ -152,10 +134,24 @@ export function ControlDock() {
     saveCurrentProject(project);
   }
 
+  // Presets are derived, not stored: the select always reflects whatever the
+  // current width/height (or cols/rows) actually are, so hand-editing either
+  // field while a preset is active automatically flips the dropdown to "Custom"
+  // with no extra state to track.
+  const resolutionMatchIdx = RESOLUTION_PRESETS.findIndex(
+    (p) => p.width === project.width && p.height === project.height,
+  );
+  const gridMatchIdx = GRID_PRESETS.findIndex((p) => p.cols === project.cols && p.rows === project.rows);
+
   return (
     <div className="glass-panel corner-frame pointer-events-auto relative flex flex-wrap items-end gap-4 px-5 py-3">
       <span className="corner-bl" />
       <span className="corner-br" />
+
+      <span className="pb-1 text-[15px] font-semibold tracking-wide" style={{ color: "var(--color-accent)" }}>
+        景さん
+      </span>
+      <div className="mx-1 h-9 w-px" style={{ background: "rgb(var(--chrome-border) / 0.2)" }} />
 
       <DockField label="Project">
         <input
@@ -167,84 +163,91 @@ export function ControlDock() {
         />
       </DockField>
 
-      <DockField label="Width">
-        <input
-          type="number"
-          value={widthDraft.draft}
-          onChange={widthDraft.onChange}
-          onFocus={widthDraft.onFocus}
-          onBlur={widthDraft.onBlur}
-          onKeyDown={widthDraft.onKeyDown}
-          className={inputClass}
-        />
-      </DockField>
+      <DockGroup>
+        <DockField label="Width">
+          <input
+            type="number"
+            value={widthDraft.draft}
+            onChange={widthDraft.onChange}
+            onFocus={widthDraft.onFocus}
+            onBlur={widthDraft.onBlur}
+            onKeyDown={widthDraft.onKeyDown}
+            className={inputClass}
+          />
+        </DockField>
 
-      <DockField label="Height">
-        <input
-          type="number"
-          value={heightDraft.draft}
-          onChange={heightDraft.onChange}
-          onFocus={heightDraft.onFocus}
-          onBlur={heightDraft.onBlur}
-          onKeyDown={heightDraft.onKeyDown}
-          className={inputClass}
-        />
-      </DockField>
+        <DockField label="Height">
+          <input
+            type="number"
+            value={heightDraft.draft}
+            onChange={heightDraft.onChange}
+            onFocus={heightDraft.onFocus}
+            onBlur={heightDraft.onBlur}
+            onKeyDown={heightDraft.onKeyDown}
+            className={inputClass}
+          />
+        </DockField>
 
-      <DockField label="Resolution">
-        <select defaultValue="" onChange={handleResolutionPreset} className={selectClass}>
-          <option value="" disabled>
-            Preset…
-          </option>
-          {RESOLUTION_PRESETS.map((preset, idx) => (
-            <option key={preset.label} value={idx}>
-              {preset.label}
-            </option>
-          ))}
-        </select>
-      </DockField>
+        <DockField label="Resolution">
+          <select value={resolutionMatchIdx === -1 ? "custom" : String(resolutionMatchIdx)} onChange={handleResolutionPreset} className={selectClass}>
+            {resolutionMatchIdx === -1 && (
+              <option value="custom" disabled>
+                Custom
+              </option>
+            )}
+            {RESOLUTION_PRESETS.map((preset, idx) => (
+              <option key={preset.label} value={idx}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+        </DockField>
+      </DockGroup>
 
-      <DockField label="Cols">
-        <input
-          type="number"
-          value={colsDraft.draft}
-          onChange={colsDraft.onChange}
-          onFocus={colsDraft.onFocus}
-          onBlur={colsDraft.onBlur}
-          onKeyDown={colsDraft.onKeyDown}
-          className={inputClass}
-        />
-      </DockField>
+      <DockGroup>
+        <DockField label="Cols">
+          <input
+            type="number"
+            value={colsDraft.draft}
+            onChange={colsDraft.onChange}
+            onFocus={colsDraft.onFocus}
+            onBlur={colsDraft.onBlur}
+            onKeyDown={colsDraft.onKeyDown}
+            className={inputClass}
+          />
+        </DockField>
 
-      <DockField label="Rows">
-        <input
-          type="number"
-          value={rowsDraft.draft}
-          onChange={rowsDraft.onChange}
-          onFocus={rowsDraft.onFocus}
-          onBlur={rowsDraft.onBlur}
-          onKeyDown={rowsDraft.onKeyDown}
-          className={inputClass}
-        />
-      </DockField>
+        <DockField label="Rows">
+          <input
+            type="number"
+            value={rowsDraft.draft}
+            onChange={rowsDraft.onChange}
+            onFocus={rowsDraft.onFocus}
+            onBlur={rowsDraft.onBlur}
+            onKeyDown={rowsDraft.onKeyDown}
+            className={inputClass}
+          />
+        </DockField>
 
-      <DockField label="Grid">
-        <select defaultValue="" onChange={handleGridPreset} className={selectClass}>
-          <option value="" disabled>
-            Preset…
-          </option>
-          {GRID_PRESETS.map((preset, idx) => (
-            <option key={preset.label} value={idx}>
-              {preset.label}
-            </option>
-          ))}
-        </select>
-      </DockField>
+        <DockField label="Grid">
+          <select value={gridMatchIdx === -1 ? "custom" : String(gridMatchIdx)} onChange={handleGridPreset} className={selectClass}>
+            {gridMatchIdx === -1 && (
+              <option value="custom" disabled>
+                Custom
+              </option>
+            )}
+            {GRID_PRESETS.map((preset, idx) => (
+              <option key={preset.label} value={idx}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+        </DockField>
+      </DockGroup>
 
-      <div className="mx-1 h-9 w-px bg-white/10" />
+      <div className="mx-1 h-9 w-px" style={{ background: "rgb(var(--chrome-border) / 0.2)" }} />
 
-      <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleFileChange} />
-      <DockButton onClick={() => fileInputRef.current?.click()} icon={<UploadIcon />}>
+      <DockButton onClick={() => setUploadDialogOpen(true)} icon={<UploadIcon />}>
         Upload Image
       </DockButton>
       <DockButton onClick={handleAddText} icon={<TextContentIcon />}>

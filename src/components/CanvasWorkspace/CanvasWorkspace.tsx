@@ -1,8 +1,9 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
 import { MAX_ZOOM, MIN_ZOOM } from "@/constants/defaults";
 import { GridOverlay } from "@/components/CanvasWorkspace/GridOverlay";
+import { RulerOverlay } from "@/components/CanvasWorkspace/RulerOverlay";
 import { ImageElementView } from "@/components/CanvasWorkspace/ImageElementView";
 import { TextElementView } from "@/components/CanvasWorkspace/TextElementView";
 
@@ -22,10 +23,24 @@ export function CanvasWorkspace() {
   const zoomBy = useUIStore((s) => s.zoomBy);
   const openRadialMenu = useUIStore((s) => s.openRadialMenu);
   const setSelectedElementId = useUIStore((s) => s.setSelectedElementId);
+  const dragPreviewNode = useUIStore((s) => s.dragPreviewNode);
 
   const viewportRef = useRef<HTMLDivElement>(null);
   const bgDownRef = useRef<{ x: number; y: number } | null>(null);
   const didFitRef = useRef(false);
+  const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
+
+  // Shared stacking order across both element types — sorted once per render
+  // instead of the old fixed "all images then all texts" passes, so front/back
+  // layer-order tools actually change paint order in the live preview too.
+  const orderedElements = useMemo(
+    () =>
+      [
+        ...images.map((el) => ({ kind: "image" as const, el })),
+        ...texts.map((el) => ({ kind: "text" as const, el })),
+      ].sort((a, b) => a.el.zIndex - b.el.zIndex),
+    [images, texts],
+  );
 
   // Auto-fit the canvas into the viewport once per canvas dimension change.
   useEffect(() => {
@@ -57,27 +72,36 @@ export function CanvasWorkspace() {
     }
   }
 
+  function handleCanvasPointerMove(e: React.PointerEvent) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setHoverPos({ x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
+  }
+
   return (
     <div
       ref={viewportRef}
       onWheel={handleWheel}
       className="relative flex h-full w-full items-center justify-center overflow-hidden"
     >
-      <div style={{ transform: `scale(${zoom})` }} className="transition-transform duration-75 ease-out">
+      <div style={{ transform: `scale(${zoom})` }} className="relative transition-transform duration-75 ease-out">
+        <RulerOverlay width={width} height={height} cols={cols} rows={rows} hoverPos={hoverPos} />
         <div
           data-radial-context="canvas"
           onPointerDown={handleBgPointerDown}
           onPointerUp={handleBgPointerUp}
+          onPointerMove={handleCanvasPointerMove}
+          onPointerLeave={() => setHoverPos(null)}
           className="relative touch-none shadow-[0_0_0_1px_rgb(255_255_255/0.08),0_40px_120px_-20px_rgb(0_0_0/0.6)]"
-          style={{ width, height, backgroundColor }}
+          style={{ width, height, backgroundColor, isolation: "isolate" }}
         >
-          <GridOverlay width={width} height={height} cols={cols} rows={rows} />
-          {images.map((image) => (
-            <ImageElementView key={image.id} image={image} />
-          ))}
-          {texts.map((text) => (
-            <TextElementView key={text.id} text={text} />
-          ))}
+          <GridOverlay width={width} height={height} cols={cols} rows={rows} nearestSnapNode={dragPreviewNode} />
+          {orderedElements.map((entry) =>
+            entry.kind === "image" ? (
+              <ImageElementView key={entry.el.id} image={entry.el} />
+            ) : (
+              <TextElementView key={entry.el.id} text={entry.el} />
+            ),
+          )}
         </div>
       </div>
 

@@ -1,47 +1,65 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { hexToRgb, hslToRgb, rgbToHex, rgbToHsl } from "@/canvas/colorExtraction";
 import { useDraftText } from "@/hooks/useDraftText";
 import { useDraftNumber } from "@/hooks/useDraftNumber";
+import { fieldLabelClass, numberInputClass } from "@/components/RadialMenu/inputStyles";
 
 const WHEEL_SIZE = 128;
 const WHEEL_MARGIN = 4;
 const WHEEL_RADIUS = WHEEL_SIZE / 2 - WHEEL_MARGIN;
+const MAX_DPR = 3;
 
-// The wheel's pixel grid only depends on its size, never on the selected color,
-// so it's computed once and reused across every picker instance/open.
+// The wheel's pixel grid only depends on its backing resolution, never on the
+// selected color, so it's computed once per resolution and reused across every
+// picker instance/open. Keyed by device-pixel size so switching monitors (and
+// therefore devicePixelRatio) between opens can't reuse a mismatched buffer.
 const wheelCache = new Map<number, ImageData>();
-function getWheelImageData(size: number): ImageData {
-  const cached = wheelCache.get(size);
+
+function getWheelImageData(pixelSize: number, marginPx: number): ImageData {
+  const cached = wheelCache.get(pixelSize);
   if (cached) return cached;
 
-  const center = size / 2;
-  const radius = center - WHEEL_MARGIN;
-  const imageData = new ImageData(size, size);
+  const center = pixelSize / 2;
+  const radius = center - marginPx;
+  // Feather the disc's edge over ~1 CSS px (scaled to device px) instead of a
+  // hard alpha cutoff, so the boundary anti-aliases smoothly instead of
+  // stair-stepping.
+  const feather = Math.max(1, pixelSize / WHEEL_SIZE);
+  const imageData = new ImageData(pixelSize, pixelSize);
 
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
+  for (let y = 0; y < pixelSize; y++) {
+    for (let x = 0; x < pixelSize; x++) {
       const dx = x - center;
       const dy = y - center;
       const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist > radius) continue; // leave alpha 0 — transparent outside the disc
+      if (dist > radius + feather) continue; // leave alpha 0 — transparent outside the disc
 
-      const i = (y * size + x) * 4;
+      const i = (y * pixelSize + x) * 4;
       const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-      const sat = dist / radius;
+      const sat = Math.min(1, dist / radius);
       const { r, g, b } = hslToRgb(angle, sat, 0.5);
+      const alpha =
+        dist > radius - feather ? Math.max(0, Math.min(1, (radius + feather - dist) / (2 * feather))) : 1;
+
       imageData.data[i] = r;
       imageData.data[i + 1] = g;
       imageData.data[i + 2] = b;
-      imageData.data[i + 3] = 255;
+      imageData.data[i + 3] = Math.round(alpha * 255);
     }
   }
 
-  wheelCache.set(size, imageData);
+  wheelCache.set(pixelSize, imageData);
   return imageData;
 }
 
-const numberInputClass =
-  "glass-panel h-7 w-9 shrink-0 rounded px-1 text-center text-[11px] tabular-nums outline-none focus:border-accent/60";
+function LabeledField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="flex flex-col items-center gap-0.5">
+      <span className={fieldLabelClass}>{label}</span>
+      {children}
+    </label>
+  );
+}
 
 interface ColorWheelPickerProps {
   value: string;
@@ -51,6 +69,9 @@ interface ColorWheelPickerProps {
 /** Hue/saturation wheel + lightness slider + hex/RGB text fields, fully synced both ways. */
 export function ColorWheelPicker({ value, onChange }: ColorWheelPickerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const dpr = Math.min(window.devicePixelRatio || 1, MAX_DPR);
+  const pixelSize = Math.round(WHEEL_SIZE * dpr);
+  const marginPx = WHEEL_MARGIN * dpr;
 
   // Initialized once from the incoming hex; the popover this lives in unmounts
   // on close, so every re-open naturally re-seeds from the current stored color
@@ -59,8 +80,8 @@ export function ColorWheelPicker({ value, onChange }: ColorWheelPickerProps) {
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext("2d");
-    if (ctx) ctx.putImageData(getWheelImageData(WHEEL_SIZE), 0, 0);
-  }, []);
+    if (ctx) ctx.putImageData(getWheelImageData(pixelSize, marginPx), 0, 0);
+  }, [pixelSize, marginPx]);
 
   function emit(next: { h: number; s: number; l: number }) {
     setHsl(next);
@@ -114,8 +135,9 @@ export function ColorWheelPicker({ value, onChange }: ColorWheelPickerProps) {
       <div className="relative" style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}>
         <canvas
           ref={canvasRef}
-          width={WHEEL_SIZE}
-          height={WHEEL_SIZE}
+          width={pixelSize}
+          height={pixelSize}
+          style={{ width: WHEEL_SIZE, height: WHEEL_SIZE }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           className="touch-none rounded-full"
@@ -126,65 +148,72 @@ export function ColorWheelPicker({ value, onChange }: ColorWheelPickerProps) {
         />
       </div>
 
-      <input
-        type="range"
-        min={0}
-        max={100}
-        value={Math.round(hsl.l * 100)}
-        onChange={(e) => emit({ ...hsl, l: Number(e.target.value) / 100 })}
-        className="w-full accent-current"
-        aria-label="Lightness"
-      />
+      <label className="flex w-full flex-col items-center gap-0.5">
+        <span className={fieldLabelClass}>Lightness</span>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          value={Math.round(hsl.l * 100)}
+          onChange={(e) => emit({ ...hsl, l: Number(e.target.value) / 100 })}
+          className="w-full accent-current"
+        />
+      </label>
 
-      <div className="flex w-full items-center justify-center gap-1.5">
+      <div className="flex w-full items-end justify-center gap-1.5">
         <span
-          className="h-7 w-7 shrink-0 rounded-full border border-white/25"
+          className="mb-1 h-7 w-7 shrink-0 rounded-full border border-white/25"
           style={{ background: hex }}
         />
-        <input
-          value={hexDraft.draft}
-          onChange={hexDraft.onChange}
-          onFocus={hexDraft.onFocus}
-          onBlur={hexDraft.onBlur}
-          onKeyDown={hexDraft.onKeyDown}
-          className="glass-panel h-7 w-16 rounded px-1.5 text-[11px] uppercase outline-none focus:border-accent/60"
-        />
-        <input
-          type="number"
-          min={0}
-          max={255}
-          value={rDraft.draft}
-          onChange={rDraft.onChange}
-          onFocus={rDraft.onFocus}
-          onBlur={rDraft.onBlur}
-          onKeyDown={rDraft.onKeyDown}
-          className={numberInputClass}
-          aria-label="Red"
-        />
-        <input
-          type="number"
-          min={0}
-          max={255}
-          value={gDraft.draft}
-          onChange={gDraft.onChange}
-          onFocus={gDraft.onFocus}
-          onBlur={gDraft.onBlur}
-          onKeyDown={gDraft.onKeyDown}
-          className={numberInputClass}
-          aria-label="Green"
-        />
-        <input
-          type="number"
-          min={0}
-          max={255}
-          value={bDraft.draft}
-          onChange={bDraft.onChange}
-          onFocus={bDraft.onFocus}
-          onBlur={bDraft.onBlur}
-          onKeyDown={bDraft.onKeyDown}
-          className={numberInputClass}
-          aria-label="Blue"
-        />
+        <LabeledField label="Hex">
+          <input
+            value={hexDraft.draft}
+            onChange={hexDraft.onChange}
+            onFocus={hexDraft.onFocus}
+            onBlur={hexDraft.onBlur}
+            onKeyDown={hexDraft.onKeyDown}
+            className="glass-panel h-7 w-16 rounded px-1.5 text-[11px] uppercase outline-none focus:border-accent/60"
+          />
+        </LabeledField>
+        <LabeledField label="R">
+          <input
+            type="number"
+            min={0}
+            max={255}
+            value={rDraft.draft}
+            onChange={rDraft.onChange}
+            onFocus={rDraft.onFocus}
+            onBlur={rDraft.onBlur}
+            onKeyDown={rDraft.onKeyDown}
+            className={numberInputClass}
+          />
+        </LabeledField>
+        <LabeledField label="G">
+          <input
+            type="number"
+            min={0}
+            max={255}
+            value={gDraft.draft}
+            onChange={gDraft.onChange}
+            onFocus={gDraft.onFocus}
+            onBlur={gDraft.onBlur}
+            onKeyDown={gDraft.onKeyDown}
+            className={numberInputClass}
+          />
+        </LabeledField>
+        <LabeledField label="B">
+          <input
+            type="number"
+            min={0}
+            max={255}
+            value={bDraft.draft}
+            onChange={bDraft.onChange}
+            onFocus={bDraft.onFocus}
+            onBlur={bDraft.onBlur}
+            onKeyDown={bDraft.onKeyDown}
+            className={numberInputClass}
+          />
+        </LabeledField>
       </div>
     </div>
   );

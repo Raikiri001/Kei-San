@@ -32,17 +32,26 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const needsDecodedImage = image.circleMask || (image.edgeBlend && !edgeColorCache.get(image.dataUrl));
   const loadedImg = useLoadedImage(needsDecodedImage ? image.dataUrl : null);
 
+  const setDragPreviewNode = useUIStore((s) => s.setDragPreviewNode);
+
   const getPosition = useCallback(() => ({ x: image.x, y: image.y }), [image.x, image.y]);
 
-  const onPreview = useCallback((x: number, y: number) => setPreview({ x, y }), []);
+  const onPreview = useCallback(
+    (x: number, y: number) => {
+      setPreview({ x, y });
+      setDragPreviewNode(snapToNearestNode(x, y, width, height, cols, rows));
+    },
+    [width, height, cols, rows, setDragPreviewNode],
+  );
 
   const onCommit = useCallback(
     (x: number, y: number) => {
       const snapped = snapToNearestNode(x, y, width, height, cols, rows);
       updateImage(image.id, { x: snapped.x, y: snapped.y });
       setPreview(null);
+      setDragPreviewNode(null);
     },
-    [width, height, cols, rows, updateImage, image.id],
+    [width, height, cols, rows, updateImage, image.id, setDragPreviewNode],
   );
 
   const onTap = useCallback(

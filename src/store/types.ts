@@ -21,6 +21,8 @@ export interface ImageElement {
   edgeBlend: boolean;
   /** Edge-blend glow size in true canvas px, seeded from an auto-formula at upload then user-adjustable. */
   edgeBlendMargin: number;
+  /** Shared stacking order across images and texts — higher paints on top. */
+  zIndex: number;
 }
 
 export type TextOrientation = "horizontal" | "vertical";
@@ -36,6 +38,8 @@ export interface TextElement {
   x: number;
   /** Center-anchored, true canvas px */
   y: number;
+  /** Shared stacking order across images and texts — higher paints on top. */
+  zIndex: number;
 }
 
 export type CanvasElement = ImageElement | TextElement;

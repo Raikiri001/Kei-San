@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { DEFAULT_ZOOM, MAX_ZOOM, MIN_ZOOM } from "@/constants/defaults";
 import type { RadialMenuContext, RadialMenuState } from "@/store/types";
+import type { GridNode } from "@/utils/grid";
 
 type Theme = "dark" | "light";
 
@@ -10,7 +11,12 @@ interface UIStore {
   selectedElementId: string | null;
   radialMenu: RadialMenuState | null;
   designsDrawerOpen: boolean;
+  uploadDialogOpen: boolean;
   isDirty: boolean;
+  /** The grid node an in-progress drag would snap to on release — drives the live anchor highlight. */
+  dragPreviewNode: GridNode | null;
+  /** The text element currently showing its inline on-canvas editable box, if any. */
+  editingTextId: string | null;
   /** Set while a discard-confirmation popover is pending (New Design / loading another design while dirty). */
   pendingDiscardAction: (() => void) | null;
   pendingDiscardMessage: string;
@@ -24,6 +30,9 @@ interface UIStore {
   /** Repositions the currently-open menu (e.g. to keep it glued to an element being dragged) without changing its context/target. */
   moveRadialMenu: (x: number, y: number) => void;
   setDesignsDrawerOpen: (open: boolean) => void;
+  setUploadDialogOpen: (open: boolean) => void;
+  setDragPreviewNode: (node: GridNode | null) => void;
+  setEditingTextId: (id: string | null) => void;
   markDirty: () => void;
   markClean: () => void;
   /** Runs `action` immediately if clean; otherwise stages it behind a confirm popover. */
@@ -42,7 +51,10 @@ export const useUIStore = create<UIStore>((set, get) => ({
   selectedElementId: null,
   radialMenu: null,
   designsDrawerOpen: false,
+  uploadDialogOpen: false,
   isDirty: false,
+  dragPreviewNode: null,
+  editingTextId: null,
   pendingDiscardAction: null,
   pendingDiscardMessage: "",
 
@@ -67,6 +79,9 @@ export const useUIStore = create<UIStore>((set, get) => ({
     set((s) => (s.radialMenu ? { radialMenu: { ...s.radialMenu, x, y } } : {})),
 
   setDesignsDrawerOpen: (designsDrawerOpen) => set({ designsDrawerOpen }),
+  setUploadDialogOpen: (uploadDialogOpen) => set({ uploadDialogOpen }),
+  setDragPreviewNode: (dragPreviewNode) => set({ dragPreviewNode }),
+  setEditingTextId: (editingTextId) => set({ editingTextId }),
 
   markDirty: () => set({ isDirty: true }),
   markClean: () => set({ isDirty: false }),

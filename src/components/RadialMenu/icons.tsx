@@ -123,6 +123,71 @@ export function TextContentIcon() {
   );
 }
 
+export function BackChevronIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M12 5 7 10l5 5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function PencilIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M12.3 4.3 15.7 7.7 7 16.4 3.5 16.5 3.6 13 Z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10.8 5.8 14.2 9.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function LayersIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M10 3.5 16.5 7 10 10.5 3.5 7Z" strokeLinejoin="round" />
+      <path d="M3.5 10.5 10 14l6.5-3.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.55" />
+      <path d="M3.5 13.5 10 17l6.5-3.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.3" />
+    </svg>
+  );
+}
+
+export function BringToFrontIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="3.5" y="7.5" width="8" height="8" rx="1" opacity="0.4" />
+      <rect x="8.5" y="4.5" width="8" height="8" rx="1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function SendToBackIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="3.5" y="7.5" width="8" height="8" rx="1" fill="currentColor" stroke="none" />
+      <rect x="8.5" y="4.5" width="8" height="8" rx="1" opacity="0.4" />
+    </svg>
+  );
+}
+
+export function BringForwardIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="3.5" y="8.5" width="8" height="8" rx="1" opacity="0.4" />
+      <rect x="8.5" y="5.5" width="8" height="8" rx="1" fill="currentColor" stroke="none" />
+      <path d="M7.5 4v-1.5M6.2 3.7 7.5 2.5l1.3 1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function SendBackwardIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="3.5" y="6.5" width="8" height="8" rx="1" fill="currentColor" stroke="none" />
+      <rect x="8.5" y="3.5" width="8" height="8" rx="1" opacity="0.4" />
+      <path d="M7.5 16v1.5M6.2 16.3 7.5 17.5l1.3-1.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function PaletteIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">

@@ -30,7 +30,7 @@ function createBaselineProject(): ProjectState {
 
 type NewImageInput = Omit<
   ImageElement,
-  "id" | "x" | "y" | "circleMask" | "halftoneMode" | "halftoneDotPitch" | "edgeBlend" | "edgeBlendMargin"
+  "id" | "x" | "y" | "circleMask" | "halftoneMode" | "halftoneDotPitch" | "edgeBlend" | "edgeBlendMargin" | "zIndex"
 > &
   Partial<Pick<ImageElement, "circleMask" | "halftoneMode" | "halftoneDotPitch" | "edgeBlend" | "edgeBlendMargin">>;
 
@@ -46,6 +46,10 @@ interface ProjectStore {
   addText: (partial?: Partial<TextElement>) => string;
   updateText: (id: string, patch: Partial<TextElement>) => void;
   deleteText: (id: string) => void;
+  bringToFront: (id: string) => void;
+  bringForward: (id: string) => void;
+  sendBackward: (id: string) => void;
+  sendToBack: (id: string) => void;
   loadProject: (project: ProjectState) => void;
   resetToNewDesign: () => void;
 }
@@ -53,6 +57,34 @@ interface ProjectStore {
 /** Every in-place edit marks the project dirty; loadProject/resetToNewDesign mark it clean instead. */
 function touchDirty() {
   useUIStore.getState().markDirty();
+}
+
+function nextZIndex(project: ProjectState): number {
+  let max = -1;
+  for (const img of project.images) max = Math.max(max, img.zIndex);
+  for (const txt of project.texts) max = Math.max(max, txt.zIndex);
+  return max + 1;
+}
+
+type OrderedElement = { kind: "image"; el: ImageElement } | { kind: "text"; el: TextElement };
+
+/** Combined images+texts, ascending by current zIndex — the single shared stacking order. */
+function getOrderedElements(project: ProjectState): OrderedElement[] {
+  return [
+    ...project.images.map((el) => ({ kind: "image" as const, el })),
+    ...project.texts.map((el) => ({ kind: "text" as const, el })),
+  ].sort((a, b) => a.el.zIndex - b.el.zIndex);
+}
+
+/** Renumbers the given order 0..n-1 and splits it back into the two stored arrays. */
+function applyOrder(project: ProjectState, ordered: OrderedElement[]): ProjectState {
+  const images: ImageElement[] = [];
+  const texts: TextElement[] = [];
+  ordered.forEach((entry, idx) => {
+    if (entry.kind === "image") images.push({ ...entry.el, zIndex: idx });
+    else texts.push({ ...entry.el, zIndex: idx });
+  });
+  return { ...project, images, texts, updatedAt: Date.now() };
 }
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -94,6 +126,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       edgeBlendMargin: resolveDefaultMargin(partial.displayWidth, partial.displayHeight),
       x: project.width / 2 + cascade * partial.displayWidth * 0.06,
       y: project.height / 2 + cascade * partial.displayHeight * 0.06,
+      zIndex: nextZIndex(project),
       ...partial,
     };
     set((s) => ({
@@ -140,6 +173,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       color: "#f5f5f5",
       x: project.width / 2 + cascade * 48,
       y: project.height / 2 + cascade * 36,
+      zIndex: nextZIndex(project),
       ...partial,
     };
     set((s) => ({
@@ -168,6 +202,48 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         updatedAt: Date.now(),
       },
     }));
+    touchDirty();
+  },
+
+  bringToFront: (id) => {
+    const { project } = get();
+    const ordered = getOrderedElements(project);
+    const idx = ordered.findIndex((e) => e.el.id === id);
+    if (idx === -1) return;
+    const [item] = ordered.splice(idx, 1);
+    ordered.push(item);
+    set({ project: applyOrder(project, ordered) });
+    touchDirty();
+  },
+
+  sendToBack: (id) => {
+    const { project } = get();
+    const ordered = getOrderedElements(project);
+    const idx = ordered.findIndex((e) => e.el.id === id);
+    if (idx === -1) return;
+    const [item] = ordered.splice(idx, 1);
+    ordered.unshift(item);
+    set({ project: applyOrder(project, ordered) });
+    touchDirty();
+  },
+
+  bringForward: (id) => {
+    const { project } = get();
+    const ordered = getOrderedElements(project);
+    const idx = ordered.findIndex((e) => e.el.id === id);
+    if (idx === -1 || idx === ordered.length - 1) return;
+    [ordered[idx], ordered[idx + 1]] = [ordered[idx + 1], ordered[idx]];
+    set({ project: applyOrder(project, ordered) });
+    touchDirty();
+  },
+
+  sendBackward: (id) => {
+    const { project } = get();
+    const ordered = getOrderedElements(project);
+    const idx = ordered.findIndex((e) => e.el.id === id);
+    if (idx <= 0) return;
+    [ordered[idx], ordered[idx - 1]] = [ordered[idx - 1], ordered[idx]];
+    set({ project: applyOrder(project, ordered) });
     touchDirty();
   },
 
