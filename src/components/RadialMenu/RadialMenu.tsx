@@ -141,6 +141,7 @@ export function RadialMenu() {
             className="glass-panel corner-frame pointer-events-auto fixed z-10 max-h-[min(70vh,520px)] -translate-x-1/2 overflow-y-auto p-3"
             style={{ left: radialMenu.x, top: popoverTop }}
           >
+            <span className="corner-tl" />
             <span className="corner-bl" />
             <span className="corner-br" />
             {openPopoverItem.popoverContent}

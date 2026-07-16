@@ -33,6 +33,7 @@ function DockButton({ onClick, icon, children }: { onClick: () => void; icon: Re
       onClick={onClick}
       className="corner-frame glass-panel accent-glow-hover press-sweep group relative flex h-9 items-center gap-2 px-3 text-[11px] uppercase tracking-wide transition-colors hover:text-accent"
     >
+      <span className="corner-tl" />
       <span className="corner-bl" />
       <span className="corner-br" />
       <span className="flex h-4 w-4 items-center justify-center">{icon}</span>
@@ -80,6 +81,7 @@ export function ControlDock() {
           real content wrapper is what lets that dropdown render past the
           toolbar's own bottom edge instead of being clipped away to nothing. */}
       <div className="glass-panel corner-frame absolute inset-0 -z-10">
+        <span className="corner-tl" />
         <span className="corner-bl" />
         <span className="corner-br" />
       </div>

@@ -45,6 +45,7 @@ export function IconPill({ icon, label, x, y, onClick, active, expandedContent, 
   // and browsers silently break out of them, corrupting the layout.
   const content = expandedContent ? (
     <div className={pillClass(active, wide)}>
+      <span className="corner-tl" />
       <span className="corner-bl" />
       <span className="corner-br" />
       <span className="flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>
@@ -55,6 +56,7 @@ export function IconPill({ icon, label, x, y, onClick, active, expandedContent, 
     </div>
   ) : (
     <button type="button" onClick={onClick} className={pillClass(active, wide)}>
+      <span className="corner-tl" />
       <span className="corner-bl" />
       <span className="corner-br" />
       <span className="flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>

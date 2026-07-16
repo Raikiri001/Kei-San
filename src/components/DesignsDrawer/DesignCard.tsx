@@ -22,6 +22,7 @@ export function DesignCard({
 }) {
   return (
     <div className="corner-frame glass-panel group relative overflow-hidden">
+      <span className="corner-tl" />
       <span className="corner-bl" />
       <span className="corner-br" />
       <button type="button" onClick={onSelect} className="block w-full text-left">

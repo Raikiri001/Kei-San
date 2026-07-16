@@ -62,6 +62,7 @@ export function UploadDialog() {
             to the light theme's near-white --chrome-bg would make it disappear. */}
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] data-[state=open]:animate-[fade-in_150ms_ease-out]" />
         <Dialog.Content className="glass-panel corner-frame fixed left-1/2 top-1/2 z-50 w-[380px] -translate-x-1/2 -translate-y-1/2 p-5 outline-none data-[state=open]:animate-[fade-in_150ms_ease-out]">
+          <span className="corner-tl" />
           <span className="corner-bl" />
           <span className="corner-br" />
           <Dialog.Title className="mb-4 text-[12px] uppercase tracking-wide">Upload Image</Dialog.Title>

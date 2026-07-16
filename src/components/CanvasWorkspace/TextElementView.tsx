@@ -217,6 +217,7 @@ export function TextElementView({ text }: { text: TextElement }) {
           }}
           aria-label="Open text tools"
         >
+          <span className="corner-tl" />
           <span className="corner-bl" />
           <span className="corner-br" />
           <span className="flex h-5 w-5 items-center justify-center">

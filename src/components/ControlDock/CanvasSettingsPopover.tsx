@@ -97,6 +97,7 @@ export function CanvasSettingsPopover() {
         aria-expanded={open}
         className="corner-frame glass-panel group relative flex h-9 items-center gap-2 px-3 text-[11px] uppercase tracking-wide transition-colors hover:border-accent/50 hover:text-accent"
       >
+        <span className="corner-tl" />
         <span className="corner-bl" />
         <span className="corner-br" />
         <span className="flex h-4 w-4 items-center justify-center">
@@ -107,6 +108,7 @@ export function CanvasSettingsPopover() {
 
       {open && (
         <div className="glass-panel corner-frame radial-appear absolute left-0 top-full z-40 mt-2 w-72 p-4">
+          <span className="corner-tl" />
           <span className="corner-bl" />
           <span className="corner-br" />
           <div className="flex flex-col gap-4">

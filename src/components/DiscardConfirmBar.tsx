@@ -10,6 +10,7 @@ export function DiscardConfirmBar() {
 
   return (
     <div className="radial-appear glass-panel corner-frame fixed left-1/2 top-10 z-[60] -translate-x-1/2 px-4 py-2.5">
+      <span className="corner-tl" />
       <span className="corner-bl" />
       <span className="corner-br" />
       <div className="flex items-center gap-3 text-[12px]">
