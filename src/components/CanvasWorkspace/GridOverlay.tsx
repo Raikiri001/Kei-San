@@ -42,7 +42,7 @@ export function GridOverlay({ width, height, cols, rows, nearestSnapNode }: Grid
       {nodes.map((node) => (
         <div
           key={`${node.x}-${node.y}`}
-          className="absolute rounded-full"
+          className="absolute"
           style={{
             mixBlendMode: "difference",
             background: "white",
@@ -56,7 +56,7 @@ export function GridOverlay({ width, height, cols, rows, nearestSnapNode }: Grid
       ))}
       {nearestSnapNode && (
         <div
-          className="absolute rounded-full"
+          className="absolute"
           style={{
             background: "var(--color-accent)",
             boxShadow: "0 0 10px 3px rgb(var(--color-accent-glow) / 0.7)",

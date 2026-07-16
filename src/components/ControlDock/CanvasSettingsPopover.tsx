@@ -106,7 +106,9 @@ export function CanvasSettingsPopover() {
       </button>
 
       {open && (
-        <div className="glass-panel cut-corner radial-appear absolute left-0 top-full z-40 mt-2 w-72 p-4">
+        <div className="glass-panel corner-frame radial-appear absolute left-0 top-full z-40 mt-2 w-72 p-4">
+          <span className="corner-bl" />
+          <span className="corner-br" />
           <div className="flex flex-col gap-4">
             <div>
               <div className="mb-2 text-[10px] uppercase tracking-wide opacity-60">Canvas Size</div>

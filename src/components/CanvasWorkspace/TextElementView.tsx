@@ -210,13 +210,15 @@ export function TextElementView({ text }: { text: TextElement }) {
           type="button"
           onClick={handlePencilClick}
           onPointerDown={(e) => e.stopPropagation()}
-          className="glass-panel absolute left-1/2 top-0 z-10 flex h-9 w-9 items-center justify-center rounded-full"
+          className="glass-panel corner-frame absolute left-1/2 top-0 z-10 flex h-9 w-9 items-center justify-center"
           style={{
             writingMode: "horizontal-tb",
             transform: `translate(-50%, -50%) translateY(-2rem) scale(${inverseScaleX}, ${inverseScaleY})`,
           }}
           aria-label="Open text tools"
         >
+          <span className="corner-bl" />
+          <span className="corner-br" />
           <span className="flex h-5 w-5 items-center justify-center">
             <PencilIcon />
           </span>

@@ -107,7 +107,7 @@ export function RadialMenu() {
       style={{ left: radialMenu.x, top: radialMenu.y }}
     >
       <div className="pointer-events-auto relative h-0 w-0">
-        <div className="glass-panel absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full" />
+        <div className="glass-panel absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45" />
         {/* Keyed by drill depth so drilling into/out of a group pill's submenu replays the pop-in. */}
         <div key={ringPath.length} className="radial-appear absolute inset-0">
           {items.map((item, idx) => (
@@ -138,9 +138,11 @@ export function RadialMenu() {
             transition={
               prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 32 }
             }
-            className="glass-panel cut-corner pointer-events-auto fixed z-10 max-h-[min(70vh,520px)] -translate-x-1/2 overflow-y-auto p-3"
+            className="glass-panel corner-frame pointer-events-auto fixed z-10 max-h-[min(70vh,520px)] -translate-x-1/2 overflow-y-auto p-3"
             style={{ left: radialMenu.x, top: popoverTop }}
           >
+            <span className="corner-bl" />
+            <span className="corner-br" />
             {openPopoverItem.popoverContent}
           </motion.div>
         )}

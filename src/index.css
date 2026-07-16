@@ -2,36 +2,34 @@
 
 @theme {
   --font-mono: "JetBrains Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
+  --font-display: "Chakra Petch", "JetBrains Mono", sans-serif;
   --color-accent: #0ea5ff;
   --color-accent-dim: #0a6fb0;
 }
 
+/* Gundam signal-light system: one shared blue/yellow/green/red accent quartet
+   used identically in both themes (no more per-theme accent hue swap) — blue
+   is the primary interactive/focus accent, green/yellow/red are reserved for
+   genuine semantic moments (success, caution/high-emphasis, destructive) so
+   they read as panel signal lights rather than a full repaint. */
 :root {
   color-scheme: dark;
   --chrome-bg: 20 22 26;
-  --chrome-glass: 255 255 255;
-  --chrome-border: 255 255 255;
+  --chrome-border: 140 170 210;
   --chrome-text: 226 232 236;
   --chrome-text-dim: 138 148 156;
   --status-active: #3ddc84;
-  --status-moderate: #f2b84b;
-  --status-inactive: #ef5a5a;
-  /* Neon accent: blue in dark mode, red in light mode (set below). Kept as raw
-     "r g b" triplets (matching --chrome-* above) so utilities can compose their
-     own alpha via rgb(var(--x) / <alpha>) instead of baking opacity into the token. */
+  --status-moderate: #f4c430;
+  --status-inactive: #e8384a;
   --color-accent-glow: 56 189 248;
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --chrome-bg: 238 240 242;
-  --chrome-glass: 20 22 26;
-  --chrome-border: 20 22 26;
+  --chrome-bg: 250 250 252;
+  --chrome-border: 40 70 120;
   --chrome-text: 20 22 26;
   --chrome-text-dim: 90 98 106;
-  --color-accent: #ff2244;
-  --color-accent-dim: #b0102c;
-  --color-accent-glow: 255 84 112;
 }
 
 html,
@@ -49,19 +47,17 @@ body {
   overflow: hidden;
 }
 
-/* Glass panel: frosted translucent surface used by dock / radial menu / drawer.
-   Background/border alpha and the drop shadow are deliberately strong enough to
-   stay legible even when the canvas background happens to be a similar tone —
-   backdrop-blur alone isn't enough separation when both sides are dark (or both
-   light). */
+/* HUD armor panel: solid, near-opaque cockpit-plating surface used by dock /
+   radial menu / drawer. No blur, no translucency — text and controls must stay
+   fully legible regardless of what's behind them (canvas imagery, other
+   panels), which glassmorphism's read-through can't guarantee. */
 .glass-panel {
-  background: rgb(var(--chrome-glass) / 0.18);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
-  border: 1px solid rgb(var(--chrome-border) / 0.28);
+  background: rgb(var(--chrome-bg) / 0.97);
+  border: 1px solid rgb(var(--chrome-border) / 0.45);
   box-shadow:
-    0 8px 30px rgb(0 0 0 / 0.35),
-    0 1px 2px rgb(0 0 0 / 0.4);
+    inset 0 1px 0 rgb(var(--chrome-text) / 0.06),
+    0 8px 24px rgb(0 0 0 / 0.4),
+    0 1px 2px rgb(0 0 0 / 0.5);
 }
 
 /* Corner-bracket frame: four tick marks instead of a full border rectangle */
@@ -75,33 +71,33 @@ body {
 .corner-frame > .corner-br {
   content: "";
   position: absolute;
-  width: 10px;
-  height: 10px;
+  width: 14px;
+  height: 14px;
   pointer-events: none;
 }
 .corner-frame::before {
   top: -1px;
   left: -1px;
-  border-top: 1.5px solid rgb(var(--chrome-border) / 0.55);
-  border-left: 1.5px solid rgb(var(--chrome-border) / 0.55);
+  border-top: 2px solid rgb(var(--chrome-border) / 0.75);
+  border-left: 2px solid rgb(var(--chrome-border) / 0.75);
 }
 .corner-frame::after {
   top: -1px;
   right: -1px;
-  border-top: 1.5px solid rgb(var(--chrome-border) / 0.55);
-  border-right: 1.5px solid rgb(var(--chrome-border) / 0.55);
+  border-top: 2px solid rgb(var(--chrome-border) / 0.75);
+  border-right: 2px solid rgb(var(--chrome-border) / 0.75);
 }
 .corner-frame > .corner-bl {
   bottom: -1px;
   left: -1px;
-  border-bottom: 1.5px solid rgb(var(--chrome-border) / 0.55);
-  border-left: 1.5px solid rgb(var(--chrome-border) / 0.55);
+  border-bottom: 2px solid rgb(var(--chrome-border) / 0.75);
+  border-left: 2px solid rgb(var(--chrome-border) / 0.75);
 }
 .corner-frame > .corner-br {
   bottom: -1px;
   right: -1px;
-  border-bottom: 1.5px solid rgb(var(--chrome-border) / 0.55);
-  border-right: 1.5px solid rgb(var(--chrome-border) / 0.55);
+  border-bottom: 2px solid rgb(var(--chrome-border) / 0.75);
+  border-right: 2px solid rgb(var(--chrome-border) / 0.75);
 }
 
 ::selection {
@@ -149,21 +145,7 @@ body {
   border-radius: 4px;
 }
 
-/* --- Cyberpunk accent utilities -------------------------------------------- */
-
-/* Diagonal-cut-corner variant of .corner-frame's L-brackets, for larger container
-   panels only (toolbar, radial popovers) — not every small pill, which would
-   read as visual noise at that density. */
-.cut-corner {
-  clip-path: polygon(
-    14px 0%,
-    100% 0%,
-    100% calc(100% - 14px),
-    calc(100% - 14px) 100%,
-    0% 100%,
-    0% 14px
-  );
-}
+/* --- HUD accent utilities --------------------------------------------------- */
 
 /* Bolder neon glow than the flat corner-frame border, for hover/press/active
    accent states — reuses --color-accent-glow so it stays on-theme in both modes. */

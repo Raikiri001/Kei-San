@@ -21,7 +21,7 @@ export function DesignCard({
   onDelete: () => void;
 }) {
   return (
-    <div className="corner-frame glass-panel group relative overflow-hidden rounded-lg">
+    <div className="corner-frame glass-panel group relative overflow-hidden">
       <span className="corner-bl" />
       <span className="corner-br" />
       <button type="button" onClick={onSelect} className="block w-full text-left">
@@ -40,7 +40,7 @@ export function DesignCard({
         // Fixed neutral backdrop (not a --chrome-* token) is intentional: it sits over an
         // arbitrary user thumbnail image, not chrome, so it needs to stay legible against any
         // image content regardless of theme.
-        className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
+        className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
       >
         <DeleteIcon />
       </button>

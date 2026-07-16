@@ -168,7 +168,7 @@ export function ColorWheelPicker({ value, onChange }: ColorWheelPickerProps) {
 
       <div className="flex w-full items-end justify-center gap-1.5">
         <span
-          className="mb-1 h-7 w-7 shrink-0 rounded-full border border-[rgb(var(--chrome-border)/0.25)]"
+          className="mb-1 h-7 w-7 shrink-0 border border-[rgb(var(--chrome-border)/0.25)]"
           style={{ background: hex }}
         />
         <LabeledField label="Hex">

@@ -21,7 +21,7 @@ interface IconPillProps {
 
 const pillClass = (active?: boolean, wide?: boolean) =>
   clsx(
-    "glass-panel accent-glow-hover press-sweep flex h-11 items-center gap-2 overflow-hidden rounded-full px-3",
+    "glass-panel corner-frame accent-glow-hover press-sweep flex h-11 items-center gap-2 overflow-hidden px-3",
     "transition-[max-width,background-color] duration-150 ease-out",
     wide
       ? "max-w-11 group-hover:max-w-[280px] focus-within:max-w-[280px]"
@@ -45,6 +45,8 @@ export function IconPill({ icon, label, x, y, onClick, active, expandedContent, 
   // and browsers silently break out of them, corrupting the layout.
   const content = expandedContent ? (
     <div className={pillClass(active, wide)}>
+      <span className="corner-bl" />
+      <span className="corner-br" />
       <span className="flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>
       <span className={labelClass}>{label}</span>
       <span className={clsx(labelClass, "flex items-center")} onPointerDown={(e) => e.stopPropagation()}>
@@ -53,6 +55,8 @@ export function IconPill({ icon, label, x, y, onClick, active, expandedContent, 
     </div>
   ) : (
     <button type="button" onClick={onClick} className={pillClass(active, wide)}>
+      <span className="corner-bl" />
+      <span className="corner-br" />
       <span className="flex h-5 w-5 shrink-0 items-center justify-center">{icon}</span>
       <span className={labelClass}>{label}</span>
     </button>

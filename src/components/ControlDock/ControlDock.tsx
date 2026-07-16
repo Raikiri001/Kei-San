@@ -72,11 +72,44 @@ export function ControlDock() {
   }
 
   return (
-    <div className="glass-panel cut-corner pointer-events-auto relative flex flex-wrap items-end gap-3 px-5 py-3">
-      <span className="pb-1 text-[15px] font-semibold tracking-wide" style={{ color: "var(--color-accent)" }}>
-        景さん
-      </span>
-      <div className="mx-1 h-9 w-px" style={{ background: "rgb(var(--chrome-border) / 0.2)" }} />
+    <div className="pointer-events-auto relative flex flex-wrap items-end gap-3 px-5 py-3">
+      {/* Decorative backdrop, not the content box: a clip-path'd element clips
+          its whole rendered subtree, including children that intentionally
+          escape via absolute positioning (Canvas Settings' dropdown). Keeping
+          glass-panel/corner-frame on this separate -z-10 layer instead of the
+          real content wrapper is what lets that dropdown render past the
+          toolbar's own bottom edge instead of being clipped away to nothing. */}
+      <div className="glass-panel corner-frame absolute inset-0 -z-10">
+        <span className="corner-bl" />
+        <span className="corner-br" />
+      </div>
+      <div className="flex flex-col justify-center pb-1 pr-1">
+        <span className="flex items-baseline gap-1">
+          <span
+            className="text-[28px] font-black leading-none"
+            style={{
+              fontFamily: '"Noto Sans JP", sans-serif',
+              color: "var(--color-accent)",
+              textShadow: "0 0 16px rgb(var(--color-accent-glow) / 0.5)",
+            }}
+          >
+            景
+          </span>
+          <span
+            className="text-[15px] font-semibold leading-none opacity-80"
+            style={{ fontFamily: '"Noto Sans JP", sans-serif' }}
+          >
+            さん
+          </span>
+        </span>
+        <span
+          className="mt-[3px] text-[9px] font-semibold uppercase leading-none tracking-[0.25em] opacity-60"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          Kei · San
+        </span>
+      </div>
+      <div className="mx-1 h-12 w-px" style={{ background: "rgb(var(--chrome-border) / 0.2)" }} />
 
       <DockField label="Project">
         <input

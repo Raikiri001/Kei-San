@@ -12,7 +12,7 @@ function App() {
         <CanvasWorkspace />
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 top-6 z-30 flex justify-center px-4">
+      <div className="pointer-events-none absolute inset-x-0 top-10 z-30 flex justify-center px-4">
         <ControlDock />
       </div>
 

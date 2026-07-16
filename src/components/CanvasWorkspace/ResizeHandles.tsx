@@ -88,7 +88,7 @@ export function ResizeHandles({
         }}
         onPointerDown={(e) => e.stopPropagation()}
         title={aspectLocked ? "Aspect ratio locked" : "Aspect ratio unlocked (hold Shift to lock temporarily)"}
-        className={`glass-panel absolute left-1/2 top-full z-10 flex h-6 w-6 items-center justify-center rounded-full ${
+        className={`glass-panel absolute left-1/2 top-full z-10 flex h-6 w-6 items-center justify-center ${
           aspectLocked ? "border-accent/70 text-accent" : "opacity-70 hover:opacity-100"
         }`}
         style={{ transform: `translate(-50%, 0.5rem) scale(${counterScaleX}, ${counterScaleY})` }}
@@ -142,7 +142,7 @@ function ResizeHandle({
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      className={`glass-panel border-accent/60 handle-pop absolute z-10 h-2.5 w-2.5 touch-none rounded-full ${position}`}
+      className={`glass-panel border-accent/60 handle-pop absolute z-10 h-2.5 w-2.5 touch-none ${position}`}
       style={{
         cursor,
         transform: `translate(-50%, -50%) scale(${counterScaleX}, ${counterScaleY})`,
