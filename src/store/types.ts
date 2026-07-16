@@ -27,12 +27,16 @@ export interface ImageElement {
 
 export type TextOrientation = "horizontal" | "vertical";
 
+/** Horizontal alignment of wrapped/multi-line content within the text box — no effect on vertical orientation. */
+export type TextAlign = "left" | "center" | "right" | "justify";
+
 export interface TextElement {
   id: string;
   content: string;
   fontFamily: FontFamilyKey;
   fontSize: number;
   orientation: TextOrientation;
+  align: TextAlign;
   color: string;
   /** Center-anchored, true canvas px */
   x: number;

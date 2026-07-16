@@ -1,19 +1,77 @@
 import { FONT_STACKS } from "@/constants/fonts";
 import { loadImage } from "@/utils/fileToDataUrl";
 import { computeCoverSourceRect } from "@/utils/coverFit";
-import type { ImageElement, ProjectState, TextElement } from "@/store/types";
+import type { ImageElement, ProjectState, TextAlign, TextElement } from "@/store/types";
 import { drawVerticalText } from "@/canvas/verticalText";
 import { drawHalftone, resolveInkColor } from "@/canvas/halftone";
 import { drawEdgeGlow, getEdgeAverageColor } from "@/canvas/edgeBlend";
 import { edgeColorCache } from "@/canvas/analysisCaches";
 
-/** `ctx.fillText` ignores "\n", so multi-line paragraphs need each line drawn separately. */
-function drawMultilineText(ctx: CanvasRenderingContext2D, content: string, x: number, y: number, fontSize: number) {
+/** Left-aligns words within `width`, stretching inter-word gaps so the line's edges land
+ * flush at both ends — canvas has no native "justify", so this distributes the leftover
+ * space by hand. Single-word lines (nothing to stretch) and the last line of a paragraph
+ * (standard typographic convention: the final line stays ragged, not stretched) fall back
+ * to a plain left-aligned draw instead. */
+function drawJustifiedLine(
+  ctx: CanvasRenderingContext2D,
+  line: string,
+  leftX: number,
+  y: number,
+  width: number,
+  isLastLine: boolean,
+) {
+  const words = line.split(" ").filter(Boolean);
+  if (words.length <= 1 || isLastLine) {
+    ctx.textAlign = "left";
+    ctx.fillText(line, leftX, y);
+    return;
+  }
+  const wordsWidth = words.reduce((sum, word) => sum + ctx.measureText(word).width, 0);
+  const gap = (width - wordsWidth) / (words.length - 1);
+  ctx.textAlign = "left";
+  let cursorX = leftX;
+  words.forEach((word) => {
+    ctx.fillText(word, cursorX, y);
+    cursorX += ctx.measureText(word).width + gap;
+  });
+}
+
+/** `ctx.fillText` ignores "\n", so multi-line paragraphs need each line drawn separately.
+ * `x` is the box's own center (matching the DOM preview's centered box); left/right/justify
+ * measure the widest line to find that box's edges, so short lines align against the same
+ * edge a browser would wrap them to, not against the anchor point itself. */
+function drawMultilineText(
+  ctx: CanvasRenderingContext2D,
+  content: string,
+  x: number,
+  y: number,
+  fontSize: number,
+  align: TextAlign,
+) {
   const lines = content.split("\n");
   const lineHeight = fontSize * 1.2;
   const totalHeight = lineHeight * Math.max(lines.length - 1, 0);
   const startY = y - totalHeight / 2;
-  lines.forEach((line, idx) => ctx.fillText(line, x, startY + idx * lineHeight));
+
+  if (align === "center") {
+    ctx.textAlign = "center";
+    lines.forEach((line, idx) => ctx.fillText(line, x, startY + idx * lineHeight));
+    return;
+  }
+
+  const maxWidth = Math.max(...lines.map((line) => ctx.measureText(line).width));
+  const leftX = x - maxWidth / 2;
+
+  if (align === "justify") {
+    lines.forEach((line, idx) =>
+      drawJustifiedLine(ctx, line, leftX, startY + idx * lineHeight, maxWidth, idx === lines.length - 1),
+    );
+    return;
+  }
+
+  ctx.textAlign = align === "left" ? "left" : "right";
+  const anchorX = align === "left" ? leftX : x + maxWidth / 2;
+  lines.forEach((line, idx) => ctx.fillText(line, anchorX, startY + idx * lineHeight));
 }
 
 type OrderedElement = { kind: "image"; el: ImageElement } | { kind: "text"; el: TextElement };
@@ -86,7 +144,7 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
       if (text.orientation === "vertical") {
         drawVerticalText(ctx, text.content, text.x, text.y, text.fontSize);
       } else {
-        drawMultilineText(ctx, text.content, text.x, text.y, text.fontSize);
+        drawMultilineText(ctx, text.content, text.x, text.y, text.fontSize, text.align);
       }
     }
   }

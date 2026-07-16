@@ -4,7 +4,8 @@ import { DOT_PITCH } from "@/canvas/halftone";
 import { resolveDefaultMargin } from "@/canvas/edgeBlend";
 import type { ImageElement, ProjectState, SavedDesign, TextElement } from "@/store/types";
 
-type LegacyTextElement = Omit<TextElement, "scaleX" | "scaleY"> & Partial<Pick<TextElement, "scaleX" | "scaleY">>;
+type LegacyTextElement = Omit<TextElement, "scaleX" | "scaleY" | "align"> &
+  Partial<Pick<TextElement, "scaleX" | "scaleY" | "align">>;
 
 /** Legacy (pre-multi-image / pre-Phase-3 / pre-scaleX-scaleY) shape a SavedDesign may have been persisted as. */
 interface LegacySavedDesign extends Omit<SavedDesign, "images" | "texts"> {
@@ -35,6 +36,7 @@ function normalizeDesign(raw: LegacySavedDesign): SavedDesign {
     ...txt,
     scaleX: txt.scaleX ?? 1,
     scaleY: txt.scaleY ?? 1,
+    align: txt.align ?? ("center" as const),
     zIndex: txt.zIndex ?? cursor++,
   }));
 

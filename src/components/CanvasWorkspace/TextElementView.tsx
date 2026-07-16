@@ -13,6 +13,13 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
+const ALIGN_CLASS: Record<TextElement["align"], string> = {
+  left: "text-left",
+  center: "text-center",
+  right: "text-right",
+  justify: "text-justify",
+};
+
 export function TextElementView({ text }: { text: TextElement }) {
   const width = useProjectStore((s) => s.project.width);
   const height = useProjectStore((s) => s.project.height);
@@ -176,7 +183,7 @@ export function TextElementView({ text }: { text: TextElement }) {
       ref={wrapperRef}
       data-radial-context="text"
       {...dragHandlers}
-      className="absolute max-w-[80vw] touch-none whitespace-pre-wrap text-center"
+      className={`absolute max-w-[80vw] touch-none whitespace-pre-wrap ${ALIGN_CLASS[text.align]}`}
       style={{
         left: 0,
         top: 0,
@@ -210,10 +217,18 @@ export function TextElementView({ text }: { text: TextElement }) {
           type="button"
           onClick={handlePencilClick}
           onPointerDown={(e) => e.stopPropagation()}
-          className="glass-panel corner-frame absolute left-1/2 top-0 z-10 flex h-9 w-9 items-center justify-center"
+          className="glass-panel corner-frame accent-glow-hover absolute left-1/2 top-0 z-10 flex h-11 w-11 items-center justify-center"
           style={{
             writingMode: "horizontal-tb",
-            transform: `translate(-50%, -50%) translateY(-2rem) scale(${inverseScaleX}, ${inverseScaleY})`,
+            // Counter-scales against the ambient canvas zoom in addition to the text's
+            // own stretch (inverseScaleX/Y alone only undid the latter), so this stays a
+            // fixed, comfortable hit target on screen instead of shrinking down to a
+            // near-unclickable speck whenever the canvas is zoomed out. scale() is placed
+            // before translateY so the -2rem gap is corrected by the same factor as the
+            // button's own size — translateY (rightmost) applies first, then scale, then
+            // the self-centering translate — keeping the button a constant offset above
+            // the text too, not just a constant size.
+            transform: `translate(-50%, -50%) scale(${inverseScaleX / zoom}, ${inverseScaleY / zoom}) translateY(-2rem)`,
           }}
           aria-label="Open text tools"
         >

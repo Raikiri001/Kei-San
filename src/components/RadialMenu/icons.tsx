@@ -115,6 +115,38 @@ export function SizeIcon() {
   );
 }
 
+export function AlignLeftIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M4 5.5h12M4 10h8M4 14.5h10" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function AlignCenterIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M4 5.5h12M6 10h8M5 14.5h10" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function AlignRightIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M4 5.5h12M8 10h8M6 14.5h10" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function AlignJustifyIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M4 5.5h12M4 10h12M4 14.5h12" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function TextContentIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">

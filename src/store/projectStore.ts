@@ -170,6 +170,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       fontFamily: "sans",
       fontSize: DEFAULT_FONT_SIZE,
       orientation: "horizontal",
+      align: "center",
       color: "#f5f5f5",
       x: project.width / 2 + cascade * 48,
       y: project.height / 2 + cascade * 36,

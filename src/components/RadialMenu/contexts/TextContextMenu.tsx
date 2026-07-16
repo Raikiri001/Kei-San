@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import clsx from "clsx";
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
 import { useDraftNumber } from "@/hooks/useDraftNumber";
@@ -8,6 +9,10 @@ import { colorSuggestionsCache } from "@/canvas/analysisCaches";
 import { numberInputClass } from "@/components/RadialMenu/inputStyles";
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "@/constants/defaults";
 import {
+  AlignCenterIcon,
+  AlignJustifyIcon,
+  AlignLeftIcon,
+  AlignRightIcon,
   BringForwardIcon,
   BringToFrontIcon,
   DeleteIcon,
@@ -22,6 +27,22 @@ import {
 } from "@/components/RadialMenu/icons";
 import { ColorPickerPanel } from "@/components/RadialMenu/contexts/ColorPickerPanel";
 import type { RingItem } from "@/components/RadialMenu/RadialMenu";
+import type { TextAlign } from "@/store/types";
+
+const ALIGN_OPTIONS: { value: TextAlign; label: string; Icon: () => React.ReactElement }[] = [
+  { value: "left", label: "Left", Icon: AlignLeftIcon },
+  { value: "center", label: "Center", Icon: AlignCenterIcon },
+  { value: "right", label: "Right", Icon: AlignRightIcon },
+  { value: "justify", label: "Justify", Icon: AlignJustifyIcon },
+];
+
+/** Renders the icon matching the current alignment, so the collapsed pill itself
+ * previews the active state instead of a static icon (unlike font-family/orientation,
+ * which only vary their label — alignment has an obvious visual per state worth reusing). */
+function AlignIconFor({ value }: { value: TextAlign }) {
+  const Icon = ALIGN_OPTIONS.find((o) => o.value === value)?.Icon ?? AlignLeftIcon;
+  return <Icon />;
+}
 
 export function useTextContextItems(targetId: string | null): RingItem[] {
   const text = useProjectStore((s) => s.project.texts.find((t) => t.id === targetId));
@@ -80,6 +101,37 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
       onClick: () =>
         updateText(id, { orientation: text.orientation === "horizontal" ? "vertical" : "horizontal" }),
     },
+    ...(text.orientation === "horizontal"
+      ? [
+          {
+            key: "align",
+            icon: <AlignIconFor value={text.align} />,
+            label: ALIGN_OPTIONS.find((o) => o.value === text.align)?.label ?? "Align",
+            wide: true,
+            expandedContent: (
+              <span className="flex items-center gap-1">
+                {ALIGN_OPTIONS.map(({ value, label, Icon }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => updateText(id, { align: value })}
+                    aria-label={`Align ${label}`}
+                    aria-pressed={text.align === value}
+                    className={clsx(
+                      "flex h-5 w-5 items-center justify-center rounded border",
+                      text.align === value
+                        ? "border-accent/70 text-accent"
+                        : "border-[rgb(var(--chrome-border)/0.2)]",
+                    )}
+                  >
+                    <Icon />
+                  </button>
+                ))}
+              </span>
+            ),
+          } satisfies RingItem,
+        ]
+      : []),
     {
       key: "size",
       icon: <SizeIcon />,
