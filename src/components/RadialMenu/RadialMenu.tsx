@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { motion, useReducedMotion } from "motion/react";
 import { useUIStore } from "@/store/uiStore";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { getRingPositions } from "@/components/RadialMenu/ring-layout";
@@ -28,12 +29,34 @@ export interface RingItem {
   subItems?: RingItem[];
 }
 
+/**
+ * Walks `rootItems` by key through `path`, descending into each matched item's
+ * `subItems`, and returns the live subItems array at the end of the path (or
+ * `rootItems` itself for an empty path). Re-run every render off the current
+ * (freshly computed) rootItems — never cache the resolved array in state — so
+ * a drilled-in submenu always reflects live store data instead of a stale
+ * snapshot from the moment the user drilled in.
+ */
+function resolveActiveItems(rootItems: RingItem[], path: string[]): RingItem[] {
+  let items = rootItems;
+  for (const key of path) {
+    const match = items.find((item) => item.key === key);
+    if (!match?.subItems) return items;
+    items = match.subItems;
+  }
+  return items;
+}
+
 export function RadialMenu() {
   const radialMenu = useUIStore((s) => s.radialMenu);
   const closeRadialMenu = useUIStore((s) => s.closeRadialMenu);
   const rootRef = useRef<HTMLDivElement>(null);
   const [openPopoverKey, setOpenPopoverKey] = useState<string | null>(null);
-  const [ringStack, setRingStack] = useState<RingItem[][]>([]);
+  // Path of group-pill keys drilled into so far (not the item arrays themselves —
+  // see resolveActiveItems above for why storing live keys instead of a snapshot
+  // is what keeps drilled-in toggles in sync with the store).
+  const [ringPath, setRingPath] = useState<string[]>([]);
+  const prefersReducedMotion = useReducedMotion();
 
   const canvasItems = useCanvasContextItems();
   const imageItems = useImageContextItems(radialMenu?.targetId ?? null);
@@ -45,7 +68,7 @@ export function RadialMenu() {
   // inherit a popover or a drilled-into submenu left over from a previous one.
   useEffect(() => {
     setOpenPopoverKey(null);
-    setRingStack([]);
+    setRingPath([]);
   }, [radialMenu?.open, radialMenu?.targetId, radialMenu?.context]);
 
   if (!radialMenu?.open) return null;
@@ -53,14 +76,14 @@ export function RadialMenu() {
   const rootItems =
     radialMenu.context === "canvas" ? canvasItems : radialMenu.context === "image" ? imageItems : textItems;
 
-  const activeItems = ringStack.length ? ringStack[ringStack.length - 1] : rootItems;
+  const activeItems = resolveActiveItems(rootItems, ringPath);
   const backItem: RingItem = {
     key: "__back",
     icon: <BackChevronIcon />,
     label: "Back",
-    onClick: () => setRingStack((s) => s.slice(0, -1)),
+    onClick: () => setRingPath((p) => p.slice(0, -1)),
   };
-  const items = ringStack.length ? [backItem, ...activeItems] : activeItems;
+  const items = ringPath.length ? [backItem, ...activeItems] : activeItems;
 
   const positions = getRingPositions(items.length);
   const openPopoverItem = items.find((item) => item.key === openPopoverKey && item.popoverContent);
@@ -86,7 +109,7 @@ export function RadialMenu() {
       <div className="pointer-events-auto relative h-0 w-0">
         <div className="glass-panel absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full" />
         {/* Keyed by drill depth so drilling into/out of a group pill's submenu replays the pop-in. */}
-        <div key={ringStack.length} className="radial-appear absolute inset-0">
+        <div key={ringPath.length} className="radial-appear absolute inset-0">
           {items.map((item, idx) => (
             <IconPill
               key={item.key}
@@ -95,7 +118,7 @@ export function RadialMenu() {
               active={item.active || openPopoverKey === item.key || (!!item.subItems && item.subItems.some((si) => si.active))}
               onClick={
                 item.subItems
-                  ? () => setRingStack((s) => [...s, item.subItems!])
+                  ? () => setRingPath((p) => [...p, item.key])
                   : item.popoverContent
                     ? () => setOpenPopoverKey((k) => (k === item.key ? null : item.key))
                     : item.onClick
@@ -104,18 +127,22 @@ export function RadialMenu() {
               wide={item.wide}
               x={positions[idx].x}
               y={positions[idx].y}
+              popDelay={idx * 0.035}
             />
           ))}
         </div>
         {openPopoverItem && (
-          <div
-            className="glass-panel corner-frame radial-appear pointer-events-auto fixed z-10 max-h-[min(70vh,520px)] -translate-x-1/2 overflow-y-auto p-3"
+          <motion.div
+            initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.9, y: -6 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={
+              prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 32 }
+            }
+            className="glass-panel cut-corner pointer-events-auto fixed z-10 max-h-[min(70vh,520px)] -translate-x-1/2 overflow-y-auto p-3"
             style={{ left: radialMenu.x, top: popoverTop }}
           >
-            <span className="corner-bl" />
-            <span className="corner-br" />
             {openPopoverItem.popoverContent}
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

@@ -33,6 +33,9 @@ export function DesignsDrawer() {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
+        {/* Fixed neutral scrim (not a --chrome-* token) is intentional: its job is
+            universal page-dimming behind the drawer regardless of theme — tokenizing it
+            to the light theme's near-white --chrome-bg would make it disappear. */}
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] data-[state=open]:animate-[fade-in_150ms_ease-out]" />
         <Dialog.Content
           className="glass-panel corner-frame fixed right-0 top-0 z-50 h-full w-[320px] overflow-y-auto p-4 shadow-2xl outline-none data-[state=open]:animate-[slide-in-right_200ms_ease-out]"

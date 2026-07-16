@@ -4,11 +4,13 @@ import { DOT_PITCH } from "@/canvas/halftone";
 import { resolveDefaultMargin } from "@/canvas/edgeBlend";
 import type { ImageElement, ProjectState, SavedDesign, TextElement } from "@/store/types";
 
-/** Legacy (pre-multi-image / pre-Phase-3) shape a SavedDesign may have been persisted as. */
+type LegacyTextElement = Omit<TextElement, "scaleX" | "scaleY"> & Partial<Pick<TextElement, "scaleX" | "scaleY">>;
+
+/** Legacy (pre-multi-image / pre-Phase-3 / pre-scaleX-scaleY) shape a SavedDesign may have been persisted as. */
 interface LegacySavedDesign extends Omit<SavedDesign, "images" | "texts"> {
   images?: ImageElement[];
   image?: ImageElement | null;
-  texts?: TextElement[];
+  texts?: LegacyTextElement[];
 }
 
 /** Migrates any older saved entry forward so old localStorage data never crashes the app. */
@@ -31,6 +33,8 @@ function normalizeDesign(raw: LegacySavedDesign): SavedDesign {
   }));
   const texts = rawTexts.map((txt) => ({
     ...txt,
+    scaleX: txt.scaleX ?? 1,
+    scaleY: txt.scaleY ?? 1,
     zIndex: txt.zIndex ?? cursor++,
   }));
 

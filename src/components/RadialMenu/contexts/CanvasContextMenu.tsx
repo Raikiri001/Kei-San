@@ -5,13 +5,14 @@ import { getColorSuggestions } from "@/canvas/colorExtraction";
 import { colorSuggestionsCache } from "@/canvas/analysisCaches";
 import { PaletteIcon } from "@/components/RadialMenu/icons";
 import { ColorPickerPanel } from "@/components/RadialMenu/contexts/ColorPickerPanel";
+import type { SuggestionGroup } from "@/components/RadialMenu/contexts/ColorSwatchPanel";
 import type { RingItem } from "@/components/RadialMenu/RadialMenu";
 
 /**
- * Picking a background color here — rather than from an image's own tool menu —
- * makes the association explicit: every uploaded image gets its own entry with
- * its 3 suggested color groups, so it's clear which image a suggestion came from
- * and that choosing one sets the canvas background (not the image itself).
+ * A single "Background" ring item now carries every uploaded image's suggested
+ * palette (each as its own labeled group inside the one panel) instead of a
+ * separate ring pill per image — one place to both browse suggestions and pick a
+ * custom color for the canvas background.
  */
 export function useCanvasContextItems(): RingItem[] {
   const backgroundColor = useProjectStore((s) => s.project.backgroundColor);
@@ -44,25 +45,21 @@ export function useCanvasContextItems(): RingItem[] {
     };
   }, [images]);
 
-  const items: RingItem[] = [
+  const suggestionGroups: SuggestionGroup[] = images
+    .map((image, idx) => {
+      const suggestions = colorSuggestionsCache.get(image.dataUrl);
+      return suggestions ? { label: `Img ${idx + 1}`, suggestions } : null;
+    })
+    .filter((g): g is SuggestionGroup => g !== null);
+
+  return [
     {
       key: "background",
       icon: <PaletteIcon />,
       label: "Background",
-      popoverContent: <ColorPickerPanel suggestions={null} value={backgroundColor} onChange={setBackgroundColor} />,
+      popoverContent: (
+        <ColorPickerPanel suggestionGroups={suggestionGroups} value={backgroundColor} onChange={setBackgroundColor} />
+      ),
     },
   ];
-
-  images.forEach((image, idx) => {
-    const suggestions = colorSuggestionsCache.get(image.dataUrl);
-    if (!suggestions) return;
-    items.push({
-      key: `bg-from-image-${image.id}`,
-      icon: <img src={image.dataUrl} alt="" className="h-full w-full rounded-full object-cover" />,
-      label: `Image ${idx + 1}`,
-      popoverContent: <ColorPickerPanel suggestions={suggestions} value={backgroundColor} onChange={setBackgroundColor} />,
-    });
-  });
-
-  return items;
 }

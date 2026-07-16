@@ -37,6 +37,9 @@ export function DesignCard({
         type="button"
         onClick={onDelete}
         aria-label="Delete design"
+        // Fixed neutral backdrop (not a --chrome-* token) is intentional: it sits over an
+        // arbitrary user thumbnail image, not chrome, so it needs to stay legible against any
+        // image content regardless of theme.
         className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
       >
         <DeleteIcon />

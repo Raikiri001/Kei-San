@@ -17,7 +17,7 @@ export function DiscardConfirmBar() {
         <button
           type="button"
           onClick={cancelDiscard}
-          className="rounded border border-white/20 px-2 py-1 uppercase tracking-wide opacity-80 hover:opacity-100"
+          className="rounded border border-[rgb(var(--chrome-border)/0.2)] px-2 py-1 uppercase tracking-wide opacity-80 hover:opacity-100"
         >
           Cancel
         </button>

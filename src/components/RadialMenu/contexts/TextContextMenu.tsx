@@ -6,6 +6,7 @@ import { useLoadedImage } from "@/hooks/useLoadedImage";
 import { getColorSuggestions } from "@/canvas/colorExtraction";
 import { colorSuggestionsCache } from "@/canvas/analysisCaches";
 import { numberInputClass } from "@/components/RadialMenu/inputStyles";
+import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "@/constants/defaults";
 import {
   BringForwardIcon,
   BringToFrontIcon,
@@ -21,9 +22,6 @@ import {
 } from "@/components/RadialMenu/icons";
 import { ColorPickerPanel } from "@/components/RadialMenu/contexts/ColorPickerPanel";
 import type { RingItem } from "@/components/RadialMenu/RadialMenu";
-
-const FONT_SIZE_MIN = 12;
-const FONT_SIZE_MAX = 400;
 
 export function useTextContextItems(targetId: string | null): RingItem[] {
   const text = useProjectStore((s) => s.project.texts.find((t) => t.id === targetId));
@@ -92,14 +90,14 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
           <button
             type="button"
             onClick={() => updateText(id, { fontSize: Math.max(FONT_SIZE_MIN, text.fontSize - 8) })}
-            className="flex h-5 w-5 items-center justify-center rounded border border-white/20"
+            className="flex h-5 w-5 items-center justify-center rounded border border-[rgb(var(--chrome-border)/0.2)]"
           >
             −
           </button>
           <button
             type="button"
             onClick={() => updateText(id, { fontSize: Math.min(FONT_SIZE_MAX, text.fontSize + 8) })}
-            className="flex h-5 w-5 items-center justify-center rounded border border-white/20"
+            className="flex h-5 w-5 items-center justify-center rounded border border-[rgb(var(--chrome-border)/0.2)]"
           >
             +
           </button>
@@ -137,7 +135,11 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
       icon: <PaletteIcon />,
       label: "Colors",
       popoverContent: (
-        <ColorPickerPanel suggestions={suggestions} value={text.color} onChange={(color) => updateText(id, { color })} />
+        <ColorPickerPanel
+          suggestionGroups={[{ label: "Suggested", suggestions }]}
+          value={text.color}
+          onChange={(color) => updateText(id, { color })}
+        />
       ),
     });
   }

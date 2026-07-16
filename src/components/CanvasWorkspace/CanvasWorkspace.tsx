@@ -6,8 +6,18 @@ import { GridOverlay } from "@/components/CanvasWorkspace/GridOverlay";
 import { RulerOverlay } from "@/components/CanvasWorkspace/RulerOverlay";
 import { ImageElementView } from "@/components/CanvasWorkspace/ImageElementView";
 import { TextElementView } from "@/components/CanvasWorkspace/TextElementView";
+import { HandIcon } from "@/components/RadialMenu/icons";
+import clsx from "clsx";
 
 const TAP_THRESHOLD_PX = 4;
+
+/** True when the given element is a text input/textarea/contentEditable region —
+ * Space must keep typing a literal space there instead of engaging temporary pan. */
+function isTextEntryElement(el: Element | null): boolean {
+  if (!el) return false;
+  const tag = el.tagName;
+  return tag === "INPUT" || tag === "TEXTAREA" || (el as HTMLElement).isContentEditable;
+}
 
 export function CanvasWorkspace() {
   const width = useProjectStore((s) => s.project.width);
@@ -21,14 +31,63 @@ export function CanvasWorkspace() {
   const zoom = useUIStore((s) => s.zoom);
   const setZoom = useUIStore((s) => s.setZoom);
   const zoomBy = useUIStore((s) => s.zoomBy);
+  const panX = useUIStore((s) => s.panX);
+  const panY = useUIStore((s) => s.panY);
+  const panBy = useUIStore((s) => s.panBy);
+  const panToolActive = useUIStore((s) => s.panToolActive);
+  const togglePanTool = useUIStore((s) => s.togglePanTool);
+  const isSpacePanning = useUIStore((s) => s.isSpacePanning);
+  const setSpacePanning = useUIStore((s) => s.setSpacePanning);
   const openRadialMenu = useUIStore((s) => s.openRadialMenu);
   const setSelectedElementId = useUIStore((s) => s.setSelectedElementId);
   const dragPreviewNode = useUIStore((s) => s.dragPreviewNode);
 
+  const panActive = panToolActive || isSpacePanning;
+
   const viewportRef = useRef<HTMLDivElement>(null);
   const bgDownRef = useRef<{ x: number; y: number } | null>(null);
+  const panDragRef = useRef<{ x: number; y: number; dragging: boolean } | null>(null);
   const didFitRef = useRef(false);
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
+  const [isPanDragging, setIsPanDragging] = useState(false);
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+
+  // Tracked so the ruler (rendered in untransformed screen-space, outside the
+  // pan/zoom transform) can compute where canvas-space (0,0) currently falls within
+  // the viewport — the canvas wrapper is centered by flexbox and scales around its
+  // own center, so that origin shifts with both viewport size and zoom.
+  useEffect(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width: vw, height: vh } = entry.contentRect;
+      setViewportSize({ width: vw, height: vh });
+    });
+    observer.observe(viewport);
+    return () => observer.disconnect();
+  }, []);
+
+  // Holding Space temporarily activates pan (regardless of the persistent pan-tool
+  // toggle), matching the hold-to-pan convention in most design tools — but must not
+  // steal Space from any active text entry (project name, drafts, on-canvas text edit).
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.code !== "Space" || e.repeat) return;
+      if (isTextEntryElement(document.activeElement)) return;
+      e.preventDefault();
+      setSpacePanning(true);
+    }
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.code !== "Space") return;
+      setSpacePanning(false);
+    }
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, [setSpacePanning]);
 
   // Shared stacking order across both element types — sorted once per render
   // instead of the old fixed "all images then all texts" passes, so front/back
@@ -58,10 +117,21 @@ export function CanvasWorkspace() {
   }
 
   function handleBgPointerDown(e: React.PointerEvent) {
+    if (panActive) {
+      panDragRef.current = { x: e.clientX, y: e.clientY, dragging: false };
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+      setIsPanDragging(true);
+      return;
+    }
     bgDownRef.current = { x: e.clientX, y: e.clientY };
   }
 
   function handleBgPointerUp(e: React.PointerEvent) {
+    if (panActive) {
+      panDragRef.current = null;
+      setIsPanDragging(false);
+      return;
+    }
     const down = bgDownRef.current;
     bgDownRef.current = null;
     if (!down) return;
@@ -73,25 +143,44 @@ export function CanvasWorkspace() {
   }
 
   function handleCanvasPointerMove(e: React.PointerEvent) {
+    const panDrag = panDragRef.current;
+    if (panDrag) {
+      panBy(e.clientX - panDrag.x, e.clientY - panDrag.y);
+      panDragRef.current = { x: e.clientX, y: e.clientY, dragging: true };
+      return;
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     setHoverPos({ x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
   }
+
+  // Screen px (relative to the viewport box) where canvas-space (0,0) currently
+  // sits — the wrapper is flex-centered and scales about its own center, so this
+  // depends on viewport size, zoom, and pan together (see the effect above).
+  const originX = viewportSize.width / 2 - (width * zoom) / 2 + panX;
+  const originY = viewportSize.height / 2 - (height * zoom) / 2 + panY;
 
   return (
     <div
       ref={viewportRef}
       onWheel={handleWheel}
-      className="relative flex h-full w-full items-center justify-center overflow-hidden"
+      className={clsx(
+        "relative flex h-full w-full items-center justify-center overflow-hidden",
+        panActive && (isPanDragging ? "cursor-grabbing" : "cursor-grab"),
+      )}
     >
-      <div style={{ transform: `scale(${zoom})` }} className="relative transition-transform duration-75 ease-out">
-        <RulerOverlay width={width} height={height} cols={cols} rows={rows} hoverPos={hoverPos} />
+      <RulerOverlay width={width} height={height} zoom={zoom} originX={originX} originY={originY} hoverPos={hoverPos} />
+
+      <div
+        style={{ transform: `translate(${panX}px, ${panY}px) scale(${zoom})` }}
+        className="relative transition-transform duration-75 ease-out"
+      >
         <div
           data-radial-context="canvas"
           onPointerDown={handleBgPointerDown}
           onPointerUp={handleBgPointerUp}
           onPointerMove={handleCanvasPointerMove}
           onPointerLeave={() => setHoverPos(null)}
-          className="relative touch-none shadow-[0_0_0_1px_rgb(255_255_255/0.08),0_40px_120px_-20px_rgb(0_0_0/0.6)]"
+          className="relative touch-none shadow-[0_0_0_1px_rgb(255_255_255/0.14),0_0_60px_-10px_rgb(var(--color-accent-glow)/0.25),0_40px_120px_-20px_rgb(0_0_0/0.6)]"
           style={{ width, height, backgroundColor, isolation: "isolate" }}
         >
           <GridOverlay width={width} height={height} cols={cols} rows={rows} nearestSnapNode={dragPreviewNode} />
@@ -108,6 +197,21 @@ export function CanvasWorkspace() {
       <div className="glass-panel corner-frame absolute bottom-5 right-5 flex items-center gap-1 px-2 py-1.5">
         <span className="corner-bl" />
         <span className="corner-br" />
+        <button
+          type="button"
+          onClick={togglePanTool}
+          title="Pan tool (hold Space)"
+          aria-pressed={panToolActive}
+          className={clsx(
+            "flex h-7 w-7 items-center justify-center rounded transition-colors",
+            panToolActive ? "border-accent/70 text-accent bg-[rgb(var(--color-accent-glow)/0.12)]" : "opacity-70 hover:opacity-100",
+          )}
+        >
+          <span className="flex h-4 w-4 items-center justify-center">
+            <HandIcon />
+          </span>
+        </button>
+        <div className="mx-0.5 h-5 w-px" style={{ background: "rgb(var(--chrome-border) / 0.2)" }} />
         <button
           type="button"
           onClick={() => zoomBy(-0.1)}

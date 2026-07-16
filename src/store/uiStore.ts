@@ -7,6 +7,15 @@ type Theme = "dark" | "light";
 
 interface UIStore {
   zoom: number;
+  /** Viewport pan offset in screen px, applied alongside zoom on the canvas wrapper transform. */
+  panX: number;
+  panY: number;
+  /** Persistent pan-tool toggle (stays active until toggled off). */
+  panToolActive: boolean;
+  /** Transient — true only while Space is physically held, regardless of panToolActive. */
+  isSpacePanning: boolean;
+  /** Global corner-drag resize preference (shared across all elements, not per-element/project data). */
+  aspectLocked: boolean;
   theme: Theme;
   selectedElementId: string | null;
   radialMenu: RadialMenuState | null;
@@ -23,6 +32,12 @@ interface UIStore {
 
   setZoom: (zoom: number) => void;
   zoomBy: (delta: number) => void;
+  setPan: (x: number, y: number) => void;
+  panBy: (dx: number, dy: number) => void;
+  resetPan: () => void;
+  togglePanTool: () => void;
+  setSpacePanning: (active: boolean) => void;
+  toggleAspectLocked: () => void;
   toggleTheme: () => void;
   setSelectedElementId: (id: string | null) => void;
   openRadialMenu: (x: number, y: number, context: RadialMenuContext, targetId: string | null) => void;
@@ -47,6 +62,11 @@ function clampZoom(z: number): number {
 
 export const useUIStore = create<UIStore>((set, get) => ({
   zoom: DEFAULT_ZOOM,
+  panX: 0,
+  panY: 0,
+  panToolActive: false,
+  isSpacePanning: false,
+  aspectLocked: false,
   theme: "dark",
   selectedElementId: null,
   radialMenu: null,
@@ -60,6 +80,12 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   setZoom: (zoom) => set({ zoom: clampZoom(zoom) }),
   zoomBy: (delta) => set((s) => ({ zoom: clampZoom(s.zoom + delta) })),
+  setPan: (x, y) => set({ panX: x, panY: y }),
+  panBy: (dx, dy) => set((s) => ({ panX: s.panX + dx, panY: s.panY + dy })),
+  resetPan: () => set({ panX: 0, panY: 0 }),
+  togglePanTool: () => set((s) => ({ panToolActive: !s.panToolActive })),
+  setSpacePanning: (isSpacePanning) => set({ isSpacePanning }),
+  toggleAspectLocked: () => set((s) => ({ aspectLocked: !s.aspectLocked })),
 
   toggleTheme: () =>
     set((s) => {

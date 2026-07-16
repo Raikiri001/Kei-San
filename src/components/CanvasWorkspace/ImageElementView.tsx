@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import clsx from "clsx";
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
 import { useDrag } from "@/hooks/useDrag";
@@ -7,6 +8,8 @@ import { snapToNearestNode } from "@/utils/grid";
 import { drawHalftone, resolveInkColor } from "@/canvas/halftone";
 import { getEdgeAverageColor, getEdgeGlowBoxShadow } from "@/canvas/edgeBlend";
 import { edgeColorCache } from "@/canvas/analysisCaches";
+import { DISPLAY_SIZE_MAX, DISPLAY_SIZE_MIN } from "@/constants/defaults";
+import { ResizeHandles } from "@/components/CanvasWorkspace/ResizeHandles";
 import type { RGB } from "@/canvas/colorExtraction";
 import type { ImageElement } from "@/store/types";
 
@@ -24,6 +27,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const selectedElementId = useUIStore((s) => s.selectedElementId);
 
   const [preview, setPreview] = useState<{ x: number; y: number } | null>(null);
+  const [sizePreview, setSizePreview] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Only decoded when actually needed (halftone canvas, or an edge-blend color
@@ -57,6 +61,19 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const onTap = useCallback(
     (screenX: number, screenY: number) => openRadialMenu(screenX, screenY, "image", image.id),
     [openRadialMenu, image.id],
+  );
+
+  const getResizeBox = useCallback(
+    () => ({ x: image.x, y: image.y, w: image.displayWidth, h: image.displayHeight }),
+    [image.x, image.y, image.displayWidth, image.displayHeight],
+  );
+  const onResizePreview = useCallback((box: { x: number; y: number; w: number; h: number }) => setSizePreview(box), []);
+  const onResizeCommit = useCallback(
+    (box: { x: number; y: number; w: number; h: number }) => {
+      updateImage(image.id, { x: box.x, y: box.y, displayWidth: box.w, displayHeight: box.h });
+      setSizePreview(null);
+    },
+    [updateImage, image.id],
   );
 
   const onDragMove = useCallback(
@@ -106,8 +123,15 @@ export function ImageElementView({ image }: { image: ImageElement }) {
     backgroundColor,
   ]);
 
+  const panActive = useUIStore((s) => s.panToolActive || s.isSpacePanning);
+
   const pos = preview ?? { x: image.x, y: image.y };
+  const box = sizePreview ?? { x: pos.x, y: pos.y, w: image.displayWidth, h: image.displayHeight };
   const isSelected = selectedElementId === image.id;
+  // While pan mode is active, the element must not intercept the drag — letting
+  // pointerdown bubble to the canvas background lets the same gesture pan the
+  // view even when it starts on top of an image.
+  const dragHandlers = panActive ? {} : { onPointerDown, onPointerMove, onPointerUp };
 
   const [edgeColor, setEdgeColor] = useState<RGB | null>(() =>
     image.edgeBlend ? (edgeColorCache.get(image.dataUrl) ?? null) : null,
@@ -133,16 +157,14 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   return (
     <div
       data-radial-context="image"
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      className="absolute cursor-grab touch-none active:cursor-grabbing"
+      {...dragHandlers}
+      className={clsx("absolute touch-none", !panActive && "cursor-grab active:cursor-grabbing")}
       style={{
         left: 0,
         top: 0,
-        width: image.displayWidth,
-        height: image.displayHeight,
-        transform: `translate(${pos.x - image.displayWidth / 2}px, ${pos.y - image.displayHeight / 2}px)`,
+        width: box.w,
+        height: box.h,
+        transform: `translate(${box.x - box.w / 2}px, ${box.y - box.h / 2}px)`,
         outline: isSelected ? "1.5px solid rgb(var(--color-accent-glow) / 0.8)" : "none",
         outlineOffset: 2,
         boxShadow: edgeColor ? getEdgeGlowBoxShadow(edgeColor, image.edgeBlendMargin) : undefined,
@@ -156,6 +178,18 @@ export function ImageElementView({ image }: { image: ImageElement }) {
           alt=""
           draggable={false}
           className="h-full w-full select-none object-cover"
+        />
+      )}
+      {isSelected && !panActive && (
+        <ResizeHandles
+          getBox={getResizeBox}
+          zoom={zoom}
+          minW={DISPLAY_SIZE_MIN}
+          maxW={DISPLAY_SIZE_MAX}
+          minH={DISPLAY_SIZE_MIN}
+          maxH={DISPLAY_SIZE_MAX}
+          onPreview={onResizePreview}
+          onCommit={onResizeCommit}
         />
       )}
     </div>

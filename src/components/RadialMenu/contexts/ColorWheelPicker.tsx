@@ -143,9 +143,15 @@ export function ColorWheelPicker({ value, onChange }: ColorWheelPickerProps) {
           className="touch-none rounded-full"
         />
         <div
-          className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-[0_0_4px_rgb(0_0_0/0.6)]"
-          style={{ left: indicatorX, top: indicatorY, background: hex }}
-        />
+          className="pointer-events-none absolute h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full"
+          style={{ left: indicatorX, top: indicatorY, background: hex, boxShadow: "0 0 4px rgb(0 0 0 / 0.6)" }}
+        >
+          {/* Difference-blended white ring (like GridOverlay's snap anchors) stays visible
+              against any picked hue/lightness, unlike a fixed-color border which can vanish
+              against near-white or near-black picks. Kept as a separate layer so the blend
+              mode doesn't distort the swatch fill itself. */}
+          <div className="absolute inset-0 rounded-full border-2 border-white" style={{ mixBlendMode: "difference" }} />
+        </div>
       </div>
 
       <label className="flex w-full flex-col items-center gap-0.5">
@@ -162,7 +168,7 @@ export function ColorWheelPicker({ value, onChange }: ColorWheelPickerProps) {
 
       <div className="flex w-full items-end justify-center gap-1.5">
         <span
-          className="mb-1 h-7 w-7 shrink-0 rounded-full border border-white/25"
+          className="mb-1 h-7 w-7 shrink-0 rounded-full border border-[rgb(var(--chrome-border)/0.25)]"
           style={{ background: hex }}
         />
         <LabeledField label="Hex">

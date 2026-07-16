@@ -8,6 +8,17 @@ export const MIN_ZOOM = 0.1;
 export const MAX_ZOOM = 4;
 export const DEFAULT_ZOOM = 1;
 
+export const DISPLAY_SIZE_MIN = 20;
+export const DISPLAY_SIZE_MAX = 4000;
+export const RESCALE_FACTOR = 1.1;
+
+export const FONT_SIZE_MIN = 12;
+export const FONT_SIZE_MAX = 400;
+
+/** Clamp range for text elements' corner-drag scaleX/scaleY stretch factors. */
+export const TEXT_SCALE_MIN = 0.2;
+export const TEXT_SCALE_MAX = 5;
+
 export const MAX_HISTORY_ENTRIES = 20;
 export const HISTORY_STORAGE_KEY = "wallpaper-designs-history";
 

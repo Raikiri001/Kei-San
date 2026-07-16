@@ -57,6 +57,9 @@ export function UploadDialog() {
   return (
     <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Portal>
+        {/* Fixed neutral scrim (not a --chrome-* token) is intentional: its job is
+            universal page-dimming behind the dialog regardless of theme — tokenizing it
+            to the light theme's near-white --chrome-bg would make it disappear. */}
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] data-[state=open]:animate-[fade-in_150ms_ease-out]" />
         <Dialog.Content className="glass-panel corner-frame fixed left-1/2 top-1/2 z-50 w-[380px] -translate-x-1/2 -translate-y-1/2 p-5 outline-none data-[state=open]:animate-[fade-in_150ms_ease-out]">
           <span className="corner-bl" />
@@ -73,7 +76,7 @@ export function UploadDialog() {
             onDragLeave={() => setIsDraggingOver(false)}
             onDrop={handleDrop}
             className={`flex w-full flex-col items-center justify-center gap-3 rounded border-2 border-dashed px-6 py-10 text-center transition-colors ${
-              isDraggingOver ? "border-accent/70 text-accent" : "border-white/20 opacity-80"
+              isDraggingOver ? "border-accent/70 text-accent" : "border-[rgb(var(--chrome-border)/0.2)] opacity-80"
             }`}
           >
             <span className="flex h-7 w-7 items-center justify-center">

@@ -188,6 +188,45 @@ export function SendBackwardIcon() {
   );
 }
 
+export function HandIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path
+        d="M7 10.5V4.8a1.1 1.1 0 0 1 2.2 0V9M9.2 9V4a1.1 1.1 0 0 1 2.2 0v5M11.4 9V4.9a1.1 1.1 0 0 1 2.2 0V9M13.6 9.2v-2a1.1 1.1 0 0 1 2.2 0v6.3c0 2.5-1.8 4.5-4.6 4.5h-1.6c-1.6 0-2.5-.5-3.4-1.6L3 12.6a1.15 1.15 0 0 1 1.6-1.6L7 13"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+export function LockIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="5" y="9" width="10" height="7.5" rx="1.2" strokeLinejoin="round" />
+      <path d="M6.8 9V6.5a3.2 3.2 0 0 1 6.4 0V9" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function UnlockIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="5" y="9" width="10" height="7.5" rx="1.2" strokeLinejoin="round" />
+      <path d="M6.8 9V6.5a3.2 3.2 0 0 1 6.2-1" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function CanvasSettingsIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="3.5" y="3.5" width="13" height="13" rx="1.2" strokeLinejoin="round" />
+      <path d="M3.5 8.2h13M3.5 12.2h13M8.2 3.5v13" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function PaletteIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">

@@ -8,7 +8,7 @@
 
 :root {
   color-scheme: dark;
-  --chrome-bg: 10 12 14;
+  --chrome-bg: 20 22 26;
   --chrome-glass: 255 255 255;
   --chrome-border: 255 255 255;
   --chrome-text: 226 232 236;
@@ -147,4 +147,84 @@ body {
 .thin-scroll::-webkit-scrollbar-thumb {
   background: rgb(var(--chrome-border) / 0.3);
   border-radius: 4px;
+}
+
+/* --- Cyberpunk accent utilities -------------------------------------------- */
+
+/* Diagonal-cut-corner variant of .corner-frame's L-brackets, for larger container
+   panels only (toolbar, radial popovers) — not every small pill, which would
+   read as visual noise at that density. */
+.cut-corner {
+  clip-path: polygon(
+    14px 0%,
+    100% 0%,
+    100% calc(100% - 14px),
+    calc(100% - 14px) 100%,
+    0% 100%,
+    0% 14px
+  );
+}
+
+/* Bolder neon glow than the flat corner-frame border, for hover/press/active
+   accent states — reuses --color-accent-glow so it stays on-theme in both modes. */
+.accent-glow-hover {
+  transition:
+    box-shadow 200ms ease-out,
+    border-color 200ms ease-out,
+    color 200ms ease-out;
+}
+.accent-glow-hover:hover,
+.accent-glow-hover[data-active="true"] {
+  border-color: rgb(var(--color-accent-glow) / 0.7);
+  box-shadow:
+    0 0 20px rgb(var(--color-accent-glow) / 0.5),
+    0 0 40px rgb(var(--color-accent-glow) / 0.22);
+}
+
+/* Diagonal color-sweep flash on press — pure CSS (:active-driven), so a press
+   anywhere among many simultaneous pills costs nothing beyond a single
+   transform transition, no JS wiring needed for a state this transient. */
+.press-sweep {
+  position: relative;
+  overflow: hidden;
+}
+.press-sweep::before {
+  content: "";
+  position: absolute;
+  inset: -60% -30%;
+  background: linear-gradient(100deg, transparent 35%, rgb(var(--color-accent-glow) / 0.4) 50%, transparent 65%);
+  transform: translateX(-130%);
+  transition: transform 220ms ease-out;
+  pointer-events: none;
+}
+.press-sweep:active::before {
+  transform: translateX(130%);
+  transition: transform 320ms ease-in;
+}
+
+/* Staggered corner-dot pop-in for resize handles — animation-delay is set inline
+   per corner by the component, so 4 dots snap into place in quick sequence
+   instead of all at once. */
+@keyframes handle-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.2);
+  }
+  to {
+    opacity: 1;
+  }
+}
+.handle-pop {
+  animation: handle-pop 180ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .radial-appear,
+  .handle-pop {
+    animation: none !important;
+  }
+  .press-sweep::before {
+    transition: none !important;
+    display: none;
+  }
 }

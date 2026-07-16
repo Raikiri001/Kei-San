@@ -173,6 +173,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       color: "#f5f5f5",
       x: project.width / 2 + cascade * 48,
       y: project.height / 2 + cascade * 36,
+      scaleX: 1,
+      scaleY: 1,
       zIndex: nextZIndex(project),
       ...partial,
     };
@@ -250,10 +252,12 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   loadProject: (project) => {
     set({ project });
     useUIStore.getState().markClean();
+    useUIStore.getState().resetPan();
   },
 
   resetToNewDesign: () => {
     set({ project: createBaselineProject() });
     useUIStore.getState().markClean();
+    useUIStore.getState().resetPan();
   },
 }));

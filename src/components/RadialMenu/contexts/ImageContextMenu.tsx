@@ -2,6 +2,7 @@ import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
 import { useDraftNumber } from "@/hooks/useDraftNumber";
 import { numberInputClass } from "@/components/RadialMenu/inputStyles";
+import { DISPLAY_SIZE_MAX, DISPLAY_SIZE_MIN, RESCALE_FACTOR } from "@/constants/defaults";
 import {
   BringForwardIcon,
   BringToFrontIcon,
@@ -23,24 +24,20 @@ const BLEND_MARGIN_MIN = 8;
 const BLEND_MARGIN_MAX = 400;
 const BLEND_MARGIN_STEP = 10;
 
-const DISPLAY_SIZE_MIN = 20;
-const DISPLAY_SIZE_MAX = 4000;
-const RESCALE_FACTOR = 1.1;
-
 function Stepper({ onDec, onInc }: { onDec: () => void; onInc: () => void }) {
   return (
     <span className="flex items-center gap-1.5">
       <button
         type="button"
         onClick={onDec}
-        className="flex h-5 w-5 items-center justify-center rounded border border-white/20"
+        className="flex h-5 w-5 items-center justify-center rounded border border-[rgb(var(--chrome-border)/0.2)]"
       >
         −
       </button>
       <button
         type="button"
         onClick={onInc}
-        className="flex h-5 w-5 items-center justify-center rounded border border-white/20"
+        className="flex h-5 w-5 items-center justify-center rounded border border-[rgb(var(--chrome-border)/0.2)]"
       >
         +
       </button>

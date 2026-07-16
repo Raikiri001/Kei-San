@@ -38,6 +38,9 @@ export interface TextElement {
   x: number;
   /** Center-anchored, true canvas px */
   y: number;
+  /** Corner-drag stretch factors on top of fontSize, default 1 — see TextElementView. */
+  scaleX: number;
+  scaleY: number;
   /** Shared stacking order across images and texts — higher paints on top. */
   zIndex: number;
 }
