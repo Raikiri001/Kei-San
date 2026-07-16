@@ -5,13 +5,17 @@ import { useClickOutside } from "@/hooks/useClickOutside";
 import { saveCurrentProject } from "@/store/persistence";
 import { GRID_PRESETS, RESOLUTION_PRESETS } from "@/constants/defaults";
 import { CanvasSettingsIcon } from "@/components/RadialMenu/icons";
+import { ToolbarIconButton } from "@/components/ControlDock/ToolbarIconButton";
 
-const inputClass = "glass-panel h-8 w-16 rounded px-2 text-[12px] tabular-nums outline-none focus:border-accent/60";
-const selectClass = "glass-panel h-8 rounded px-2 text-[11px] outline-none focus:border-accent/60";
+const inputClass = "glass-panel h-8 w-16 shrink-0 rounded px-2 text-[12px] tabular-nums outline-none focus:border-accent/60";
+// w-full + min-w-0 stop the <select> from sizing itself to its widest <option>
+// text (e.g. "Mobile Portrait (1080×1920)") and blowing out past the popover's
+// own fixed width; truncate ellipsizes the closed-state label instead.
+const selectClass = "glass-panel h-8 w-full min-w-0 truncate rounded px-2 text-[11px] outline-none focus:border-accent/60";
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, className, children }: { label: string; className?: string; children: React.ReactNode }) {
   return (
-    <label className="flex flex-col gap-1">
+    <label className={`flex flex-col gap-1${className ? ` ${className}` : ""}`}>
       <span className="text-[10px] uppercase tracking-wide opacity-70">{label}</span>
       {children}
     </label>
@@ -91,23 +95,17 @@ export function CanvasSettingsPopover() {
 
   return (
     <div ref={rootRef} className="relative">
-      <button
-        type="button"
+      <ToolbarIconButton
         onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        className="corner-frame glass-panel group relative flex h-9 items-center gap-2 px-3 text-[11px] uppercase tracking-wide transition-colors hover:border-accent/50 hover:text-accent"
-      >
-        <span className="corner-tl" />
-        <span className="corner-bl" />
-        <span className="corner-br" />
-        <span className="flex h-4 w-4 items-center justify-center">
-          <CanvasSettingsIcon />
-        </span>
-        Canvas Settings
-      </button>
+        icon={<CanvasSettingsIcon />}
+        label="Canvas Settings"
+        ariaExpanded={open}
+        active={open}
+        forceExpanded={open}
+      />
 
       {open && (
-        <div className="glass-panel corner-frame radial-appear absolute left-0 top-full z-40 mt-2 w-72 p-4">
+        <div className="glass-panel corner-frame radial-appear absolute left-0 top-full z-40 mt-2 w-80 p-4">
           <span className="corner-tl" />
           <span className="corner-bl" />
           <span className="corner-br" />
@@ -137,7 +135,7 @@ export function CanvasSettingsPopover() {
                     className={inputClass}
                   />
                 </Field>
-                <Field label="Resolution">
+                <Field label="Resolution" className="min-w-0 flex-1">
                   <select
                     value={resolutionMatchIdx === -1 ? "custom" : String(resolutionMatchIdx)}
                     onChange={handleResolutionPreset}
@@ -183,7 +181,7 @@ export function CanvasSettingsPopover() {
                     className={inputClass}
                   />
                 </Field>
-                <Field label="Grid">
+                <Field label="Grid" className="min-w-0 flex-1">
                   <select
                     value={gridMatchIdx === -1 ? "custom" : String(gridMatchIdx)}
                     onChange={handleGridPreset}

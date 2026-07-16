@@ -259,6 +259,16 @@ export function CanvasSettingsIcon() {
   );
 }
 
+export function SaveIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M4.5 3.5h8.6L15.5 6v10.5h-11v-13Z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6.7 3.5v4h5.3v-4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6.7 16.5v-5.2h6.6v5.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function PaletteIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">

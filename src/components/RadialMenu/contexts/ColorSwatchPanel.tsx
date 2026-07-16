@@ -7,7 +7,7 @@ function Swatch({ color, onPick }: { color: string; onPick: (hex: string) => voi
       aria-label={`Apply color ${color}`}
       title={color}
       onClick={() => onPick(color)}
-      className="h-6 w-6 shrink-0 border border-[rgb(var(--chrome-border)/0.25)]"
+      className="press-scale h-6 w-6 shrink-0 border border-[rgb(var(--chrome-border)/0.25)] transition-[border-color,box-shadow] duration-150 hover:border-accent/60 hover:shadow-[0_0_10px_rgb(var(--color-accent-glow)/0.4)]"
       style={{ background: color }}
     />
   );

@@ -68,7 +68,7 @@ export interface SavedDesign extends ProjectState {
   thumbnailDataUrl: string;
 }
 
-export type RadialMenuContext = "canvas" | "image" | "text";
+export type RadialMenuContext = "image" | "text";
 
 export interface RadialMenuState {
   open: boolean;

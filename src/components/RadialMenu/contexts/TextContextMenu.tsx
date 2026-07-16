@@ -6,7 +6,7 @@ import { useDraftNumber } from "@/hooks/useDraftNumber";
 import { useLoadedImage } from "@/hooks/useLoadedImage";
 import { getColorSuggestions } from "@/canvas/colorExtraction";
 import { colorSuggestionsCache } from "@/canvas/analysisCaches";
-import { numberInputClass } from "@/components/RadialMenu/inputStyles";
+import { NumberStepperField } from "@/components/RadialMenu/NumberStepperField";
 import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "@/constants/defaults";
 import {
   AlignCenterIcon,
@@ -118,10 +118,10 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
                     aria-label={`Align ${label}`}
                     aria-pressed={text.align === value}
                     className={clsx(
-                      "flex h-5 w-5 items-center justify-center rounded border",
+                      "press-scale flex h-5 w-5 items-center justify-center rounded border transition-colors duration-150",
                       text.align === value
                         ? "border-accent/70 text-accent"
-                        : "border-[rgb(var(--chrome-border)/0.2)]",
+                        : "border-[rgb(var(--chrome-border)/0.2)] hover:border-accent/50",
                     )}
                   >
                     <Icon />
@@ -135,37 +135,17 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
     {
       key: "size",
       icon: <SizeIcon />,
-      label: `${text.fontSize}px`,
+      label: "Size",
       wide: true,
       expandedContent: (
-        <span className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={() => updateText(id, { fontSize: Math.max(FONT_SIZE_MIN, text.fontSize - 8) })}
-            className="flex h-5 w-5 items-center justify-center rounded border border-[rgb(var(--chrome-border)/0.2)]"
-          >
-            −
-          </button>
-          <button
-            type="button"
-            onClick={() => updateText(id, { fontSize: Math.min(FONT_SIZE_MAX, text.fontSize + 8) })}
-            className="flex h-5 w-5 items-center justify-center rounded border border-[rgb(var(--chrome-border)/0.2)]"
-          >
-            +
-          </button>
-          <input
-            type="number"
-            min={FONT_SIZE_MIN}
-            max={FONT_SIZE_MAX}
-            value={fontSizeDraft.draft}
-            onChange={fontSizeDraft.onChange}
-            onFocus={fontSizeDraft.onFocus}
-            onBlur={fontSizeDraft.onBlur}
-            onKeyDown={fontSizeDraft.onKeyDown}
-            className={numberInputClass}
-            aria-label="Font size in pixels"
-          />
-        </span>
+        <NumberStepperField
+          draft={fontSizeDraft}
+          onDec={() => updateText(id, { fontSize: Math.max(FONT_SIZE_MIN, text.fontSize - 8) })}
+          onInc={() => updateText(id, { fontSize: Math.min(FONT_SIZE_MAX, text.fontSize + 8) })}
+          min={FONT_SIZE_MIN}
+          max={FONT_SIZE_MAX}
+          ariaLabel="Font size in pixels"
+        />
       ),
     },
     {

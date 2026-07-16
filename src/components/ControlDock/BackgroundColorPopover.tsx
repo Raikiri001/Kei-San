@@ -1,26 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useProjectStore } from "@/store/projectStore";
+import { useClickOutside } from "@/hooks/useClickOutside";
 import { loadImage } from "@/utils/fileToDataUrl";
 import { getColorSuggestions } from "@/canvas/colorExtraction";
 import { colorSuggestionsCache } from "@/canvas/analysisCaches";
 import { PaletteIcon } from "@/components/RadialMenu/icons";
 import { ColorPickerPanel } from "@/components/RadialMenu/contexts/ColorPickerPanel";
 import type { SuggestionGroup } from "@/components/RadialMenu/contexts/ColorSwatchPanel";
-import type { RingItem } from "@/components/RadialMenu/RadialMenu";
+import { ToolbarIconButton } from "@/components/ControlDock/ToolbarIconButton";
 
 /**
- * A single "Background" ring item now carries every uploaded image's suggested
- * palette (each as its own labeled group inside the one panel) instead of a
- * separate ring pill per image — one place to both browse suggestions and pick a
- * custom color for the canvas background.
+ * Toolbar home for the canvas background color picker — previously the sole
+ * item behind a radial menu on background click, now a trigger next to Canvas
+ * Settings since both configure canvas-level properties, not per-element ones.
  */
-export function useCanvasContextItems(): RingItem[] {
+export function BackgroundColorPopover() {
   const backgroundColor = useProjectStore((s) => s.project.backgroundColor);
   const setBackgroundColor = useProjectStore((s) => s.setBackgroundColor);
   const images = useProjectStore((s) => s.project.images);
-  const [, setWarmTick] = useState(0);
 
-  // Suggestions are normally already cached at upload time (ControlDock). This
+  const [open, setOpen] = useState(false);
+  const [, setWarmTick] = useState(0);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useClickOutside(rootRef, () => setOpen(false), open);
+
+  // Suggestions are normally already cached at upload time (UploadDialog). This
   // only covers images restored from an older saved design that predates the
   // cache — decode+compute them once, outside the render loop (calling a hook
   // per-image in a variable-length loop would break the rules of hooks).
@@ -52,14 +56,25 @@ export function useCanvasContextItems(): RingItem[] {
     })
     .filter((g): g is SuggestionGroup => g !== null);
 
-  return [
-    {
-      key: "background",
-      icon: <PaletteIcon />,
-      label: "Background",
-      popoverContent: (
-        <ColorPickerPanel suggestionGroups={suggestionGroups} value={backgroundColor} onChange={setBackgroundColor} />
-      ),
-    },
-  ];
+  return (
+    <div ref={rootRef} className="relative">
+      <ToolbarIconButton
+        onClick={() => setOpen((o) => !o)}
+        icon={<PaletteIcon />}
+        label="Background Color"
+        ariaExpanded={open}
+        active={open}
+        forceExpanded={open}
+      />
+
+      {open && (
+        <div className="glass-panel corner-frame radial-appear absolute left-0 top-full z-40 mt-2 p-2">
+          <span className="corner-tl" />
+          <span className="corner-bl" />
+          <span className="corner-br" />
+          <ColorPickerPanel suggestionGroups={suggestionGroups} value={backgroundColor} onChange={setBackgroundColor} />
+        </div>
+      )}
+    </div>
+  );
 }

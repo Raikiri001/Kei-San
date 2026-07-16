@@ -5,7 +5,6 @@ import { useClickOutside } from "@/hooks/useClickOutside";
 import { getRingPositions } from "@/components/RadialMenu/ring-layout";
 import { IconPill } from "@/components/RadialMenu/IconPill";
 import { BackChevronIcon } from "@/components/RadialMenu/icons";
-import { useCanvasContextItems } from "@/components/RadialMenu/contexts/CanvasContextMenu";
 import { useImageContextItems } from "@/components/RadialMenu/contexts/ImageContextMenu";
 import { useTextContextItems } from "@/components/RadialMenu/contexts/TextContextMenu";
 
@@ -15,6 +14,13 @@ export interface RingItem {
   label: string;
   onClick?: () => void;
   active?: boolean;
+  /** Explicit on/off state for toggle pills (halftone, edge blend) — renders
+   * green/red HUD signal colors instead of the generic accent active glow. */
+  status?: "on" | "off";
+  /** Inert but still occupies its ring slot — used for sub-settings whose
+   * parent toggle is off, so the ring's item count (and therefore every
+   * pill's angular position) never shifts when the parent is toggled. */
+  disabled?: boolean;
   /** Inline content revealed on hover (steppers, small inputs) — stays within the pill's own row. */
   expandedContent?: ReactNode;
   /** Larger floating panel toggled open by clicking the pill (e.g. the color picker) instead of hover-expanding inline. */
@@ -58,7 +64,6 @@ export function RadialMenu() {
   const [ringPath, setRingPath] = useState<string[]>([]);
   const prefersReducedMotion = useReducedMotion();
 
-  const canvasItems = useCanvasContextItems();
   const imageItems = useImageContextItems(radialMenu?.targetId ?? null);
   const textItems = useTextContextItems(radialMenu?.targetId ?? null);
 
@@ -73,8 +78,7 @@ export function RadialMenu() {
 
   if (!radialMenu?.open) return null;
 
-  const rootItems =
-    radialMenu.context === "canvas" ? canvasItems : radialMenu.context === "image" ? imageItems : textItems;
+  const rootItems = radialMenu.context === "image" ? imageItems : textItems;
 
   const activeItems = resolveActiveItems(rootItems, ringPath);
   const backItem: RingItem = {
@@ -116,12 +120,16 @@ export function RadialMenu() {
               icon={item.icon}
               label={item.label}
               active={item.active || openPopoverKey === item.key || (!!item.subItems && item.subItems.some((si) => si.active))}
+              status={item.status}
+              disabled={item.disabled}
               onClick={
-                item.subItems
-                  ? () => setRingPath((p) => [...p, item.key])
-                  : item.popoverContent
-                    ? () => setOpenPopoverKey((k) => (k === item.key ? null : item.key))
-                    : item.onClick
+                item.disabled
+                  ? undefined
+                  : item.subItems
+                    ? () => setRingPath((p) => [...p, item.key])
+                    : item.popoverContent
+                      ? () => setOpenPopoverKey((k) => (k === item.key ? null : item.key))
+                      : item.onClick
               }
               expandedContent={item.expandedContent}
               wide={item.wide}

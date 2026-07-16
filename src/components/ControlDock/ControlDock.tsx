@@ -1,45 +1,24 @@
-import type { ReactNode } from "react";
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
 import { downloadCanvas, renderProjectToCanvas } from "@/canvas/exportEngine";
 import { saveCurrentProject } from "@/store/persistence";
 import { CanvasSettingsPopover } from "@/components/ControlDock/CanvasSettingsPopover";
+import { BackgroundColorPopover } from "@/components/ControlDock/BackgroundColorPopover";
+import { ToolbarIconButton } from "@/components/ControlDock/ToolbarIconButton";
 import {
   DownloadIcon,
   FolderIcon,
-  MoonIcon,
   NewDesignIcon,
-  SunIcon,
+  SaveIcon,
   TextContentIcon,
   UploadIcon,
 } from "@/components/RadialMenu/icons";
 
-function DockField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <label className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-wide opacity-70">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-/** Single-row icon+label pill, height-matched to every other top-level dock control
- * (project name input, Canvas Settings trigger) so the toolbar reads as one
- * consistent row instead of a mix of stacked buttons and nested field panels. */
-function DockButton({ onClick, icon, children }: { onClick: () => void; icon: ReactNode; children: ReactNode }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="corner-frame glass-panel accent-glow-hover press-sweep group relative flex h-9 items-center gap-2 px-3 text-[11px] uppercase tracking-wide transition-colors hover:text-accent"
-    >
-      <span className="corner-tl" />
-      <span className="corner-bl" />
-      <span className="corner-br" />
-      <span className="flex h-4 w-4 items-center justify-center">{icon}</span>
-      {children}
-    </button>
-  );
+/** Vertical rule between control groups — fixed at the row's own h-9 so it never
+ * makes the toolbar taller than its shortest control, unlike the old per-section
+ * dividers that were hand-tuned to whatever neighbor happened to be tallest. */
+function DockDivider() {
+  return <div className="h-9 w-px shrink-0" style={{ background: "rgb(var(--chrome-border) / 0.2)" }} />;
 }
 
 export function ControlDock() {
@@ -48,9 +27,8 @@ export function ControlDock() {
   const addText = useProjectStore((s) => s.addText);
   const resetToNewDesign = useProjectStore((s) => s.resetToNewDesign);
 
-  const theme = useUIStore((s) => s.theme);
-  const toggleTheme = useUIStore((s) => s.toggleTheme);
   const guardDirty = useUIStore((s) => s.guardDirty);
+  const markClean = useUIStore((s) => s.markClean);
   const setDesignsDrawerOpen = useUIStore((s) => s.setDesignsDrawerOpen);
   const setUploadDialogOpen = useUIStore((s) => s.setUploadDialogOpen);
   const setSelectedElementId = useUIStore((s) => s.setSelectedElementId);
@@ -68,12 +46,17 @@ export function ControlDock() {
     await saveCurrentProject(project, canvas);
   }
 
+  async function handleSave() {
+    await saveCurrentProject(project);
+    markClean();
+  }
+
   function handleNewDesign() {
     guardDirty(() => resetToNewDesign(), "Discard unsaved changes and start a new design?");
   }
 
   return (
-    <div className="pointer-events-auto relative flex flex-wrap items-end gap-3 px-5 py-3">
+    <div className="pointer-events-auto relative flex flex-wrap items-center gap-3 px-5 py-3">
       {/* Decorative backdrop, not the content box: a clip-path'd element clips
           its whole rendered subtree, including children that intentionally
           escape via absolute positioning (Canvas Settings' dropdown). Keeping
@@ -85,66 +68,60 @@ export function ControlDock() {
         <span className="corner-bl" />
         <span className="corner-br" />
       </div>
-      <div className="flex flex-col justify-center pb-1 pr-1">
-        <span className="flex items-baseline gap-1">
-          <span
-            className="text-[28px] font-black leading-none"
-            style={{
-              fontFamily: '"Noto Sans JP", sans-serif',
-              color: "var(--color-accent)",
-              textShadow: "0 0 16px rgb(var(--color-accent-glow) / 0.5)",
-            }}
-          >
-            景
-          </span>
-          <span
-            className="text-[15px] font-semibold leading-none opacity-80"
-            style={{ fontFamily: '"Noto Sans JP", sans-serif' }}
-          >
-            さん
-          </span>
+
+      {/* Brand — single-line lockup, height-matched (h-9) to every control in the
+          row so the toolbar reads as one uniform strip instead of a taller logo
+          block sitting above shorter buttons. */}
+      <div className="flex h-9 items-center gap-1 pr-1">
+        <span
+          className="text-[22px] font-black leading-none"
+          style={{
+            fontFamily: '"Noto Sans JP", sans-serif',
+            color: "var(--color-accent)",
+            textShadow: "0 0 16px rgb(var(--color-accent-glow) / 0.5)",
+          }}
+        >
+          景
         </span>
         <span
-          className="mt-[3px] text-[9px] font-semibold uppercase leading-none tracking-[0.25em] opacity-60"
-          style={{ fontFamily: "var(--font-display)" }}
+          className="text-[13px] font-semibold leading-none opacity-80"
+          style={{ fontFamily: '"Noto Sans JP", sans-serif' }}
         >
-          Kei · San
+          さん
         </span>
       </div>
-      <div className="mx-1 h-12 w-px" style={{ background: "rgb(var(--chrome-border) / 0.2)" }} />
 
-      <DockField label="Project">
-        <input
-          value={project.name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={() => saveCurrentProject(project)}
-          placeholder="Untitled"
-          className="glass-panel h-9 w-40 rounded px-2 text-[12px] outline-none focus:border-accent/60"
-        />
-      </DockField>
+      <DockDivider />
 
+      {/* Project group: name, save, and export all act on the current project,
+          so they live together — save persists it, export renders it out. */}
+      <input
+        value={project.name}
+        onChange={(e) => setName(e.target.value)}
+        onBlur={() => saveCurrentProject(project)}
+        placeholder="Untitled Project"
+        className="glass-panel h-9 w-40 rounded px-2 text-[12px] outline-none focus:border-accent/60"
+      />
+      <ToolbarIconButton onClick={handleSave} icon={<SaveIcon />} label="Save" />
+      <ToolbarIconButton onClick={handleExport} icon={<DownloadIcon />} label="Export Wallpaper" />
+
+      <DockDivider />
+
+      {/* File group: create a new design or jump back into a saved one. */}
+      <ToolbarIconButton onClick={handleNewDesign} icon={<NewDesignIcon />} label="New Design" />
+      <ToolbarIconButton onClick={() => setDesignsDrawerOpen(true)} icon={<FolderIcon />} label="My Designs" />
+
+      <DockDivider />
+
+      {/* Canvas group: canvas-level configuration (size, grid, background). */}
       <CanvasSettingsPopover />
+      <BackgroundColorPopover />
 
-      <div className="mx-1 h-9 w-px" style={{ background: "rgb(var(--chrome-border) / 0.2)" }} />
+      <DockDivider />
 
-      <DockButton onClick={() => setUploadDialogOpen(true)} icon={<UploadIcon />}>
-        Upload Image
-      </DockButton>
-      <DockButton onClick={handleAddText} icon={<TextContentIcon />}>
-        Add Text
-      </DockButton>
-      <DockButton onClick={() => setDesignsDrawerOpen(true)} icon={<FolderIcon />}>
-        My Designs
-      </DockButton>
-      <DockButton onClick={handleNewDesign} icon={<NewDesignIcon />}>
-        New Design
-      </DockButton>
-      <DockButton onClick={handleExport} icon={<DownloadIcon />}>
-        Export Wallpaper
-      </DockButton>
-      <DockButton onClick={toggleTheme} icon={theme === "dark" ? <MoonIcon /> : <SunIcon />}>
-        {theme === "dark" ? "Dark" : "Light"}
-      </DockButton>
+      {/* Content group: tools that add elements to the canvas. */}
+      <ToolbarIconButton onClick={() => setUploadDialogOpen(true)} icon={<UploadIcon />} label="Upload Image" />
+      <ToolbarIconButton onClick={handleAddText} icon={<TextContentIcon />} label="Add Text" />
     </div>
   );
 }

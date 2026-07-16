@@ -22,6 +22,15 @@
   --status-moderate: #f4c430;
   --status-inactive: #e8384a;
   --color-accent-glow: 56 189 248;
+  /* Raw rgb triplets (not hex) for the two signal colors above, so on/off pill
+     states can composite translucent glow/border variants the same way
+     --color-accent-glow and --chrome-border already do. */
+  --status-active-rgb: 61 220 132;
+  --status-inactive-rgb: 232 56 74;
+  /* Shared "HUD snap" easing: a slight overshoot-then-settle used across every
+     hover/press/pop-in transition so the whole app moves with one consistent,
+     energetic rhythm instead of each component picking its own curve. */
+  --ease-snap: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 :root[data-theme="light"] {
@@ -158,9 +167,9 @@ body {
    accent states — reuses --color-accent-glow so it stays on-theme in both modes. */
 .accent-glow-hover {
   transition:
-    box-shadow 200ms ease-out,
-    border-color 200ms ease-out,
-    color 200ms ease-out;
+    box-shadow 240ms var(--ease-snap),
+    border-color 240ms var(--ease-snap),
+    color 240ms var(--ease-snap);
 }
 .accent-glow-hover:hover,
 .accent-glow-hover[data-active="true"] {
@@ -191,6 +200,43 @@ body {
   transition: transform 320ms ease-in;
 }
 
+/* Diagonal "energize" sweep on hover-enter — same visual language as
+   press-sweep but triggered by :hover instead of :active, for controls that
+   don't run through IconPill/ToolbarIconButton's Framer-driven hover variants
+   (bottom-right theme/pan/zoom cluster, steppers, swatches). Uses a real child
+   span (.hover-sweep-fx) rather than ::before/::after: corner-frame already
+   claims ::after for its top-right tick, and press-sweep already claims
+   ::before for its own flash — a real DOM node sidesteps both collisions
+   instead of fighting over the two pseudo-element slots. */
+.hover-sweep {
+  position: relative;
+  overflow: hidden;
+}
+.hover-sweep > .hover-sweep-fx {
+  position: absolute;
+  inset: -60% -30%;
+  background: linear-gradient(100deg, transparent 35%, rgb(var(--color-accent-glow) / 0.45) 50%, transparent 65%);
+  transform: translateX(-130%);
+  transition: transform 380ms var(--ease-snap);
+  pointer-events: none;
+}
+.hover-sweep:hover > .hover-sweep-fx {
+  transform: translateX(130%);
+  transition-duration: 480ms;
+}
+
+/* Tactile press feedback shared by every button/pill in the app — a quick
+   inward snap on press, released with the same overshoot curve everything
+   else uses, so pressing anything (toolbar, radial menu, steppers) reads as
+   one consistent physical control system instead of flat color swaps. */
+.press-scale {
+  transition: transform 150ms var(--ease-snap);
+}
+.press-scale:active {
+  transform: scale(0.94);
+  transition-duration: 80ms;
+}
+
 /* Staggered corner-dot pop-in for resize handles — animation-delay is set inline
    per corner by the component, so 4 dots snap into place in quick sequence
    instead of all at once. */
@@ -215,5 +261,12 @@ body {
   .press-sweep::before {
     transition: none !important;
     display: none;
+  }
+  .hover-sweep > .hover-sweep-fx {
+    transition: none !important;
+    display: none;
+  }
+  .press-scale:active {
+    transform: none;
   }
 }

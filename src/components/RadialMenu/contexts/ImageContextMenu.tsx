@@ -1,6 +1,8 @@
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
 import { useDraftNumber } from "@/hooks/useDraftNumber";
+import { Stepper } from "@/components/RadialMenu/Stepper";
+import { NumberStepperField } from "@/components/RadialMenu/NumberStepperField";
 import { numberInputClass } from "@/components/RadialMenu/inputStyles";
 import { DISPLAY_SIZE_MAX, DISPLAY_SIZE_MIN, RESCALE_FACTOR } from "@/constants/defaults";
 import {
@@ -23,27 +25,6 @@ const DOT_PITCH_STEP = 2;
 const BLEND_MARGIN_MIN = 8;
 const BLEND_MARGIN_MAX = 400;
 const BLEND_MARGIN_STEP = 10;
-
-function Stepper({ onDec, onInc }: { onDec: () => void; onInc: () => void }) {
-  return (
-    <span className="flex items-center gap-1.5">
-      <button
-        type="button"
-        onClick={onDec}
-        className="flex h-5 w-5 items-center justify-center rounded border border-[rgb(var(--chrome-border)/0.2)]"
-      >
-        −
-      </button>
-      <button
-        type="button"
-        onClick={onInc}
-        className="flex h-5 w-5 items-center justify-center rounded border border-[rgb(var(--chrome-border)/0.2)]"
-      >
-        +
-      </button>
-    </span>
-  );
-}
 
 function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
@@ -72,66 +53,95 @@ export function useImageContextItems(targetId: string | null): RingItem[] {
     },
   });
 
+  const dotPitchDraft = useDraftNumber(image ? image.halftoneDotPitch : 0, {
+    min: DOT_PITCH_MIN,
+    max: DOT_PITCH_MAX,
+    onCommit: (halftoneDotPitch) => {
+      if (!image) return;
+      updateImage(image.id, { halftoneDotPitch });
+    },
+  });
+
+  const blendMarginDraft = useDraftNumber(image ? Math.round(image.edgeBlendMargin) : 0, {
+    min: BLEND_MARGIN_MIN,
+    max: BLEND_MARGIN_MAX,
+    onCommit: (edgeBlendMargin) => {
+      if (!image) return;
+      updateImage(image.id, { edgeBlendMargin });
+    },
+  });
+
   if (!image || !targetId) return [];
   const id = targetId;
 
+  // Mode/intensity sub-items are always present (never conditionally added or
+  // removed) so the ring's item count — and therefore every pill's angular
+  // position, including the toggle itself — never shifts when the toggle is
+  // flipped. They're just visually disabled while their toggle is off.
   const halftoneSubItems: RingItem[] = [
     {
       key: "halftone-toggle",
       icon: <HalftoneIcon />,
       label: image.circleMask ? "Halftone: On" : "Halftone: Off",
-      active: image.circleMask,
+      status: image.circleMask ? "on" : "off",
       onClick: () => updateImage(id, { circleMask: !image.circleMask }),
     },
-  ];
-
-  if (image.circleMask) {
-    halftoneSubItems.push({
+    {
       key: "halftone-mode",
       icon: <HalftoneIcon />,
       label: image.halftoneMode === "color" ? "Mode: Photo" : "Mode: Ink",
+      disabled: !image.circleMask,
       onClick: () => updateImage(id, { halftoneMode: image.halftoneMode === "color" ? "ink" : "color" }),
-    });
-    halftoneSubItems.push({
+    },
+    {
       key: "halftone-intensity",
       icon: <HalftoneIcon />,
-      label: `Dot Size: ${image.halftoneDotPitch}px`,
+      label: "Dot Size",
+      wide: true,
+      disabled: !image.circleMask,
       expandedContent: (
-        <Stepper
+        <NumberStepperField
+          draft={dotPitchDraft}
           onDec={() => updateImage(id, { halftoneDotPitch: clamp(image.halftoneDotPitch - DOT_PITCH_STEP, DOT_PITCH_MIN, DOT_PITCH_MAX) })}
           onInc={() => updateImage(id, { halftoneDotPitch: clamp(image.halftoneDotPitch + DOT_PITCH_STEP, DOT_PITCH_MIN, DOT_PITCH_MAX) })}
+          min={DOT_PITCH_MIN}
+          max={DOT_PITCH_MAX}
+          ariaLabel="Halftone dot size in pixels"
         />
       ),
-    });
-  }
+    },
+  ];
 
   const edgeBlendSubItems: RingItem[] = [
     {
       key: "edge-blend-toggle",
       icon: <EdgeGlowIcon />,
       label: image.edgeBlend ? "Edge Blend: On" : "Edge Blend: Off",
-      active: image.edgeBlend,
+      status: image.edgeBlend ? "on" : "off",
       onClick: () => updateImage(id, { edgeBlend: !image.edgeBlend }),
     },
-  ];
-
-  if (image.edgeBlend) {
-    edgeBlendSubItems.push({
+    {
       key: "edge-blend-size",
       icon: <EdgeGlowIcon />,
-      label: `Blend Size: ${Math.round(image.edgeBlendMargin)}px`,
+      label: "Blend Size",
+      wide: true,
+      disabled: !image.edgeBlend,
       expandedContent: (
-        <Stepper
+        <NumberStepperField
+          draft={blendMarginDraft}
           onDec={() =>
             updateImage(id, { edgeBlendMargin: clamp(image.edgeBlendMargin - BLEND_MARGIN_STEP, BLEND_MARGIN_MIN, BLEND_MARGIN_MAX) })
           }
           onInc={() =>
             updateImage(id, { edgeBlendMargin: clamp(image.edgeBlendMargin + BLEND_MARGIN_STEP, BLEND_MARGIN_MIN, BLEND_MARGIN_MAX) })
           }
+          min={BLEND_MARGIN_MIN}
+          max={BLEND_MARGIN_MAX}
+          ariaLabel="Edge blend size in pixels"
         />
       ),
-    });
-  }
+    },
+  ];
 
   const layerSubItems: RingItem[] = [
     { key: "bring-to-front", icon: <BringToFrontIcon />, label: "Bring to Front", onClick: () => bringToFront(id) },
@@ -158,7 +168,7 @@ export function useImageContextItems(targetId: string | null): RingItem[] {
     {
       key: "size",
       icon: <SizeIcon />,
-      label: `Size: ${Math.round(image.displayWidth)}px`,
+      label: "Size",
       wide: true,
       expandedContent: (
         <span className="flex items-center gap-1.5">
@@ -186,6 +196,7 @@ export function useImageContextItems(targetId: string | null): RingItem[] {
             className={numberInputClass}
             aria-label="Width in pixels"
           />
+          <span className="text-[9px] uppercase tracking-wide opacity-50">px</span>
         </span>
       ),
     },

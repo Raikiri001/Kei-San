@@ -6,7 +6,7 @@ import { GridOverlay } from "@/components/CanvasWorkspace/GridOverlay";
 import { RulerOverlay } from "@/components/CanvasWorkspace/RulerOverlay";
 import { ImageElementView } from "@/components/CanvasWorkspace/ImageElementView";
 import { TextElementView } from "@/components/CanvasWorkspace/TextElementView";
-import { HandIcon } from "@/components/RadialMenu/icons";
+import { HandIcon, MoonIcon, SunIcon } from "@/components/RadialMenu/icons";
 import clsx from "clsx";
 
 const TAP_THRESHOLD_PX = 4;
@@ -38,9 +38,11 @@ export function CanvasWorkspace() {
   const togglePanTool = useUIStore((s) => s.togglePanTool);
   const isSpacePanning = useUIStore((s) => s.isSpacePanning);
   const setSpacePanning = useUIStore((s) => s.setSpacePanning);
-  const openRadialMenu = useUIStore((s) => s.openRadialMenu);
   const setSelectedElementId = useUIStore((s) => s.setSelectedElementId);
   const dragPreviewNode = useUIStore((s) => s.dragPreviewNode);
+
+  const theme = useUIStore((s) => s.theme);
+  const toggleTheme = useUIStore((s) => s.toggleTheme);
 
   const panActive = panToolActive || isSpacePanning;
 
@@ -138,7 +140,6 @@ export function CanvasWorkspace() {
     const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
     if (moved < TAP_THRESHOLD_PX) {
       setSelectedElementId(null);
-      openRadialMenu(e.clientX, e.clientY, "canvas", null);
     }
   }
 
@@ -175,7 +176,6 @@ export function CanvasWorkspace() {
         className="relative transition-transform duration-75 ease-out"
       >
         <div
-          data-radial-context="canvas"
           onPointerDown={handleBgPointerDown}
           onPointerUp={handleBgPointerUp}
           onPointerMove={handleCanvasPointerMove}
@@ -200,11 +200,20 @@ export function CanvasWorkspace() {
         <span className="corner-br" />
         <button
           type="button"
+          onClick={toggleTheme}
+          title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          className="press-scale flex h-7 w-7 items-center justify-center rounded opacity-70 transition-[color,opacity] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:text-accent hover:opacity-100"
+        >
+          <span className="flex h-4 w-4 items-center justify-center">{theme === "dark" ? <MoonIcon /> : <SunIcon />}</span>
+        </button>
+        <div className="mx-0.5 h-5 w-px" style={{ background: "rgb(var(--chrome-border) / 0.2)" }} />
+        <button
+          type="button"
           onClick={togglePanTool}
           title="Pan tool (hold Space)"
           aria-pressed={panToolActive}
           className={clsx(
-            "flex h-7 w-7 items-center justify-center rounded transition-colors",
+            "press-scale flex h-7 w-7 items-center justify-center rounded transition-[color,opacity,background-color,border-color] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
             panToolActive ? "border-accent/70 text-accent bg-[rgb(var(--color-accent-glow)/0.12)]" : "opacity-70 hover:opacity-100",
           )}
         >
@@ -217,7 +226,7 @@ export function CanvasWorkspace() {
           type="button"
           onClick={() => zoomBy(-0.1)}
           disabled={zoom <= MIN_ZOOM}
-          className="flex h-7 w-7 items-center justify-center text-sm disabled:opacity-30"
+          className="press-scale flex h-7 w-7 items-center justify-center text-sm transition-opacity duration-150 disabled:pointer-events-none disabled:opacity-30"
         >
           −
         </button>
@@ -226,7 +235,7 @@ export function CanvasWorkspace() {
           type="button"
           onClick={() => zoomBy(0.1)}
           disabled={zoom >= MAX_ZOOM}
-          className="flex h-7 w-7 items-center justify-center text-sm disabled:opacity-30"
+          className="press-scale flex h-7 w-7 items-center justify-center text-sm transition-opacity duration-150 disabled:pointer-events-none disabled:opacity-30"
         >
           +
         </button>

@@ -18,14 +18,14 @@ export function DiscardConfirmBar() {
         <button
           type="button"
           onClick={cancelDiscard}
-          className="rounded border border-[rgb(var(--chrome-border)/0.2)] px-2 py-1 uppercase tracking-wide opacity-80 hover:opacity-100"
+          className="press-scale rounded border border-[rgb(var(--chrome-border)/0.2)] px-2 py-1 uppercase tracking-wide opacity-80 transition-opacity duration-150 hover:opacity-100"
         >
           Cancel
         </button>
         <button
           type="button"
           onClick={confirmDiscard}
-          className="border-accent/60 text-accent rounded border px-2 py-1 uppercase tracking-wide"
+          className="press-scale border-accent/60 text-accent rounded border px-2 py-1 uppercase tracking-wide"
         >
           Discard &amp; Continue
         </button>
