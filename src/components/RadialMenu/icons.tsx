@@ -115,6 +115,24 @@ export function SizeIcon() {
   );
 }
 
+export function ResetIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M15.5 10a5.5 5.5 0 1 1-1.8-4.1" strokeLinecap="round" />
+      <path d="M15.5 3.5v3.6h-3.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function RotateIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M4.5 10a5.5 5.5 0 1 0 1.9-4.15" strokeLinecap="round" />
+      <path d="M3.5 3.5v3.6h3.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function AlignLeftIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">

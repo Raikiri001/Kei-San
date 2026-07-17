@@ -7,7 +7,7 @@ import { useLoadedImage } from "@/hooks/useLoadedImage";
 import { getColorSuggestions } from "@/canvas/colorExtraction";
 import { colorSuggestionsCache } from "@/canvas/analysisCaches";
 import { NumberStepperField } from "@/components/RadialMenu/NumberStepperField";
-import { FONT_SIZE_MAX, FONT_SIZE_MIN } from "@/constants/defaults";
+import { FONT_SIZE_MAX, FONT_SIZE_MIN, RESCALE_STEP_PX, TEXT_SCALE_MAX, TEXT_SCALE_MIN } from "@/constants/defaults";
 import {
   AlignCenterIcon,
   AlignJustifyIcon,
@@ -21,6 +21,7 @@ import {
   OrientationIcon,
   PaletteIcon,
   PencilIcon,
+  ResetIcon,
   SendBackwardIcon,
   SendToBackIcon,
   SizeIcon,
@@ -42,6 +43,10 @@ const ALIGN_OPTIONS: { value: TextAlign; label: string; Icon: () => React.ReactE
 function AlignIconFor({ value }: { value: TextAlign }) {
   const Icon = ALIGN_OPTIONS.find((o) => o.value === value)?.Icon ?? AlignLeftIcon;
   return <Icon />;
+}
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, n));
 }
 
 export function useTextContextItems(targetId: string | null): RingItem[] {
@@ -76,8 +81,81 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
     },
   });
 
+  // Published live by TextElementView (it's the only place with a DOM ref to
+  // measure from) — this text's own rendered box at scaleX/scaleY=1, so the
+  // Width/Height fields below can convert to/from the existing scaleX/scaleY
+  // stretch without re-implementing text measurement here. Falls back to 1×1
+  // for the one-frame gap before that effect first reports.
+  const base = useUIStore((s) => (targetId ? s.textBaseSizes[targetId] : undefined)) ?? { w: 1, h: 1 };
+
+  const widthDraft = useDraftNumber(text ? Math.round(base.w * text.scaleX) : 0, {
+    min: Math.round(base.w * TEXT_SCALE_MIN),
+    max: Math.round(base.w * TEXT_SCALE_MAX),
+    onCommit: (px) => {
+      if (!text) return;
+      updateText(text.id, { scaleX: clamp(px / base.w, TEXT_SCALE_MIN, TEXT_SCALE_MAX) });
+    },
+  });
+  const heightDraft = useDraftNumber(text ? Math.round(base.h * text.scaleY) : 0, {
+    min: Math.round(base.h * TEXT_SCALE_MIN),
+    max: Math.round(base.h * TEXT_SCALE_MAX),
+    onCommit: (px) => {
+      if (!text) return;
+      updateText(text.id, { scaleY: clamp(px / base.h, TEXT_SCALE_MIN, TEXT_SCALE_MAX) });
+    },
+  });
+
   if (!text || !targetId) return [];
   const id = targetId;
+
+  // Width/Height/Reset grouped into a drill-down submenu (same subItems
+  // pattern as Layers below) rather than one wide side-by-side pill — a
+  // two-field pill can reach ~400px expanded, which both looks oversized and
+  // forces the whole ring's radius to grow to avoid overlapping neighbors.
+  // Each subitem pill only ever hosts a single field, so it stays a normal
+  // narrow-pill width like every other control here. Kept separate from the
+  // "font-size" item above (still labeled "Font Size", unaffected) since
+  // these drive scaleX/scaleY, not fontSize — see the module doc comment.
+  const dimensionsSubItems: RingItem[] = [
+    {
+      key: "width",
+      icon: <SizeIcon />,
+      label: "Width",
+      wide: true,
+      expandedContent: (
+        <NumberStepperField
+          draft={widthDraft}
+          onDec={() => updateText(id, { scaleX: clamp((base.w * text.scaleX - RESCALE_STEP_PX) / base.w, TEXT_SCALE_MIN, TEXT_SCALE_MAX) })}
+          onInc={() => updateText(id, { scaleX: clamp((base.w * text.scaleX + RESCALE_STEP_PX) / base.w, TEXT_SCALE_MIN, TEXT_SCALE_MAX) })}
+          min={Math.round(base.w * TEXT_SCALE_MIN)}
+          max={Math.round(base.w * TEXT_SCALE_MAX)}
+          ariaLabel="Width in pixels"
+        />
+      ),
+    },
+    {
+      key: "height",
+      icon: <SizeIcon />,
+      label: "Height",
+      wide: true,
+      expandedContent: (
+        <NumberStepperField
+          draft={heightDraft}
+          onDec={() => updateText(id, { scaleY: clamp((base.h * text.scaleY - RESCALE_STEP_PX) / base.h, TEXT_SCALE_MIN, TEXT_SCALE_MAX) })}
+          onInc={() => updateText(id, { scaleY: clamp((base.h * text.scaleY + RESCALE_STEP_PX) / base.h, TEXT_SCALE_MIN, TEXT_SCALE_MAX) })}
+          min={Math.round(base.h * TEXT_SCALE_MIN)}
+          max={Math.round(base.h * TEXT_SCALE_MAX)}
+          ariaLabel="Height in pixels"
+        />
+      ),
+    },
+    {
+      key: "reset-dimensions",
+      icon: <ResetIcon />,
+      label: "Reset Size",
+      onClick: () => updateText(id, { scaleX: 1, scaleY: 1 }),
+    },
+  ];
 
   const layerSubItems: RingItem[] = [
     { key: "bring-to-front", icon: <BringToFrontIcon />, label: "Bring to Front", onClick: () => bringToFront(id) },
@@ -135,7 +213,7 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
     {
       key: "size",
       icon: <SizeIcon />,
-      label: "Size",
+      label: "Font Size",
       wide: true,
       expandedContent: (
         <NumberStepperField
@@ -147,6 +225,12 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
           ariaLabel="Font size in pixels"
         />
       ),
+    },
+    {
+      key: "dimensions",
+      icon: <SizeIcon />,
+      label: "Dimensions",
+      subItems: dimensionsSubItems,
     },
     {
       key: "content",

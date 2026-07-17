@@ -30,9 +30,18 @@ function createBaselineProject(): ProjectState {
 
 type NewImageInput = Omit<
   ImageElement,
-  "id" | "x" | "y" | "circleMask" | "halftoneMode" | "halftoneDotPitch" | "edgeBlend" | "edgeBlendMargin" | "zIndex"
+  | "id"
+  | "x"
+  | "y"
+  | "circleMask"
+  | "halftoneMode"
+  | "halftoneDotPitch"
+  | "edgeBlend"
+  | "edgeBlendMargin"
+  | "rotation"
+  | "zIndex"
 > &
-  Partial<Pick<ImageElement, "circleMask" | "halftoneMode" | "halftoneDotPitch" | "edgeBlend" | "edgeBlendMargin">>;
+  Partial<Pick<ImageElement, "circleMask" | "halftoneMode" | "halftoneDotPitch" | "edgeBlend" | "edgeBlendMargin" | "rotation">>;
 
 interface ProjectStore {
   project: ProjectState;
@@ -124,6 +133,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       halftoneDotPitch: DOT_PITCH,
       edgeBlend: false,
       edgeBlendMargin: resolveDefaultMargin(partial.displayWidth, partial.displayHeight),
+      rotation: 0,
       x: project.width / 2 + cascade * partial.displayWidth * 0.06,
       y: project.height / 2 + cascade * partial.displayHeight * 0.06,
       zIndex: nextZIndex(project),
@@ -176,6 +186,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       y: project.height / 2 + cascade * 36,
       scaleX: 1,
       scaleY: 1,
+      rotation: 0,
       zIndex: nextZIndex(project),
       ...partial,
     };

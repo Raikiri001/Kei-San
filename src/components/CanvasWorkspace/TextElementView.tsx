@@ -35,11 +35,13 @@ export function TextElementView({ text }: { text: TextElement }) {
   const editingTextId = useUIStore((s) => s.editingTextId);
   const setEditingTextId = useUIStore((s) => s.setEditingTextId);
   const setDragPreviewNode = useUIStore((s) => s.setDragPreviewNode);
+  const setTextBaseSize = useUIStore((s) => s.setTextBaseSize);
 
   const [preview, setPreview] = useState<{ x: number; y: number } | null>(null);
   const [sizePreview, setSizePreview] = useState<{ x: number; y: number; scaleX: number; scaleY: number } | null>(
     null,
   );
+  const [rotationPreview, setRotationPreview] = useState<number | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
   // Set once per resize drag (inside getResizeBox, called at drag-start) so the
@@ -49,6 +51,21 @@ export function TextElementView({ text }: { text: TextElement }) {
 
   const isSelected = selectedElementId === text.id;
   const isEditing = editingTextId === text.id;
+
+  // Pulses the pencil button's corner brackets once when this text becomes
+  // newly selected — same "materializing" confirmation cue as the toolbar/
+  // radial pills' expand pulse, just triggered by selection instead of hover.
+  const [pencilPulsing, setPencilPulsing] = useState(false);
+  const wasSelectedRef = useRef(false);
+  useEffect(() => {
+    if (isSelected && !wasSelectedRef.current) {
+      setPencilPulsing(true);
+      const t = setTimeout(() => setPencilPulsing(false), 380);
+      wasSelectedRef.current = true;
+      return () => clearTimeout(t);
+    }
+    wasSelectedRef.current = isSelected;
+  }, [isSelected]);
 
   const getPosition = useCallback(() => ({ x: text.x, y: text.y }), [text.x, text.y]);
   const onPreview = useCallback(
@@ -117,6 +134,35 @@ export function TextElementView({ text }: { text: TextElement }) {
     [updateText, text.id],
   );
 
+  const getScreenCenter = useCallback(() => {
+    const rect = wrapperRef.current?.getBoundingClientRect();
+    return rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : { x: 0, y: 0 };
+  }, []);
+  const onRotatePreview = useCallback((rotationDeg: number) => setRotationPreview(rotationDeg), []);
+  const onRotateCommit = useCallback(
+    (rotationDeg: number) => {
+      updateText(text.id, { rotation: rotationDeg });
+      setRotationPreview(null);
+    },
+    [updateText, text.id],
+  );
+
+  // Publishes this text's own unscaled (scaleX/scaleY=1) rendered box so the
+  // radial menu's Width/Height fields — which have no DOM access — can convert
+  // to/from scaleX/scaleY without re-implementing text measurement. ResizeObserver
+  // reports the layout/border box, unaffected by this element's own CSS `scale()`
+  // transform (same principle offsetWidth/Height already rely on elsewhere in
+  // this file), so it won't loop from the element's own stretch changing.
+  useEffect(() => {
+    const el = wrapperRef.current;
+    if (!el) return;
+    const report = () => setTextBaseSize(text.id, el.offsetWidth, el.offsetHeight);
+    report();
+    const observer = new ResizeObserver(report);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [text.id, setTextBaseSize, text.fontSize, text.fontFamily, text.content, text.orientation]);
+
   const { onPointerDown, onPointerMove, onPointerUp } = useDrag({
     getPosition,
     zoom,
@@ -167,6 +213,7 @@ export function TextElementView({ text }: { text: TextElement }) {
   const pos = sizePreview ?? preview ?? { x: text.x, y: text.y };
   const scaleX = sizePreview?.scaleX ?? text.scaleX;
   const scaleY = sizePreview?.scaleY ?? text.scaleY;
+  const rotation = rotationPreview ?? text.rotation;
   // Resize handles/pencil button are children of this scaled wrapper (so their
   // *position* naturally follows the stretched corners via the ambient transform),
   // but each counter-scales its own size by 1/scaleX,1/scaleY below so they stay a
@@ -187,7 +234,21 @@ export function TextElementView({ text }: { text: TextElement }) {
       style={{
         left: 0,
         top: 0,
-        transform: `translate(${pos.x}px, ${pos.y}px) translate(-50%, -50%) scale(${scaleX}, ${scaleY})`,
+        // Order matters here beyond the obvious "apply right-to-left" reading:
+        // CSS transform-origin (default 50%/50%, i.e. this box's own center)
+        // wraps the *entire* composed transform as one unit — it does not
+        // nest per-function, re-centering on whatever point the previous
+        // function happened to shift to. So a translate(-50%,-50%) placed
+        // *between* rotate and the origin behaves differently than one placed
+        // *before* rotate: with the recenter first, rotate/scale (both linear,
+        // fixed at the local origin) end up pivoting exactly on the box's own
+        // center regardless of angle; with rotate first (the previous, buggy
+        // order), the pivot silently drifts away from center as rotation
+        // increases, which is exactly the "rotates around a corner"-looking
+        // bug this order fixes. Verified empirically: rotating a test element
+        // to 120° previously moved its screen-space center by ~170px; with
+        // this order the center stays fixed for any angle.
+        transform: `translate(${pos.x}px, ${pos.y}px) translate(-50%, -50%) rotate(${rotation}deg) scale(${scaleX}, ${scaleY})`,
         fontFamily: FONT_STACKS[text.fontFamily],
         fontSize: text.fontSize,
         color: text.color,
@@ -217,18 +278,22 @@ export function TextElementView({ text }: { text: TextElement }) {
           type="button"
           onClick={handlePencilClick}
           onPointerDown={(e) => e.stopPropagation()}
-          className="glass-panel corner-frame accent-glow-hover absolute left-1/2 top-0 z-10 flex h-11 w-11 items-center justify-center"
+          data-pulse={pencilPulsing ? "true" : undefined}
+          className="glass-panel corner-frame accent-glow-hover absolute left-full top-0 z-10 flex h-11 w-11 items-center justify-center"
           style={{
             writingMode: "horizontal-tb",
-            // Counter-scales against the ambient canvas zoom in addition to the text's
-            // own stretch (inverseScaleX/Y alone only undid the latter), so this stays a
-            // fixed, comfortable hit target on screen instead of shrinking down to a
-            // near-unclickable speck whenever the canvas is zoomed out. scale() is placed
-            // before translateY so the -2rem gap is corrected by the same factor as the
-            // button's own size — translateY (rightmost) applies first, then scale, then
-            // the self-centering translate — keeping the button a constant offset above
-            // the text too, not just a constant size.
-            transform: `translate(-50%, -50%) scale(${inverseScaleX / zoom}, ${inverseScaleY / zoom}) translateY(-2rem)`,
+            // Diagonally beyond the NE corner — the rotate handle now occupies
+            // top-center (Illustrator/Photoshop convention), so the pencil button
+            // moved here to stay clear of it. Counter-scales against the ambient
+            // canvas zoom in addition to the text's own stretch (inverseScaleX/Y
+            // alone only undid the latter), so this stays a fixed, comfortable hit
+            // target on screen instead of shrinking to a near-unclickable speck when
+            // zoomed out. scale() is placed before the offset translate so that
+            // offset is corrected by the same factor as the button's own size —
+            // the offset (rightmost) applies first, then scale, then the
+            // self-centering translate — keeping the button a constant offset from
+            // the corner too, not just a constant size.
+            transform: `translate(-50%, -50%) scale(${inverseScaleX / zoom}, ${inverseScaleY / zoom}) translate(1.75rem, -1.75rem)`,
           }}
           aria-label="Open text tools"
         >
@@ -244,6 +309,7 @@ export function TextElementView({ text }: { text: TextElement }) {
       {isSelected && !isEditing && !panActive && (
         <ResizeHandles
           getBox={getResizeBox}
+          rotation={rotation}
           zoom={zoom}
           minW={0}
           maxW={Infinity}
@@ -251,6 +317,9 @@ export function TextElementView({ text }: { text: TextElement }) {
           maxH={Infinity}
           onPreview={onResizePreview}
           onCommit={onResizeCommit}
+          onRotatePreview={onRotatePreview}
+          onRotateCommit={onRotateCommit}
+          getScreenCenter={getScreenCenter}
           counterScaleX={inverseScaleX}
           counterScaleY={inverseScaleY}
         />

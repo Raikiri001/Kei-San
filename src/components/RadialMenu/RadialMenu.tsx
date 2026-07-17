@@ -146,6 +146,7 @@ export function RadialMenu() {
             transition={
               prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 32 }
             }
+            data-pulse="true"
             className="glass-panel corner-frame pointer-events-auto fixed z-10 max-h-[min(70vh,520px)] -translate-x-1/2 overflow-y-auto p-3"
             style={{ left: radialMenu.x, top: popoverTop }}
           >

@@ -29,6 +29,11 @@ interface UIStore {
   /** Set while a discard-confirmation popover is pending (New Design / loading another design while dirty). */
   pendingDiscardAction: (() => void) | null;
   pendingDiscardMessage: string;
+  /** Each text element's own unscaled (scaleX/scaleY=1) rendered box, in canvas
+   * px — published live by TextElementView so the radial menu's Width/Height
+   * fields (which have no DOM access of their own) can convert to/from
+   * scaleX/scaleY without re-implementing text measurement. */
+  textBaseSizes: Record<string, { w: number; h: number }>;
 
   setZoom: (zoom: number) => void;
   zoomBy: (delta: number) => void;
@@ -48,6 +53,7 @@ interface UIStore {
   setUploadDialogOpen: (open: boolean) => void;
   setDragPreviewNode: (node: GridNode | null) => void;
   setEditingTextId: (id: string | null) => void;
+  setTextBaseSize: (id: string, w: number, h: number) => void;
   markDirty: () => void;
   markClean: () => void;
   /** Runs `action` immediately if clean; otherwise stages it behind a confirm popover. */
@@ -77,6 +83,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   editingTextId: null,
   pendingDiscardAction: null,
   pendingDiscardMessage: "",
+  textBaseSizes: {},
 
   setZoom: (zoom) => set({ zoom: clampZoom(zoom) }),
   zoomBy: (delta) => set((s) => ({ zoom: clampZoom(s.zoom + delta) })),
@@ -108,6 +115,12 @@ export const useUIStore = create<UIStore>((set, get) => ({
   setUploadDialogOpen: (uploadDialogOpen) => set({ uploadDialogOpen }),
   setDragPreviewNode: (dragPreviewNode) => set({ dragPreviewNode }),
   setEditingTextId: (editingTextId) => set({ editingTextId }),
+  setTextBaseSize: (id, w, h) =>
+    set((s) => {
+      const existing = s.textBaseSizes[id];
+      if (existing && existing.w === w && existing.h === h) return s;
+      return { textBaseSizes: { ...s.textBaseSizes, [id]: { w, h } } };
+    }),
 
   markDirty: () => set({ isDirty: true }),
   markClean: () => set({ isDirty: false }),

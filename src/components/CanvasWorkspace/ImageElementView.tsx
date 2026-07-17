@@ -28,7 +28,9 @@ export function ImageElementView({ image }: { image: ImageElement }) {
 
   const [preview, setPreview] = useState<{ x: number; y: number } | null>(null);
   const [sizePreview, setSizePreview] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
+  const [rotationPreview, setRotationPreview] = useState<number | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
   // Only decoded when actually needed (halftone canvas, or an edge-blend color
   // that was never eagerly cached at upload time e.g. images restored from a
@@ -72,6 +74,19 @@ export function ImageElementView({ image }: { image: ImageElement }) {
     (box: { x: number; y: number; w: number; h: number }) => {
       updateImage(image.id, { x: box.x, y: box.y, displayWidth: box.w, displayHeight: box.h });
       setSizePreview(null);
+    },
+    [updateImage, image.id],
+  );
+
+  const getScreenCenter = useCallback(() => {
+    const rect = wrapperRef.current?.getBoundingClientRect();
+    return rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 } : { x: 0, y: 0 };
+  }, []);
+  const onRotatePreview = useCallback((rotationDeg: number) => setRotationPreview(rotationDeg), []);
+  const onRotateCommit = useCallback(
+    (rotationDeg: number) => {
+      updateImage(image.id, { rotation: rotationDeg });
+      setRotationPreview(null);
     },
     [updateImage, image.id],
   );
@@ -127,6 +142,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
 
   const pos = preview ?? { x: image.x, y: image.y };
   const box = sizePreview ?? { x: pos.x, y: pos.y, w: image.displayWidth, h: image.displayHeight };
+  const rotation = rotationPreview ?? image.rotation;
   const isSelected = selectedElementId === image.id;
   // While pan mode is active, the element must not intercept the drag — letting
   // pointerdown bubble to the canvas background lets the same gesture pan the
@@ -156,6 +172,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
 
   return (
     <div
+      ref={wrapperRef}
       data-radial-context="image"
       {...dragHandlers}
       className={clsx("absolute touch-none", !panActive && "cursor-grab active:cursor-grabbing")}
@@ -164,7 +181,14 @@ export function ImageElementView({ image }: { image: ImageElement }) {
         top: 0,
         width: box.w,
         height: box.h,
-        transform: `translate(${box.x - box.w / 2}px, ${box.y - box.h / 2}px)`,
+        // Centering translate must come *before* rotate in the function list,
+        // not after — see the matching comment in TextElementView.tsx for why
+        // CSS's transform-origin (which wraps the whole composed transform as
+        // one unit, not per-function) makes the two orders behave completely
+        // differently: this order pivots rotation exactly on the box's own
+        // center for any angle; the previous order let the pivot drift away
+        // from center as rotation increased.
+        transform: `translate(${box.x}px, ${box.y}px) translate(${-box.w / 2}px, ${-box.h / 2}px) rotate(${rotation}deg)`,
         outline: isSelected ? "1.5px solid rgb(var(--color-accent-glow) / 0.8)" : "none",
         outlineOffset: 2,
         boxShadow: edgeColor ? getEdgeGlowBoxShadow(edgeColor, image.edgeBlendMargin) : undefined,
@@ -183,6 +207,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
       {isSelected && !panActive && (
         <ResizeHandles
           getBox={getResizeBox}
+          rotation={rotation}
           zoom={zoom}
           minW={DISPLAY_SIZE_MIN}
           maxW={DISPLAY_SIZE_MAX}
@@ -190,6 +215,9 @@ export function ImageElementView({ image }: { image: ImageElement }) {
           maxH={DISPLAY_SIZE_MAX}
           onPreview={onResizePreview}
           onCommit={onResizeCommit}
+          onRotatePreview={onRotatePreview}
+          onRotateCommit={onRotateCommit}
+          getScreenCenter={getScreenCenter}
         />
       )}
     </div>

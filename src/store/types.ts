@@ -21,6 +21,8 @@ export interface ImageElement {
   edgeBlend: boolean;
   /** Edge-blend glow size in true canvas px, seeded from an auto-formula at upload then user-adjustable. */
   edgeBlendMargin: number;
+  /** Clockwise rotation in degrees around the element's own center. Default 0. */
+  rotation: number;
   /** Shared stacking order across images and texts — higher paints on top. */
   zIndex: number;
 }
@@ -45,6 +47,8 @@ export interface TextElement {
   /** Corner-drag stretch factors on top of fontSize, default 1 — see TextElementView. */
   scaleX: number;
   scaleY: number;
+  /** Clockwise rotation in degrees around the element's own center. Default 0. */
+  rotation: number;
   /** Shared stacking order across images and texts — higher paints on top. */
   zIndex: number;
 }

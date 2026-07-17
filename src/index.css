@@ -120,6 +120,23 @@ body {
   background: rgb(var(--color-accent-glow) / 0.35);
 }
 
+/* Disables Chromium's CSS scroll-anchoring on width-animated, overflow-hidden
+   pills/buttons (IconPill, ToolbarIconButton). Root-caused a real bug: those
+   containers hold a `position: absolute` diagonal sweep overlay whose `x`
+   motion value continuously sweeps from -130% to 130%, which massively
+   inflates and constantly changes the container's own `scrollWidth` (well
+   beyond its visible width) as a side effect. The browser's default scroll
+   anchoring (meant to keep content visually stable when layout shifts, e.g.
+   during infinite-scroll loads) reacts to that churn by silently giving the
+   container a non-zero `scrollLeft` — which, since nothing ever needs this
+   box to actually scroll, just clips a chunk off the START of the visible
+   content instead (seen as the first 1-2 words of a label vanishing behind
+   the left edge). `overflow-anchor: none` opts these containers out of that
+   heuristic entirely — safe here since they never intentionally scroll. */
+.no-scroll-anchor {
+  overflow-anchor: none;
+}
+
 @keyframes radial-appear {
   from {
     opacity: 0;
@@ -253,9 +270,72 @@ body {
   animation: handle-pop 180ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
 }
 
+/* Resize/rotate handle dot: a solid bright fill (not glass-panel's near-opaque
+   *dark* background) plus a light ring and dark outline, so the dot stays
+   legible sitting directly on top of arbitrary canvas imagery — a thin
+   accent-tinted border on a dark fill (the old look) reads as almost nothing
+   against a dark photo, which is exactly the case this most needs to work. */
+.handle-dot {
+  background: rgb(var(--color-accent-glow));
+  border: 1.5px solid rgb(255 255 255 / 0.95);
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.55),
+    0 0 6px rgb(var(--color-accent-glow) / 0.9),
+    0 0 14px rgb(var(--color-accent-glow) / 0.5);
+}
+
+/* Corner-frame "materializing" pulse: on collapse->expand transition, each
+   bracket nudges outward a few px then eases back to its resting offset,
+   flashing brighter at the peak — a confirmation cue distinct from
+   handle-pop's pop-in (this fires on every expand, not just first mount).
+   The color/glow flash matters as much as the nudge: a lone few-px offset on
+   a 2px border reads as noise next to the pill's own much larger width/icon/
+   label animations running at the same instant, so this also brightens the
+   bracket's border color and adds a glow at the peak frame to make the cue
+   legible on its own. Direction is per-corner so the four ticks visibly
+   "breathe outward" as a group. Works on .corner-frame::after (the top-right
+   tick) too — CSS keyframes apply fine to pseudo-elements, so this needs no
+   JSX changes at any of its call sites, just the data-pulse attribute. */
+@keyframes corner-pulse-tl {
+  0% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
+  35% { transform: translate(-6px, -6px); border-color: rgb(var(--color-accent-glow)); filter: drop-shadow(0 0 4px rgb(var(--color-accent-glow) / 0.9)); }
+  100% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
+}
+@keyframes corner-pulse-tr {
+  0% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
+  35% { transform: translate(6px, -6px); border-color: rgb(var(--color-accent-glow)); filter: drop-shadow(0 0 4px rgb(var(--color-accent-glow) / 0.9)); }
+  100% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
+}
+@keyframes corner-pulse-bl {
+  0% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
+  35% { transform: translate(-6px, 6px); border-color: rgb(var(--color-accent-glow)); filter: drop-shadow(0 0 4px rgb(var(--color-accent-glow) / 0.9)); }
+  100% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
+}
+@keyframes corner-pulse-br {
+  0% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
+  35% { transform: translate(6px, 6px); border-color: rgb(var(--color-accent-glow)); filter: drop-shadow(0 0 4px rgb(var(--color-accent-glow) / 0.9)); }
+  100% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
+}
+.corner-frame[data-pulse="true"] > .corner-tl {
+  animation: corner-pulse-tl 360ms var(--ease-snap);
+}
+.corner-frame[data-pulse="true"]::after {
+  animation: corner-pulse-tr 360ms var(--ease-snap);
+}
+.corner-frame[data-pulse="true"] > .corner-bl {
+  animation: corner-pulse-bl 360ms var(--ease-snap);
+}
+.corner-frame[data-pulse="true"] > .corner-br {
+  animation: corner-pulse-br 360ms var(--ease-snap);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .radial-appear,
-  .handle-pop {
+  .handle-pop,
+  .corner-frame[data-pulse="true"] > .corner-tl,
+  .corner-frame[data-pulse="true"]::after,
+  .corner-frame[data-pulse="true"] > .corner-bl,
+  .corner-frame[data-pulse="true"] > .corner-br {
     animation: none !important;
   }
   .press-sweep::before {

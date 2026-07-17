@@ -10,7 +10,19 @@ export const DEFAULT_ZOOM = 1;
 
 export const DISPLAY_SIZE_MIN = 20;
 export const DISPLAY_SIZE_MAX = 4000;
-export const RESCALE_FACTOR = 1.1;
+/** Flat px step for the independent Width/Height steppers (image size, text scaleX/scaleY-in-px). */
+export const RESCALE_STEP_PX = 20;
+
+export const ROTATION_SNAP_DEGREES = 15;
+/** Visible resize-handle dot size — deliberately small; the actual pointer/touch
+ * target is HANDLE_HIT_SIZE, an invisible padded zone around this dot (see
+ * ResizeHandles.tsx), not a literally-enlarged visible square. */
+export const HANDLE_VISUAL_SIZE = 12;
+export const HANDLE_HIT_SIZE = 26;
+export const ROTATE_HANDLE_VISUAL_SIZE = 12;
+export const ROTATE_HANDLE_HIT_SIZE = 28;
+/** Distance (CSS px, pre-counter-scale) the rotate handle sits above the top-center edge. */
+export const ROTATE_HANDLE_OFFSET = 22;
 
 export const FONT_SIZE_MIN = 12;
 export const FONT_SIZE_MAX = 400;

@@ -110,8 +110,12 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
       const image = entry.el;
       const img = loadedImages.get(image.id);
       if (!img) continue;
-      const drawX = image.x - image.displayWidth / 2;
-      const drawY = image.y - image.displayHeight / 2;
+      const drawX = -image.displayWidth / 2;
+      const drawY = -image.displayHeight / 2;
+
+      ctx.save();
+      ctx.translate(image.x, image.y);
+      ctx.rotate((image.rotation * Math.PI) / 180);
 
       if (image.edgeBlend) {
         const edgeColor = edgeColorCache.get(image.dataUrl) ?? getEdgeAverageColor(img);
@@ -134,18 +138,29 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
         const src = computeCoverSourceRect(img.naturalWidth, img.naturalHeight, image.displayWidth, image.displayHeight);
         ctx.drawImage(img, src.x, src.y, src.width, src.height, drawX, drawY, image.displayWidth, image.displayHeight);
       }
+      ctx.restore();
     } else {
       const text = entry.el;
+      ctx.save();
+      ctx.translate(text.x, text.y);
+      ctx.rotate((text.rotation * Math.PI) / 180);
+      // Matches the live DOM render order (TextElementView.tsx): scale is the
+      // innermost stretch, applied before rotation wraps the already-stretched
+      // shape as a rigid unit. Previously missing entirely — a scaleX/scaleY-
+      // stretched text element rendered correctly on canvas but silently
+      // un-stretched in the exported PNG.
+      ctx.scale(text.scaleX, text.scaleY);
       ctx.font = `${text.fontSize}px ${FONT_STACKS[text.fontFamily]}`;
       ctx.fillStyle = text.color;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
 
       if (text.orientation === "vertical") {
-        drawVerticalText(ctx, text.content, text.x, text.y, text.fontSize);
+        drawVerticalText(ctx, text.content, 0, 0, text.fontSize);
       } else {
-        drawMultilineText(ctx, text.content, text.x, text.y, text.fontSize, text.align);
+        drawMultilineText(ctx, text.content, 0, 0, text.fontSize, text.align);
       }
+      ctx.restore();
     }
   }
 

@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import clsx from "clsx";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 
@@ -28,18 +28,18 @@ interface IconPillProps {
 }
 
 const COLLAPSED_W = 44;
-// Wide pills host icon + label + stepper + input + "px" unit — 240 is the
-// measured minimum for that combination without clipping the unit text; the
-// bigger ring radius (see ring-layout.ts) is what keeps this from overlapping
-// a neighbor now, not a narrower pill.
+// Pre-measurement fallbacks only — the real target is this instance's own
+// measured content width (see measuredWidth below), so a short label like
+// "Delete" no longer inherits a bucket width sized for the longest label
+// sharing its `wide` bucket.
 const WIDE_EXPANDED_W = 240;
 const NARROW_EXPANDED_W = 200;
+const PULSE_MS = 380;
 
-// Visible overshoot-then-settle on expand — a HUD panel deploying, not a flat
-// width tween — plus a springy icon pop and a diagonal energy sweep, all keyed
-// off the same "expanded" variant so hover reads as one choreographed beat
-// instead of a label just quietly fading in.
-const WIDTH_SPRING = { type: "spring" as const, stiffness: 260, damping: 16, mass: 0.95 };
+// A snap, not a bounce: damping raised close to critical (~0.95-1.0 of the
+// stiffness/mass pair below) so the expand keeps its speed but settles
+// without overshooting past its target width.
+const WIDTH_SPRING = { type: "spring" as const, stiffness: 260, damping: 30, mass: 0.95 };
 const LABEL_SPRING = { type: "spring" as const, stiffness: 420, damping: 24 };
 const SWEEP_TWEEN = { duration: 0.48, ease: [0.16, 1, 0.3, 1] as const };
 
@@ -56,9 +56,14 @@ const sweepVariants: Variants = {
   expanded: { x: "130%" },
 };
 
+// PILL_PADDING_X must match px-3 below (12px each side) — added on top of the
+// measured *content* width (icon+label+expandedContent only) to get the pill's
+// full target width, since the padding itself isn't part of what gets measured.
+const PILL_PADDING_X = 24;
+
 function pillBaseClass(hasStatus?: boolean, active?: boolean, disabled?: boolean) {
   return clsx(
-    "glass-panel corner-frame relative flex h-11 items-center gap-2 overflow-hidden px-3",
+    "glass-panel corner-frame no-scroll-anchor relative flex h-11 items-center overflow-hidden px-3",
     !disabled && "accent-glow-hover press-sweep press-scale",
     !hasStatus && (active
       ? "border-accent/70 text-accent shadow-[0_0_16px_rgb(var(--color-accent-glow)/0.5),0_0_32px_rgb(var(--color-accent-glow)/0.2)]"
@@ -114,19 +119,93 @@ export function IconPill({
   wide,
   popDelay = 0,
 }: IconPillProps) {
-  const outerStyle: CSSProperties = { transform: `translate(${x}px, ${y}px)` };
+  // Both halves of this transform must live in the SAME inline style: an
+  // inline `style.transform` always wins over a Tailwind `-translate-x-1/2
+  // -translate-y-1/2` utility class targeting the same property (inline
+  // beats class regardless of Tailwind's layer ordering), so splitting the
+  // ring-position translate (inline) from the self-centering translate
+  // (class) silently drops the centering half entirely — the pill then
+  // anchors by its top-left corner instead of its center, so its content
+  // visibly drifts as its own width animates. Composing both here keeps the
+  // pill centered on its ring anchor point at every width.
+  const outerStyle: CSSProperties = { transform: `translate(-50%, -50%) translate(${x}px, ${y}px)` };
   const prefersReducedMotion = useReducedMotion();
   const hasStatus = status !== undefined;
-  const expandedWidth = wide ? WIDE_EXPANDED_W : NARROW_EXPANDED_W;
+  const pillRef = useRef<HTMLButtonElement | HTMLDivElement>(null);
+  // Measures only the icon+label+expandedContent group, NOT the whole pill —
+  // the pill also contains the corner-frame brackets and the diagonal sweep
+  // overlay (both `position: absolute`), and `scrollWidth` on the pill itself
+  // would include however far the sweep's animated position currently extends,
+  // producing a garbage measurement instead of the content's true width.
+  const contentRef = useRef<HTMLSpanElement>(null);
+  const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
   // expandedContent hosts real nested <input>/<button> controls — a keyboard
   // user tabbing into those needs the pill to stay unfurled, but Framer's
   // whileFocus only fires when the *animated* element itself is focused, not a
   // descendant, so that specific case needs its own focus-tracked state.
   const [contentFocused, setContentFocused] = useState(false);
+  // Purely for the corner-pulse trigger below — independent of the Framer
+  // gesture props (whileHover/whileFocus) that actually drive the width
+  // animation, since there's no built-in "is this element currently in its
+  // hover-or-focus-driven variant" boolean to read back out of Framer.
+  const [isInteracting, setIsInteracting] = useState(false);
+  const [pulsing, setPulsing] = useState(false);
+  const wasInteractingRef = useRef(false);
 
+  useLayoutEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    // scrollWidth reports the content's true (unclipped) width regardless of
+    // the currently-animated `width` + overflow-hidden — this instance's own
+    // natural expanded width, not a shared bucket constant sized for whatever
+    // the longest label in its `wide`/narrow group happens to be.
+    setMeasuredWidth(el.scrollWidth + PILL_PADDING_X);
+  }, [label, expandedContent, wide]);
+
+  useLayoutEffect(() => {
+    if (isInteracting && !wasInteractingRef.current) {
+      setPulsing(true);
+      const t = setTimeout(() => setPulsing(false), PULSE_MS);
+      wasInteractingRef.current = true;
+      return () => clearTimeout(t);
+    }
+    wasInteractingRef.current = isInteracting;
+  }, [isInteracting]);
+
+  // Belt-and-suspenders for the scrollLeft quirk documented at resetScrollLeft
+  // below: Framer's `onUpdate` only fires while its own spring is actively
+  // running, so a scrollLeft corruption that happens (or recurs) after the
+  // width spring has already settled — e.g. triggered by a *different*
+  // nearby pill's own expand/collapse reflowing this one — would go
+  // uncorrected. A native `scroll` listener catches that regardless of cause
+  // or timing, since it fires on the actual DOM event, not on animation frames.
+  useEffect(() => {
+    const el = pillRef.current;
+    if (!el) return;
+    const onScroll = () => {
+      if (el.scrollLeft !== 0) el.scrollLeft = 0;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, []);
+
+  const expandedWidth = measuredWidth ?? (wide ? WIDE_EXPANDED_W : NARROW_EXPANDED_W);
   const widthVariants: Variants = {
     collapsed: { width: COLLAPSED_W },
     expanded: { width: expandedWidth },
+  };
+
+  // Root-caused browser quirk, not a layout bug: this pill's diagonal sweep
+  // overlay sweeps from -130% to 130% while the pill's `width` is *also*
+  // animating, and somewhere in that combination the browser assigns the
+  // overflow-hidden pill a stray non-zero `scrollLeft` early in the transition
+  // (reproduced even with `overflow-anchor: none` set, so it isn't standard
+  // CSS scroll-anchoring) — which then clips the *start* of the visible label
+  // instead of the harmless empty space past its end. Forcing scrollLeft back
+  // to 0 every animation frame is a cheap, guaranteed-correct way to neutralize
+  // it regardless of the exact underlying cause.
+  const resetScrollLeft = () => {
+    if (pillRef.current) pillRef.current.scrollLeft = 0;
   };
 
   const inner = (
@@ -135,30 +214,32 @@ export function IconPill({
       <span className="corner-bl" />
       <span className="corner-br" />
       <Sweep prefersReducedMotion={prefersReducedMotion} />
-      <motion.span
-        variants={prefersReducedMotion ? undefined : iconVariants}
-        transition={LABEL_SPRING}
-        className="flex h-5 w-5 shrink-0 items-center justify-center"
-      >
-        {icon}
-      </motion.span>
-      <motion.span
-        variants={prefersReducedMotion ? undefined : labelVariants}
-        transition={LABEL_SPRING}
-        className="whitespace-nowrap text-[11px] uppercase tracking-wide"
-      >
-        {label}
-      </motion.span>
-      {expandedContent && (
+      <span ref={contentRef} className="flex items-center gap-2">
+        <motion.span
+          variants={prefersReducedMotion ? undefined : iconVariants}
+          transition={LABEL_SPRING}
+          className="flex h-5 w-5 shrink-0 items-center justify-center"
+        >
+          {icon}
+        </motion.span>
         <motion.span
           variants={prefersReducedMotion ? undefined : labelVariants}
           transition={LABEL_SPRING}
-          className="flex items-center"
-          onPointerDown={(e) => e.stopPropagation()}
+          className="shrink-0 whitespace-nowrap text-[11px] uppercase tracking-wide"
         >
-          {expandedContent}
+          {label}
         </motion.span>
-      )}
+        {expandedContent && (
+          <motion.span
+            variants={prefersReducedMotion ? undefined : labelVariants}
+            transition={LABEL_SPRING}
+            className="flex shrink-0 items-center"
+            onPointerDown={(e) => e.stopPropagation()}
+          >
+            {expandedContent}
+          </motion.span>
+        )}
+      </span>
     </>
   );
 
@@ -167,14 +248,26 @@ export function IconPill({
   // and browsers silently break out of them, corrupting the layout.
   const content = expandedContent ? (
     <motion.div
+      ref={pillRef as React.Ref<HTMLDivElement>}
       aria-disabled={disabled}
+      data-pulse={pulsing ? "true" : undefined}
       initial="collapsed"
       animate={contentFocused ? "expanded" : "collapsed"}
       whileHover={disabled || prefersReducedMotion ? undefined : "expanded"}
       variants={prefersReducedMotion ? undefined : widthVariants}
       transition={prefersReducedMotion ? { duration: 0 } : WIDTH_SPRING}
-      onFocus={() => setContentFocused(true)}
-      onBlur={() => setContentFocused(false)}
+      onUpdate={resetScrollLeft}
+      onFocus={() => {
+        setContentFocused(true);
+        setIsInteracting(true);
+        resetScrollLeft();
+      }}
+      onBlur={() => {
+        setContentFocused(false);
+        setIsInteracting(false);
+      }}
+      onHoverStart={() => setIsInteracting(true)}
+      onHoverEnd={() => setIsInteracting(false)}
       className={pillBaseClass(hasStatus, active, disabled)}
       style={{ ...statusStyle(status), ...(prefersReducedMotion ? { width: COLLAPSED_W } : undefined) }}
     >
@@ -182,14 +275,27 @@ export function IconPill({
     </motion.div>
   ) : (
     <motion.button
+      ref={pillRef as React.Ref<HTMLButtonElement>}
       type="button"
       onClick={onClick}
       disabled={disabled}
+      data-pulse={pulsing ? "true" : undefined}
       initial="collapsed"
       whileHover={disabled || prefersReducedMotion ? undefined : "expanded"}
       whileFocus={disabled || prefersReducedMotion ? undefined : "expanded"}
       variants={prefersReducedMotion ? undefined : widthVariants}
       transition={prefersReducedMotion ? { duration: 0 } : WIDTH_SPRING}
+      onUpdate={resetScrollLeft}
+      onFocus={() => {
+        setIsInteracting(true);
+        resetScrollLeft();
+      }}
+      onBlur={() => setIsInteracting(false)}
+      onHoverStart={() => {
+        setIsInteracting(true);
+        resetScrollLeft();
+      }}
+      onHoverEnd={() => setIsInteracting(false)}
       className={pillBaseClass(hasStatus, active, disabled)}
       style={{ ...statusStyle(status), ...(prefersReducedMotion ? { width: COLLAPSED_W } : undefined) }}
     >
@@ -198,7 +304,7 @@ export function IconPill({
   );
 
   return (
-    <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" style={outerStyle}>
+    <div className="absolute left-1/2 top-1/2" style={outerStyle}>
       {/* Positioning (translate x/y above) stays on this plain outer div; the
           pop-in scale/opacity animates on this inner motion.div instead, so the
           two transforms never fight over the same style property. Only replays

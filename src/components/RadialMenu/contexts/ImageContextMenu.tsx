@@ -1,10 +1,8 @@
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
 import { useDraftNumber } from "@/hooks/useDraftNumber";
-import { Stepper } from "@/components/RadialMenu/Stepper";
 import { NumberStepperField } from "@/components/RadialMenu/NumberStepperField";
-import { numberInputClass } from "@/components/RadialMenu/inputStyles";
-import { DISPLAY_SIZE_MAX, DISPLAY_SIZE_MIN, RESCALE_FACTOR } from "@/constants/defaults";
+import { DISPLAY_SIZE_MAX, DISPLAY_SIZE_MIN, RESCALE_STEP_PX } from "@/constants/defaults";
 import {
   BringForwardIcon,
   BringToFrontIcon,
@@ -12,6 +10,7 @@ import {
   EdgeGlowIcon,
   HalftoneIcon,
   LayersIcon,
+  ResetIcon,
   SendBackwardIcon,
   SendToBackIcon,
   SizeIcon,
@@ -32,6 +31,8 @@ function clamp(n: number, min: number, max: number): number {
 
 export function useImageContextItems(targetId: string | null): RingItem[] {
   const image = useProjectStore((s) => s.project.images.find((i) => i.id === targetId));
+  const projectWidth = useProjectStore((s) => s.project.width);
+  const projectHeight = useProjectStore((s) => s.project.height);
   const updateImage = useProjectStore((s) => s.updateImage);
   const deleteImage = useProjectStore((s) => s.deleteImage);
   const bringToFront = useProjectStore((s) => s.bringToFront);
@@ -40,16 +41,23 @@ export function useImageContextItems(targetId: string | null): RingItem[] {
   const sendToBack = useProjectStore((s) => s.sendToBack);
   const closeRadialMenu = useUIStore((s) => s.closeRadialMenu);
 
-  const sizeDraft = useDraftNumber(image ? Math.round(image.displayWidth) : 0, {
+  // Width and height are fully independent now (no forced-aspect coupling on
+  // these fields) — corner-drag aspect-lock remains the separate, existing
+  // mechanism for uniform scaling.
+  const widthDraft = useDraftNumber(image ? Math.round(image.displayWidth) : 0, {
     min: DISPLAY_SIZE_MIN,
     max: DISPLAY_SIZE_MAX,
     onCommit: (displayWidth) => {
       if (!image) return;
-      const scale = displayWidth / image.displayWidth;
-      updateImage(image.id, {
-        displayWidth,
-        displayHeight: clamp(image.displayHeight * scale, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX),
-      });
+      updateImage(image.id, { displayWidth });
+    },
+  });
+  const heightDraft = useDraftNumber(image ? Math.round(image.displayHeight) : 0, {
+    min: DISPLAY_SIZE_MIN,
+    max: DISPLAY_SIZE_MAX,
+    onCommit: (displayHeight) => {
+      if (!image) return;
+      updateImage(image.id, { displayHeight });
     },
   });
 
@@ -143,6 +151,57 @@ export function useImageContextItems(targetId: string | null): RingItem[] {
     },
   ];
 
+  // Width/Height/Reset grouped into a drill-down submenu (same subItems
+  // pattern as Halftone/Edge Blend/Layers below) rather than one wide
+  // side-by-side pill — a two-field pill can reach ~400px expanded, which
+  // both looks oversized and forces the whole ring's radius to grow to avoid
+  // overlapping neighbors. Each subitem pill only ever hosts a single field,
+  // so it stays a normal narrow-pill width like every other control here.
+  const sizeSubItems: RingItem[] = [
+    {
+      key: "width",
+      icon: <SizeIcon />,
+      label: "Width",
+      wide: true,
+      expandedContent: (
+        <NumberStepperField
+          draft={widthDraft}
+          onDec={() => updateImage(id, { displayWidth: clamp(image.displayWidth - RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
+          onInc={() => updateImage(id, { displayWidth: clamp(image.displayWidth + RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
+          min={DISPLAY_SIZE_MIN}
+          max={DISPLAY_SIZE_MAX}
+          ariaLabel="Width in pixels"
+        />
+      ),
+    },
+    {
+      key: "height",
+      icon: <SizeIcon />,
+      label: "Height",
+      wide: true,
+      expandedContent: (
+        <NumberStepperField
+          draft={heightDraft}
+          onDec={() => updateImage(id, { displayHeight: clamp(image.displayHeight - RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
+          onInc={() => updateImage(id, { displayHeight: clamp(image.displayHeight + RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
+          min={DISPLAY_SIZE_MIN}
+          max={DISPLAY_SIZE_MAX}
+          ariaLabel="Height in pixels"
+        />
+      ),
+    },
+    {
+      key: "reset-size",
+      icon: <ResetIcon />,
+      label: "Reset Size",
+      onClick: () => {
+        const maxDim = Math.min(projectWidth, projectHeight) * 0.6;
+        const scale = Math.min(1, maxDim / Math.max(image.naturalWidth, image.naturalHeight));
+        updateImage(id, { displayWidth: image.naturalWidth * scale, displayHeight: image.naturalHeight * scale });
+      },
+    },
+  ];
+
   const layerSubItems: RingItem[] = [
     { key: "bring-to-front", icon: <BringToFrontIcon />, label: "Bring to Front", onClick: () => bringToFront(id) },
     { key: "bring-forward", icon: <BringForwardIcon />, label: "Bring Forward", onClick: () => bringForward(id) },
@@ -169,36 +228,7 @@ export function useImageContextItems(targetId: string | null): RingItem[] {
       key: "size",
       icon: <SizeIcon />,
       label: "Size",
-      wide: true,
-      expandedContent: (
-        <span className="flex items-center gap-1.5">
-          <Stepper
-            onDec={() => {
-              const displayWidth = clamp(image.displayWidth / RESCALE_FACTOR, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX);
-              const displayHeight = clamp(image.displayHeight / RESCALE_FACTOR, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX);
-              updateImage(id, { displayWidth, displayHeight });
-            }}
-            onInc={() => {
-              const displayWidth = clamp(image.displayWidth * RESCALE_FACTOR, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX);
-              const displayHeight = clamp(image.displayHeight * RESCALE_FACTOR, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX);
-              updateImage(id, { displayWidth, displayHeight });
-            }}
-          />
-          <input
-            type="number"
-            min={DISPLAY_SIZE_MIN}
-            max={DISPLAY_SIZE_MAX}
-            value={sizeDraft.draft}
-            onChange={sizeDraft.onChange}
-            onFocus={sizeDraft.onFocus}
-            onBlur={sizeDraft.onBlur}
-            onKeyDown={sizeDraft.onKeyDown}
-            className={numberInputClass}
-            aria-label="Width in pixels"
-          />
-          <span className="text-[9px] uppercase tracking-wide opacity-50">px</span>
-        </span>
-      ),
+      subItems: sizeSubItems,
     },
     {
       key: "layers",
