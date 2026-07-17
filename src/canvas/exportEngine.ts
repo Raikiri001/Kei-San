@@ -1,6 +1,6 @@
 import { FONT_STACKS } from "@/constants/fonts";
 import { loadImage } from "@/utils/fileToDataUrl";
-import { computeCoverSourceRect } from "@/utils/coverFit";
+import { computeCropSourceRect } from "@/utils/coverFit";
 import type { ImageElement, ProjectState, TextAlign, TextElement } from "@/store/types";
 import { drawVerticalText } from "@/canvas/verticalText";
 import { drawHalftone, resolveInkColor } from "@/canvas/halftone";
@@ -133,9 +133,18 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
           image.halftoneMode,
           inkColor,
           image.halftoneDotPitch,
+          image.cropZoom,
+          image.cropOffsetX,
+          image.cropOffsetY,
         );
       } else {
-        const src = computeCoverSourceRect(img.naturalWidth, img.naturalHeight, image.displayWidth, image.displayHeight);
+        const src = computeCropSourceRect(
+          img.naturalWidth,
+          img.naturalHeight,
+          image.cropZoom,
+          image.cropOffsetX,
+          image.cropOffsetY,
+        );
         ctx.drawImage(img, src.x, src.y, src.width, src.height, drawX, drawY, image.displayWidth, image.displayHeight);
       }
       ctx.restore();

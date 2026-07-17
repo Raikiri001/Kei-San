@@ -13,6 +13,12 @@ export const DISPLAY_SIZE_MAX = 4000;
 /** Flat px step for the independent Width/Height steppers (image size, text scaleX/scaleY-in-px). */
 export const RESCALE_STEP_PX = 20;
 
+/** Clamp range for an image's crop-mode zoom (1 = whole image squished to its frame, no crop). */
+export const CROP_ZOOM_MIN = 1;
+export const CROP_ZOOM_MAX = 6;
+/** Wheel-to-crop-zoom sensitivity — deltaY (or trackpad-pinch deltaY, reported as a ctrl+wheel event) times this per tick. */
+export const CROP_ZOOM_WHEEL_STEP = 0.0025;
+
 export const ROTATION_SNAP_DEGREES = 15;
 /** Visible resize-handle dot size — deliberately small; the actual pointer/touch
  * target is HANDLE_HIT_SIZE, an invisible padded zone around this dot (see

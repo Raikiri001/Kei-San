@@ -7,6 +7,7 @@ import { useLoadedImage } from "@/hooks/useLoadedImage";
 import { getColorSuggestions } from "@/canvas/colorExtraction";
 import { colorSuggestionsCache } from "@/canvas/analysisCaches";
 import { NumberStepperField } from "@/components/RadialMenu/NumberStepperField";
+import { fieldLabelClass } from "@/components/RadialMenu/inputStyles";
 import { FONT_SIZE_MAX, FONT_SIZE_MIN, RESCALE_STEP_PX, TEXT_SCALE_MAX, TEXT_SCALE_MIN } from "@/constants/defaults";
 import {
   AlignCenterIcon,
@@ -16,6 +17,7 @@ import {
   BringForwardIcon,
   BringToFrontIcon,
   DeleteIcon,
+  DimensionsIcon,
   FontIcon,
   LayersIcon,
   OrientationIcon,
@@ -108,45 +110,45 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
   if (!text || !targetId) return [];
   const id = targetId;
 
-  // Width/Height/Reset grouped into a drill-down submenu (same subItems
-  // pattern as Layers below) rather than one wide side-by-side pill — a
-  // two-field pill can reach ~400px expanded, which both looks oversized and
-  // forces the whole ring's radius to grow to avoid overlapping neighbors.
-  // Each subitem pill only ever hosts a single field, so it stays a normal
-  // narrow-pill width like every other control here. Kept separate from the
-  // "font-size" item above (still labeled "Font Size", unaffected) since
-  // these drive scaleX/scaleY, not fontSize — see the module doc comment.
+  // Width and Height used to be two separate drill-down pills, each expanding
+  // into its own long horizontal bar (and sharing the same generic SizeIcon as
+  // Font Size above, which read ambiguously). Combined into one "Dimensions"
+  // pill instead: a single square icon button that unfurls into a compact box
+  // (both dimensions grow, not just width) with Width stacked above Height —
+  // see IconPill's `stack` mode. Kept separate from the "font-size" item above
+  // (still labeled "Font Size", unaffected) since these drive scaleX/scaleY,
+  // not fontSize — see the module doc comment.
   const dimensionsSubItems: RingItem[] = [
     {
-      key: "width",
-      icon: <SizeIcon />,
-      label: "Width",
-      wide: true,
+      key: "dimensions-fields",
+      icon: <DimensionsIcon />,
+      label: "Dimensions",
+      stack: true,
       expandedContent: (
-        <NumberStepperField
-          draft={widthDraft}
-          onDec={() => updateText(id, { scaleX: clamp((base.w * text.scaleX - RESCALE_STEP_PX) / base.w, TEXT_SCALE_MIN, TEXT_SCALE_MAX) })}
-          onInc={() => updateText(id, { scaleX: clamp((base.w * text.scaleX + RESCALE_STEP_PX) / base.w, TEXT_SCALE_MIN, TEXT_SCALE_MAX) })}
-          min={Math.round(base.w * TEXT_SCALE_MIN)}
-          max={Math.round(base.w * TEXT_SCALE_MAX)}
-          ariaLabel="Width in pixels"
-        />
-      ),
-    },
-    {
-      key: "height",
-      icon: <SizeIcon />,
-      label: "Height",
-      wide: true,
-      expandedContent: (
-        <NumberStepperField
-          draft={heightDraft}
-          onDec={() => updateText(id, { scaleY: clamp((base.h * text.scaleY - RESCALE_STEP_PX) / base.h, TEXT_SCALE_MIN, TEXT_SCALE_MAX) })}
-          onInc={() => updateText(id, { scaleY: clamp((base.h * text.scaleY + RESCALE_STEP_PX) / base.h, TEXT_SCALE_MIN, TEXT_SCALE_MAX) })}
-          min={Math.round(base.h * TEXT_SCALE_MIN)}
-          max={Math.round(base.h * TEXT_SCALE_MAX)}
-          ariaLabel="Height in pixels"
-        />
+        <>
+          <span className="flex items-center gap-1">
+            <span className={fieldLabelClass}>W</span>
+            <NumberStepperField
+              draft={widthDraft}
+              onDec={() => updateText(id, { scaleX: clamp((base.w * text.scaleX - RESCALE_STEP_PX) / base.w, TEXT_SCALE_MIN, TEXT_SCALE_MAX) })}
+              onInc={() => updateText(id, { scaleX: clamp((base.w * text.scaleX + RESCALE_STEP_PX) / base.w, TEXT_SCALE_MIN, TEXT_SCALE_MAX) })}
+              min={Math.round(base.w * TEXT_SCALE_MIN)}
+              max={Math.round(base.w * TEXT_SCALE_MAX)}
+              ariaLabel="Width in pixels"
+            />
+          </span>
+          <span className="flex items-center gap-1">
+            <span className={fieldLabelClass}>H</span>
+            <NumberStepperField
+              draft={heightDraft}
+              onDec={() => updateText(id, { scaleY: clamp((base.h * text.scaleY - RESCALE_STEP_PX) / base.h, TEXT_SCALE_MIN, TEXT_SCALE_MAX) })}
+              onInc={() => updateText(id, { scaleY: clamp((base.h * text.scaleY + RESCALE_STEP_PX) / base.h, TEXT_SCALE_MIN, TEXT_SCALE_MAX) })}
+              min={Math.round(base.h * TEXT_SCALE_MIN)}
+              max={Math.round(base.h * TEXT_SCALE_MAX)}
+              ariaLabel="Height in pixels"
+            />
+          </span>
+        </>
       ),
     },
     {
@@ -228,7 +230,7 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
     },
     {
       key: "dimensions",
-      icon: <SizeIcon />,
+      icon: <DimensionsIcon />,
       label: "Dimensions",
       subItems: dimensionsSubItems,
     },

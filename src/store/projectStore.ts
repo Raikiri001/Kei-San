@@ -40,8 +40,24 @@ type NewImageInput = Omit<
   | "edgeBlendMargin"
   | "rotation"
   | "zIndex"
+  | "cropZoom"
+  | "cropOffsetX"
+  | "cropOffsetY"
 > &
-  Partial<Pick<ImageElement, "circleMask" | "halftoneMode" | "halftoneDotPitch" | "edgeBlend" | "edgeBlendMargin" | "rotation">>;
+  Partial<
+    Pick<
+      ImageElement,
+      | "circleMask"
+      | "halftoneMode"
+      | "halftoneDotPitch"
+      | "edgeBlend"
+      | "edgeBlendMargin"
+      | "rotation"
+      | "cropZoom"
+      | "cropOffsetX"
+      | "cropOffsetY"
+    >
+  >;
 
 interface ProjectStore {
   project: ProjectState;
@@ -134,6 +150,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       edgeBlend: false,
       edgeBlendMargin: resolveDefaultMargin(partial.displayWidth, partial.displayHeight),
       rotation: 0,
+      cropZoom: 1,
+      cropOffsetX: 0,
+      cropOffsetY: 0,
       x: project.width / 2 + cascade * partial.displayWidth * 0.06,
       y: project.height / 2 + cascade * partial.displayHeight * 0.06,
       zIndex: nextZIndex(project),

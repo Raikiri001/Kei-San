@@ -8,10 +8,20 @@ import { snapToNearestNode } from "@/utils/grid";
 import { drawHalftone, resolveInkColor } from "@/canvas/halftone";
 import { getEdgeAverageColor, getEdgeGlowBoxShadow } from "@/canvas/edgeBlend";
 import { edgeColorCache } from "@/canvas/analysisCaches";
-import { DISPLAY_SIZE_MAX, DISPLAY_SIZE_MIN } from "@/constants/defaults";
+import { DISPLAY_SIZE_MAX, DISPLAY_SIZE_MIN, CROP_ZOOM_MIN, CROP_ZOOM_MAX, CROP_ZOOM_WHEEL_STEP } from "@/constants/defaults";
 import { ResizeHandles } from "@/components/CanvasWorkspace/ResizeHandles";
 import type { RGB } from "@/canvas/colorExtraction";
 import type { ImageElement } from "@/store/types";
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, n));
+}
+
+interface CropState {
+  zoom: number;
+  offsetX: number;
+  offsetY: number;
+}
 
 export function ImageElementView({ image }: { image: ImageElement }) {
   const width = useProjectStore((s) => s.project.width);
@@ -25,12 +35,20 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const moveRadialMenu = useUIStore((s) => s.moveRadialMenu);
   const radialMenu = useUIStore((s) => s.radialMenu);
   const selectedElementId = useUIStore((s) => s.selectedElementId);
+  const setSelectedElementId = useUIStore((s) => s.setSelectedElementId);
+  const croppingImageId = useUIStore((s) => s.croppingImageId);
+  const setCroppingImageId = useUIStore((s) => s.setCroppingImageId);
 
   const [preview, setPreview] = useState<{ x: number; y: number } | null>(null);
   const [sizePreview, setSizePreview] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
   const [rotationPreview, setRotationPreview] = useState<number | null>(null);
+  const [cropPreview, setCropPreview] = useState<CropState | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const cropDragRef = useRef<{ startScreenX: number; startScreenY: number; start: CropState } | null>(null);
+
+  const isSelected = selectedElementId === image.id;
+  const isCropping = croppingImageId === image.id;
 
   // Only decoded when actually needed (halftone canvas, or an edge-blend color
   // that was never eagerly cached at upload time e.g. images restored from a
@@ -107,6 +125,102 @@ export function ImageElementView({ image }: { image: ImageElement }) {
     onDragMove,
   });
 
+  // Live crop state (zoom + pan), previewed locally while dragging/scrolling and
+  // only written back to the store on commit — same preview/commit split used
+  // for position/size/rotation above.
+  const cropZoom = cropPreview?.zoom ?? image.cropZoom;
+  const cropOffsetX = cropPreview?.offsetX ?? image.cropOffsetX;
+  const cropOffsetY = cropPreview?.offsetY ?? image.cropOffsetY;
+
+  const commitCrop = useCallback(() => {
+    if (cropPreview) {
+      updateImage(image.id, { cropZoom: cropPreview.zoom, cropOffsetX: cropPreview.offsetX, cropOffsetY: cropPreview.offsetY });
+      setCropPreview(null);
+    }
+  }, [cropPreview, updateImage, image.id]);
+
+  const exitCropMode = useCallback(() => {
+    commitCrop();
+    setCroppingImageId(null);
+  }, [commitCrop, setCroppingImageId]);
+
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (isCropping) {
+        exitCropMode();
+      } else {
+        setSelectedElementId(image.id);
+        setCroppingImageId(image.id);
+      }
+    },
+    [isCropping, exitCropMode, setSelectedElementId, setCroppingImageId, image.id],
+  );
+
+  // Selecting something else (another element, or clicking the background)
+  // always ends crop mode for this image — same "click away to commit"
+  // convention as Illustrator/Photoshop's clip-content editing.
+  useEffect(() => {
+    if (isCropping && selectedElementId !== image.id) exitCropMode();
+  }, [selectedElementId, image.id, isCropping, exitCropMode]);
+
+  useEffect(() => {
+    if (!isCropping) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape" || e.key === "Enter") exitCropMode();
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [isCropping, exitCropMode]);
+
+  // Wheel (plain mouse scroll, or a trackpad pinch — browsers report pinch
+  // gestures as wheel events too) zooms the crop while double-clicked in;
+  // stopPropagation keeps it from also bubbling to the canvas viewport's own
+  // wheel-to-zoom handler.
+  const handleCropWheel = useCallback(
+    (e: React.WheelEvent) => {
+      if (!isCropping) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const nextZoom = clamp(cropZoom - e.deltaY * CROP_ZOOM_WHEEL_STEP, CROP_ZOOM_MIN, CROP_ZOOM_MAX);
+      setCropPreview({ zoom: nextZoom, offsetX: cropOffsetX, offsetY: cropOffsetY });
+    },
+    [isCropping, cropZoom, cropOffsetX, cropOffsetY],
+  );
+
+  const handleCropPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      e.stopPropagation();
+      cropDragRef.current = {
+        startScreenX: e.clientX,
+        startScreenY: e.clientY,
+        start: { zoom: cropZoom, offsetX: cropOffsetX, offsetY: cropOffsetY },
+      };
+      (e.currentTarget as Element).setPointerCapture(e.pointerId);
+    },
+    [cropZoom, cropOffsetX, cropOffsetY],
+  );
+
+  const handleCropPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      const state = cropDragRef.current;
+      if (!state) return;
+      const deltaX = (e.clientX - state.startScreenX) / zoom;
+      const deltaY = (e.clientY - state.startScreenY) / zoom;
+      const maxPanX = (image.displayWidth * (state.start.zoom - 1)) / 2;
+      const maxPanY = (image.displayHeight * (state.start.zoom - 1)) / 2;
+      const nextOffsetX = maxPanX > 0 ? clamp(state.start.offsetX + deltaX / maxPanX, -1, 1) : 0;
+      const nextOffsetY = maxPanY > 0 ? clamp(state.start.offsetY + deltaY / maxPanY, -1, 1) : 0;
+      setCropPreview({ zoom: state.start.zoom, offsetX: nextOffsetX, offsetY: nextOffsetY });
+    },
+    [zoom, image.displayWidth, image.displayHeight],
+  );
+
+  const handleCropPointerUp = useCallback(() => {
+    cropDragRef.current = null;
+    commitCrop();
+  }, [commitCrop]);
+
   // Redraws only when the halftone-relevant inputs change — deliberately excludes
   // x/y, which are handled entirely by this wrapper's CSS transform below.
   useEffect(() => {
@@ -127,6 +241,9 @@ export function ImageElementView({ image }: { image: ImageElement }) {
       image.halftoneMode,
       inkColor,
       image.halftoneDotPitch,
+      cropZoom,
+      cropOffsetX,
+      cropOffsetY,
     );
   }, [
     loadedImg,
@@ -136,6 +253,9 @@ export function ImageElementView({ image }: { image: ImageElement }) {
     image.halftoneMode,
     image.halftoneDotPitch,
     backgroundColor,
+    cropZoom,
+    cropOffsetX,
+    cropOffsetY,
   ]);
 
   const panActive = useUIStore((s) => s.panToolActive || s.isSpacePanning);
@@ -143,11 +263,25 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const pos = preview ?? { x: image.x, y: image.y };
   const box = sizePreview ?? { x: pos.x, y: pos.y, w: image.displayWidth, h: image.displayHeight };
   const rotation = rotationPreview ?? image.rotation;
-  const isSelected = selectedElementId === image.id;
-  // While pan mode is active, the element must not intercept the drag — letting
-  // pointerdown bubble to the canvas background lets the same gesture pan the
-  // view even when it starts on top of an image.
-  const dragHandlers = panActive ? {} : { onPointerDown, onPointerMove, onPointerUp };
+  // While pan mode or crop mode is active, the element must not intercept the
+  // normal move-drag — crop mode swaps in its own pan/zoom handlers below instead.
+  const dragHandlers = panActive || isCropping ? {} : { onPointerDown, onPointerMove, onPointerUp };
+  const cropHandlers = isCropping
+    ? {
+        onPointerDown: handleCropPointerDown,
+        onPointerMove: handleCropPointerMove,
+        onPointerUp: handleCropPointerUp,
+        onWheel: handleCropWheel,
+      }
+    : {};
+
+  // Image is stretched to exactly (box.w*cropZoom, box.h*cropZoom) and clipped by
+  // the overflow-hidden content wrapper below — at cropZoom=1 (the default) this
+  // is exactly box.w x box.h, i.e. the whole image squished to fill the frame
+  // with no cropping at all. Panning/zooming further in is what implements the
+  // separate crop function; the two aren't mutually exclusive.
+  const panX = cropOffsetX * ((box.w * cropZoom - box.w) / 2);
+  const panY = cropOffsetY * ((box.h * cropZoom - box.h) / 2);
 
   const [edgeColor, setEdgeColor] = useState<RGB | null>(() =>
     image.edgeBlend ? (edgeColorCache.get(image.dataUrl) ?? null) : null,
@@ -175,7 +309,12 @@ export function ImageElementView({ image }: { image: ImageElement }) {
       ref={wrapperRef}
       data-radial-context="image"
       {...dragHandlers}
-      className={clsx("absolute touch-none", !panActive && "cursor-grab active:cursor-grabbing")}
+      onDoubleClick={handleDoubleClick}
+      className={clsx(
+        "absolute touch-none",
+        !panActive && !isCropping && "cursor-grab active:cursor-grabbing",
+        isCropping && "cursor-move",
+      )}
       style={{
         left: 0,
         top: 0,
@@ -189,22 +328,43 @@ export function ImageElementView({ image }: { image: ImageElement }) {
         // center for any angle; the previous order let the pivot drift away
         // from center as rotation increased.
         transform: `translate(${box.x}px, ${box.y}px) translate(${-box.w / 2}px, ${-box.h / 2}px) rotate(${rotation}deg)`,
-        outline: isSelected ? "1.5px solid rgb(var(--color-accent-glow) / 0.8)" : "none",
+        outline: isCropping
+          ? "1.5px dashed rgb(var(--color-accent-glow) / 0.9)"
+          : isSelected
+            ? "1.5px solid rgb(var(--color-accent-glow) / 0.8)"
+            : "none",
         outlineOffset: 2,
         boxShadow: edgeColor ? getEdgeGlowBoxShadow(edgeColor, image.edgeBlendMargin) : undefined,
       }}
     >
-      {image.circleMask ? (
-        <canvas ref={canvasRef} className="h-full w-full" />
-      ) : (
-        <img
-          src={image.dataUrl}
-          alt=""
-          draggable={false}
-          className="h-full w-full select-none object-cover"
-        />
+      <div className="relative h-full w-full touch-none overflow-hidden" {...cropHandlers}>
+        {image.circleMask ? (
+          <canvas ref={canvasRef} className="h-full w-full" />
+        ) : (
+          <img
+            src={image.dataUrl}
+            alt=""
+            draggable={false}
+            className="pointer-events-none absolute left-1/2 top-1/2 max-w-none select-none"
+            style={{
+              width: box.w * cropZoom,
+              height: box.h * cropZoom,
+              transform: `translate(-50%, -50%) translate(${panX}px, ${panY}px)`,
+            }}
+          />
+        )}
+      </div>
+
+      {isCropping && (
+        <div
+          className="glass-panel absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap px-2.5 py-1 text-[10px] uppercase tracking-wide opacity-80"
+          style={{ transform: `translate(-50%, 0) rotate(${-rotation}deg)` }}
+        >
+          Scroll to zoom · Drag to pan · Esc to finish
+        </div>
       )}
-      {isSelected && !panActive && (
+
+      {isSelected && !panActive && !isCropping && (
         <ResizeHandles
           getBox={getResizeBox}
           rotation={rotation}

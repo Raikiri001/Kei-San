@@ -1,4 +1,4 @@
-import { computeCoverSourceRect } from "@/utils/coverFit";
+import { computeCropSourceRect } from "@/utils/coverFit";
 import type { RGB } from "@/canvas/colorExtraction";
 
 export const DOT_PITCH = 14;
@@ -22,6 +22,9 @@ export function drawHalftone(
   mode: HalftoneMode,
   inkColor: RGB,
   dotPitch = DOT_PITCH,
+  cropZoom = 1,
+  cropOffsetX = 0,
+  cropOffsetY = 0,
 ) {
   const boxW = Math.ceil(w);
   const boxH = Math.ceil(h);
@@ -33,7 +36,10 @@ export function drawHalftone(
   const sourceCtx = source.getContext("2d", { willReadFrequently: true });
   if (!sourceCtx) return;
 
-  const crop = computeCoverSourceRect(img.naturalWidth, img.naturalHeight, boxW, boxH);
+  // Stretched (not cover-cropped) to the box — see computeCropSourceRect's doc
+  // comment: this is what makes resize squish the image, with cropZoom/Offset
+  // as the separate, independent crop-mode mechanism.
+  const crop = computeCropSourceRect(img.naturalWidth, img.naturalHeight, cropZoom, cropOffsetX, cropOffsetY);
   sourceCtx.drawImage(img, crop.x, crop.y, crop.width, crop.height, 0, 0, boxW, boxH);
 
   // Single whole-box readback: far cheaper than one getImageData call per cell,

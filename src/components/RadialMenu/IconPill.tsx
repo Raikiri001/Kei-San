@@ -21,6 +21,12 @@ interface IconPillProps {
   expandedContent?: ReactNode;
   /** Widens the hover-expanded pill (e.g. for swatch rows that need more room than a label). */
   wide?: boolean;
+  /** Expands into a stacked box (grows width AND height, content laid out in a
+   * column below the icon/label header) instead of the default single-line
+   * sideways expansion — for a control hosting two related stacked fields
+   * (e.g. Width above Height) where one long horizontal line would either
+   * cramp both fields or force the whole ring to grow to avoid overlap. */
+  stack?: boolean;
   /** Stagger delay (seconds) for this pill's pop-in, e.g. `index * 0.035` — only
    * replays when the pill actually (re)mounts, e.g. drilling into/out of a
    * submenu, not on every unrelated re-render within the same ring. */
@@ -34,6 +40,7 @@ const COLLAPSED_W = 44;
 // sharing its `wide` bucket.
 const WIDE_EXPANDED_W = 240;
 const NARROW_EXPANDED_W = 200;
+const STACK_EXPANDED_H = 108;
 const PULSE_MS = 380;
 
 // A snap, not a bounce: damping raised close to critical (~0.95-1.0 of the
@@ -60,10 +67,14 @@ const sweepVariants: Variants = {
 // measured *content* width (icon+label+expandedContent only) to get the pill's
 // full target width, since the padding itself isn't part of what gets measured.
 const PILL_PADDING_X = 24;
+// Matches the stack variant's py-2 (8px each side) — analogous to PILL_PADDING_X
+// above but for the stacked pill's animated *height* instead of width.
+const PILL_PADDING_Y = 16;
 
-function pillBaseClass(hasStatus?: boolean, active?: boolean, disabled?: boolean) {
+function pillBaseClass(hasStatus?: boolean, active?: boolean, disabled?: boolean, stack?: boolean) {
   return clsx(
-    "glass-panel corner-frame no-scroll-anchor relative flex h-11 items-center overflow-hidden px-3",
+    "glass-panel corner-frame no-scroll-anchor relative flex items-center overflow-hidden",
+    stack ? "flex-col justify-center px-2 py-2" : "h-11 px-3",
     !disabled && "accent-glow-hover press-sweep press-scale",
     !hasStatus && (active
       ? "border-accent/70 text-accent shadow-[0_0_16px_rgb(var(--color-accent-glow)/0.5),0_0_32px_rgb(var(--color-accent-glow)/0.2)]"
@@ -117,6 +128,7 @@ export function IconPill({
   disabled,
   expandedContent,
   wide,
+  stack,
   popDelay = 0,
 }: IconPillProps) {
   // Both halves of this transform must live in the SAME inline style: an
@@ -139,6 +151,7 @@ export function IconPill({
   // producing a garbage measurement instead of the content's true width.
   const contentRef = useRef<HTMLSpanElement>(null);
   const [measuredWidth, setMeasuredWidth] = useState<number | null>(null);
+  const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
   // expandedContent hosts real nested <input>/<button> controls — a keyboard
   // user tabbing into those needs the pill to stay unfurled, but Framer's
   // whileFocus only fires when the *animated* element itself is focused, not a
@@ -160,7 +173,8 @@ export function IconPill({
     // natural expanded width, not a shared bucket constant sized for whatever
     // the longest label in its `wide`/narrow group happens to be.
     setMeasuredWidth(el.scrollWidth + PILL_PADDING_X);
-  }, [label, expandedContent, wide]);
+    setMeasuredHeight(el.scrollHeight + PILL_PADDING_Y);
+  }, [label, expandedContent, wide, stack]);
 
   useLayoutEffect(() => {
     if (isInteracting && !wasInteractingRef.current) {
@@ -194,6 +208,14 @@ export function IconPill({
     collapsed: { width: COLLAPSED_W },
     expanded: { width: expandedWidth },
   };
+  // Stack pills grow both dimensions together — a square icon button unfurling
+  // into a compact box, rather than a bar sliding out sideways.
+  const expandedHeight = measuredHeight ?? STACK_EXPANDED_H;
+  const boxVariants: Variants = {
+    collapsed: { width: COLLAPSED_W, height: COLLAPSED_W },
+    expanded: { width: expandedWidth, height: expandedHeight },
+  };
+  const sizeVariants = stack ? boxVariants : widthVariants;
 
   // Root-caused browser quirk, not a layout bug: this pill's diagonal sweep
   // overlay sweeps from -130% to 130% while the pill's `width` is *also*
@@ -214,26 +236,28 @@ export function IconPill({
       <span className="corner-bl" />
       <span className="corner-br" />
       <Sweep prefersReducedMotion={prefersReducedMotion} />
-      <span ref={contentRef} className="flex items-center gap-2">
-        <motion.span
-          variants={prefersReducedMotion ? undefined : iconVariants}
-          transition={LABEL_SPRING}
-          className="flex h-5 w-5 shrink-0 items-center justify-center"
-        >
-          {icon}
-        </motion.span>
-        <motion.span
-          variants={prefersReducedMotion ? undefined : labelVariants}
-          transition={LABEL_SPRING}
-          className="shrink-0 whitespace-nowrap text-[11px] uppercase tracking-wide"
-        >
-          {label}
-        </motion.span>
+      <span ref={contentRef} className={clsx("flex items-center gap-2", stack && "flex-col gap-1.5")}>
+        <span className={clsx("flex items-center gap-2", stack && "justify-center")}>
+          <motion.span
+            variants={prefersReducedMotion ? undefined : iconVariants}
+            transition={LABEL_SPRING}
+            className="flex h-5 w-5 shrink-0 items-center justify-center"
+          >
+            {icon}
+          </motion.span>
+          <motion.span
+            variants={prefersReducedMotion ? undefined : labelVariants}
+            transition={LABEL_SPRING}
+            className="shrink-0 whitespace-nowrap text-[11px] uppercase tracking-wide"
+          >
+            {label}
+          </motion.span>
+        </span>
         {expandedContent && (
           <motion.span
             variants={prefersReducedMotion ? undefined : labelVariants}
             transition={LABEL_SPRING}
-            className="flex shrink-0 items-center"
+            className={clsx("flex shrink-0 items-center", stack && "flex-col items-stretch gap-1")}
             onPointerDown={(e) => e.stopPropagation()}
           >
             {expandedContent}
@@ -254,7 +278,7 @@ export function IconPill({
       initial="collapsed"
       animate={contentFocused ? "expanded" : "collapsed"}
       whileHover={disabled || prefersReducedMotion ? undefined : "expanded"}
-      variants={prefersReducedMotion ? undefined : widthVariants}
+      variants={prefersReducedMotion ? undefined : sizeVariants}
       transition={prefersReducedMotion ? { duration: 0 } : WIDTH_SPRING}
       onUpdate={resetScrollLeft}
       onFocus={() => {
@@ -268,8 +292,11 @@ export function IconPill({
       }}
       onHoverStart={() => setIsInteracting(true)}
       onHoverEnd={() => setIsInteracting(false)}
-      className={pillBaseClass(hasStatus, active, disabled)}
-      style={{ ...statusStyle(status), ...(prefersReducedMotion ? { width: COLLAPSED_W } : undefined) }}
+      className={pillBaseClass(hasStatus, active, disabled, stack)}
+      style={{
+        ...statusStyle(status),
+        ...(prefersReducedMotion ? { width: COLLAPSED_W, height: stack ? COLLAPSED_W : undefined } : undefined),
+      }}
     >
       {inner}
     </motion.div>
@@ -283,7 +310,7 @@ export function IconPill({
       initial="collapsed"
       whileHover={disabled || prefersReducedMotion ? undefined : "expanded"}
       whileFocus={disabled || prefersReducedMotion ? undefined : "expanded"}
-      variants={prefersReducedMotion ? undefined : widthVariants}
+      variants={prefersReducedMotion ? undefined : sizeVariants}
       transition={prefersReducedMotion ? { duration: 0 } : WIDTH_SPRING}
       onUpdate={resetScrollLeft}
       onFocus={() => {
@@ -296,8 +323,11 @@ export function IconPill({
         resetScrollLeft();
       }}
       onHoverEnd={() => setIsInteracting(false)}
-      className={pillBaseClass(hasStatus, active, disabled)}
-      style={{ ...statusStyle(status), ...(prefersReducedMotion ? { width: COLLAPSED_W } : undefined) }}
+      className={pillBaseClass(hasStatus, active, disabled, stack)}
+      style={{
+        ...statusStyle(status),
+        ...(prefersReducedMotion ? { width: COLLAPSED_W, height: stack ? COLLAPSED_W : undefined } : undefined),
+      }}
     >
       {inner}
     </motion.button>

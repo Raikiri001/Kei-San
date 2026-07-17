@@ -25,6 +25,11 @@ export interface ImageElement {
   rotation: number;
   /** Shared stacking order across images and texts — higher paints on top. */
   zIndex: number;
+  /** Crop zoom (>=1) applied on top of the base squish-to-frame fit. 1 = no crop, whole image squished to fill displayWidth/displayHeight. Set via double-click crop mode. */
+  cropZoom: number;
+  /** Crop pan, each a fraction (-1..1) of the max pannable distance at the current cropZoom — not raw px, so it stays valid if the frame is later resized. */
+  cropOffsetX: number;
+  cropOffsetY: number;
 }
 
 export type TextOrientation = "horizontal" | "vertical";

@@ -27,6 +27,8 @@ export interface RingItem {
   popoverContent?: ReactNode;
   /** Widens the hover-expanded pill (e.g. for a multi-swatch color panel). */
   wide?: boolean;
+  /** Expands into a stacked box (both dimensions grow) instead of sideways — see IconPill's doc comment. */
+  stack?: boolean;
   /**
    * Marks this item as a group pill: clicking it drills into a nested ring made
    * of these items instead of firing onClick/popoverContent/expandedContent
@@ -111,7 +113,10 @@ export function RadialMenu() {
       style={{ left: radialMenu.x, top: radialMenu.y }}
     >
       <div className="pointer-events-auto relative h-0 w-0">
-        <div className="glass-panel absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45" />
+        {/* Purely decorative — pointer-events-none so it doesn't leave a small
+            dead zone right at the anchor point (e.g. blocking a second click of
+            a double-click on the element the menu was opened from). */}
+        <div className="glass-panel pointer-events-none absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45" />
         {/* Keyed by drill depth so drilling into/out of a group pill's submenu replays the pop-in. */}
         <div key={ringPath.length} className="radial-appear absolute inset-0">
           {items.map((item, idx) => (
@@ -133,6 +138,7 @@ export function RadialMenu() {
               }
               expandedContent={item.expandedContent}
               wide={item.wide}
+              stack={item.stack}
               x={positions[idx].x}
               y={positions[idx].y}
               popDelay={idx * 0.035}

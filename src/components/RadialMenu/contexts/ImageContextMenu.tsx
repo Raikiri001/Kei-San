@@ -2,18 +2,20 @@ import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
 import { useDraftNumber } from "@/hooks/useDraftNumber";
 import { NumberStepperField } from "@/components/RadialMenu/NumberStepperField";
+import { fieldLabelClass } from "@/components/RadialMenu/inputStyles";
 import { DISPLAY_SIZE_MAX, DISPLAY_SIZE_MIN, RESCALE_STEP_PX } from "@/constants/defaults";
 import {
   BringForwardIcon,
   BringToFrontIcon,
+  CropIcon,
   DeleteIcon,
+  DimensionsIcon,
   EdgeGlowIcon,
   HalftoneIcon,
   LayersIcon,
   ResetIcon,
   SendBackwardIcon,
   SendToBackIcon,
-  SizeIcon,
 } from "@/components/RadialMenu/icons";
 import type { RingItem } from "@/components/RadialMenu/RadialMenu";
 
@@ -40,6 +42,8 @@ export function useImageContextItems(targetId: string | null): RingItem[] {
   const sendBackward = useProjectStore((s) => s.sendBackward);
   const sendToBack = useProjectStore((s) => s.sendToBack);
   const closeRadialMenu = useUIStore((s) => s.closeRadialMenu);
+  const setCroppingImageId = useUIStore((s) => s.setCroppingImageId);
+  const setSelectedElementId = useUIStore((s) => s.setSelectedElementId);
 
   // Width and height are fully independent now (no forced-aspect coupling on
   // these fields) — corner-drag aspect-lock remains the separate, existing
@@ -151,43 +155,43 @@ export function useImageContextItems(targetId: string | null): RingItem[] {
     },
   ];
 
-  // Width/Height/Reset grouped into a drill-down submenu (same subItems
-  // pattern as Halftone/Edge Blend/Layers below) rather than one wide
-  // side-by-side pill — a two-field pill can reach ~400px expanded, which
-  // both looks oversized and forces the whole ring's radius to grow to avoid
-  // overlapping neighbors. Each subitem pill only ever hosts a single field,
-  // so it stays a normal narrow-pill width like every other control here.
-  const sizeSubItems: RingItem[] = [
+  // Width and Height used to be two separate drill-down pills, each expanding
+  // into its own long horizontal bar (and sharing the same generic SizeIcon as
+  // Font Size elsewhere, which read ambiguously). Combined into one "Dimensions"
+  // pill instead: a single square icon button that unfurls into a compact box
+  // (both dimensions grow, not just width) with Width stacked above Height —
+  // see IconPill's `stack` mode. No drill-down needed for a single control.
+  const sizeItems: RingItem[] = [
     {
-      key: "width",
-      icon: <SizeIcon />,
-      label: "Width",
-      wide: true,
+      key: "dimensions",
+      icon: <DimensionsIcon />,
+      label: "Dimensions",
+      stack: true,
       expandedContent: (
-        <NumberStepperField
-          draft={widthDraft}
-          onDec={() => updateImage(id, { displayWidth: clamp(image.displayWidth - RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
-          onInc={() => updateImage(id, { displayWidth: clamp(image.displayWidth + RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
-          min={DISPLAY_SIZE_MIN}
-          max={DISPLAY_SIZE_MAX}
-          ariaLabel="Width in pixels"
-        />
-      ),
-    },
-    {
-      key: "height",
-      icon: <SizeIcon />,
-      label: "Height",
-      wide: true,
-      expandedContent: (
-        <NumberStepperField
-          draft={heightDraft}
-          onDec={() => updateImage(id, { displayHeight: clamp(image.displayHeight - RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
-          onInc={() => updateImage(id, { displayHeight: clamp(image.displayHeight + RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
-          min={DISPLAY_SIZE_MIN}
-          max={DISPLAY_SIZE_MAX}
-          ariaLabel="Height in pixels"
-        />
+        <>
+          <span className="flex items-center gap-1">
+            <span className={fieldLabelClass}>W</span>
+            <NumberStepperField
+              draft={widthDraft}
+              onDec={() => updateImage(id, { displayWidth: clamp(image.displayWidth - RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
+              onInc={() => updateImage(id, { displayWidth: clamp(image.displayWidth + RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
+              min={DISPLAY_SIZE_MIN}
+              max={DISPLAY_SIZE_MAX}
+              ariaLabel="Width in pixels"
+            />
+          </span>
+          <span className="flex items-center gap-1">
+            <span className={fieldLabelClass}>H</span>
+            <NumberStepperField
+              draft={heightDraft}
+              onDec={() => updateImage(id, { displayHeight: clamp(image.displayHeight - RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
+              onInc={() => updateImage(id, { displayHeight: clamp(image.displayHeight + RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
+              min={DISPLAY_SIZE_MIN}
+              max={DISPLAY_SIZE_MAX}
+              ariaLabel="Height in pixels"
+            />
+          </span>
+        </>
       ),
     },
     {
@@ -199,6 +203,23 @@ export function useImageContextItems(targetId: string | null): RingItem[] {
         const scale = Math.min(1, maxDim / Math.max(image.naturalWidth, image.naturalHeight));
         updateImage(id, { displayWidth: image.naturalWidth * scale, displayHeight: image.naturalHeight * scale });
       },
+    },
+    {
+      key: "crop",
+      icon: <CropIcon />,
+      label: "Crop",
+      onClick: () => {
+        setSelectedElementId(id);
+        setCroppingImageId(id);
+        closeRadialMenu();
+      },
+    },
+    {
+      key: "reset-crop",
+      icon: <ResetIcon />,
+      label: "Reset Crop",
+      disabled: image.cropZoom === 1 && image.cropOffsetX === 0 && image.cropOffsetY === 0,
+      onClick: () => updateImage(id, { cropZoom: 1, cropOffsetX: 0, cropOffsetY: 0 }),
     },
   ];
 
@@ -226,9 +247,9 @@ export function useImageContextItems(targetId: string | null): RingItem[] {
     },
     {
       key: "size",
-      icon: <SizeIcon />,
+      icon: <DimensionsIcon />,
       label: "Size",
-      subItems: sizeSubItems,
+      subItems: sizeItems,
     },
     {
       key: "layers",

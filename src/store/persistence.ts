@@ -31,6 +31,9 @@ function normalizeDesign(raw: LegacySavedDesign): SavedDesign {
     edgeBlend: img.edgeBlend ?? false,
     edgeBlendMargin: img.edgeBlendMargin ?? resolveDefaultMargin(img.displayWidth, img.displayHeight),
     rotation: img.rotation ?? 0,
+    cropZoom: img.cropZoom ?? 1,
+    cropOffsetX: img.cropOffsetX ?? 0,
+    cropOffsetY: img.cropOffsetY ?? 0,
     zIndex: img.zIndex ?? cursor++,
   }));
   const texts = rawTexts.map((txt) => ({

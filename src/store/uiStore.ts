@@ -26,6 +26,9 @@ interface UIStore {
   dragPreviewNode: GridNode | null;
   /** The text element currently showing its inline on-canvas editable box, if any. */
   editingTextId: string | null;
+  /** The image element currently in crop mode (double-clicked into), if any — pinch/wheel
+   * zooms and drag pans its content within its fixed frame instead of moving/resizing it. */
+  croppingImageId: string | null;
   /** Set while a discard-confirmation popover is pending (New Design / loading another design while dirty). */
   pendingDiscardAction: (() => void) | null;
   pendingDiscardMessage: string;
@@ -53,6 +56,7 @@ interface UIStore {
   setUploadDialogOpen: (open: boolean) => void;
   setDragPreviewNode: (node: GridNode | null) => void;
   setEditingTextId: (id: string | null) => void;
+  setCroppingImageId: (id: string | null) => void;
   setTextBaseSize: (id: string, w: number, h: number) => void;
   markDirty: () => void;
   markClean: () => void;
@@ -81,6 +85,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   isDirty: false,
   dragPreviewNode: null,
   editingTextId: null,
+  croppingImageId: null,
   pendingDiscardAction: null,
   pendingDiscardMessage: "",
   textBaseSizes: {},
@@ -115,6 +120,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
   setUploadDialogOpen: (uploadDialogOpen) => set({ uploadDialogOpen }),
   setDragPreviewNode: (dragPreviewNode) => set({ dragPreviewNode }),
   setEditingTextId: (editingTextId) => set({ editingTextId }),
+  setCroppingImageId: (croppingImageId) => set({ croppingImageId }),
   setTextBaseSize: (id, w, h) =>
     set((s) => {
       const existing = s.textBaseSizes[id];

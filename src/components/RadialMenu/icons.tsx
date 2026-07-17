@@ -115,6 +115,31 @@ export function SizeIcon() {
   );
 }
 
+/** Distinct from SizeIcon (a generic ruler-bracket glyph reused for font size etc.) —
+ * this one reads specifically as "a box with both dimensions," for the combined
+ * Width+Height stacked pill so it doesn't visually collide with unrelated
+ * size controls that happen to share the ring. */
+export function DimensionsIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="5" y="5" width="10" height="10" rx="0.8" />
+      <path d="M5 3v-.8M15 3v-.8M4.2 2.2h1.6M14.2 2.2h1.6" strokeLinecap="round" />
+      <path d="M3 5h-.8M3 15h-.8M2.2 4.2v1.6M2.2 14.2v1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Photoshop/Illustrator-style crop-tool glyph: two overlapping L-shaped corner
+ * brackets, distinct in silhouette from the plain resize-handle dots. */
+export function CropIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M6.5 3v9.5a1 1 0 0 0 1 1H17" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M13.5 17V7.5a1 1 0 0 0-1-1H3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function ResetIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
