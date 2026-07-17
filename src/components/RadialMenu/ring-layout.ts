@@ -3,7 +3,7 @@ export interface RingPosition {
   y: number;
 }
 
-const RING_RADIUS = 84;
+const RING_RADIUS = 62;
 
 // Rings past 3 items get proportionally more radius — a hover-expanded pill
 // (label + stepper + input) can reach ~200-240px wide (now measured from real
@@ -16,7 +16,7 @@ const RING_RADIUS = 84;
 // Width/Height + Reset Size were added, and the previous step still let the
 // ~400px-wide dimensions pill visually overlap its Reset Size neighbor.)
 const RADIUS_GROW_THRESHOLD = 3;
-const RADIUS_STEP_PER_EXTRA_ITEM = 34;
+const RADIUS_STEP_PER_EXTRA_ITEM = 24;
 
 /** Places `count` icons evenly around a ring, starting at 12 o'clock. Radius
  * auto-scales with `count` (see above) unless an explicit radius is passed. */

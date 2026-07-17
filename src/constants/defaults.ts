@@ -10,14 +10,23 @@ export const DEFAULT_ZOOM = 1;
 
 export const DISPLAY_SIZE_MIN = 20;
 export const DISPLAY_SIZE_MAX = 4000;
-/** Flat px step for the independent Width/Height steppers (image size, text scaleX/scaleY-in-px). */
+/** Flat px step for the independent Width/Height steppers (image displayWidth/Height, text boxWidth/Height). */
 export const RESCALE_STEP_PX = 20;
+
+/** A freshly-created text element's initial frame — content reflows/wraps to
+ * fit this, and it's user-resizable afterward exactly like an image's frame. */
+export const DEFAULT_TEXT_BOX_WIDTH = 400;
+export const DEFAULT_TEXT_BOX_HEIGHT = 150;
 
 /** Clamp range for an image's crop-mode zoom (1 = whole image squished to its frame, no crop). */
 export const CROP_ZOOM_MIN = 1;
 export const CROP_ZOOM_MAX = 6;
 /** Wheel-to-crop-zoom sensitivity — deltaY (or trackpad-pinch deltaY, reported as a ctrl+wheel event) times this per tick. */
 export const CROP_ZOOM_WHEEL_STEP = 0.0025;
+
+/** How close (screen px, independent of zoom) a dragged resize edge must be to a
+ * grid line before it snaps to it — Canva-style "clip to the nearest column/row". */
+export const RESIZE_SNAP_THRESHOLD_SCREEN_PX = 10;
 
 export const ROTATION_SNAP_DEGREES = 15;
 /** Visible resize-handle dot size — deliberately small; the actual pointer/touch
@@ -33,9 +42,11 @@ export const ROTATE_HANDLE_OFFSET = 22;
 export const FONT_SIZE_MIN = 12;
 export const FONT_SIZE_MAX = 400;
 
-/** Clamp range for text elements' corner-drag scaleX/scaleY stretch factors. */
-export const TEXT_SCALE_MIN = 0.2;
-export const TEXT_SCALE_MAX = 5;
+/** Clamp range for text elements' Warp tool (a fraction, 1 = 100% = no warp). */
+export const WARP_MIN = 0.2;
+export const WARP_MAX = 5;
+/** Percentage-point step for the Warp X/Y steppers (displayed/edited as %, stored as a fraction). */
+export const WARP_STEP_PERCENT = 10;
 
 export const MAX_HISTORY_ENTRIES = 20;
 export const HISTORY_STORAGE_KEY = "wallpaper-designs-history";

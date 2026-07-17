@@ -73,8 +73,18 @@ const PILL_PADDING_Y = 16;
 
 function pillBaseClass(hasStatus?: boolean, active?: boolean, disabled?: boolean, stack?: boolean) {
   return clsx(
-    "glass-panel corner-frame no-scroll-anchor relative flex items-center overflow-hidden",
-    stack ? "flex-col justify-center px-2 py-2" : "h-11 px-3",
+    "glass-panel corner-frame no-scroll-anchor relative flex overflow-hidden",
+    // Stack pills flip flex-direction to column, which flips what "items-center"
+    // (the cross-axis alignment) even means: for a row it's vertical centering
+    // (harmless), but for a column it's *horizontal* centering — and content
+    // here (header + both fields) is always wider than the collapsed 44px box,
+    // so centering it clips evenly off both sides, hiding the icon (the
+    // leftmost thing in the content) behind the collapsed window's left edge.
+    // items-start + justify-start instead: content anchors to the box's own
+    // top-left, so the icon (first, top-left of the content) is exactly
+    // what's still visible in that collapsed corner — same principle as a
+    // normal row pill, which is left-aligned by default for the same reason.
+    stack ? "flex-col items-start justify-start px-2 py-2" : "h-11 items-center px-3",
     !disabled && "accent-glow-hover press-sweep press-scale",
     !hasStatus && (active
       ? "border-accent/70 text-accent shadow-[0_0_16px_rgb(var(--color-accent-glow)/0.5),0_0_32px_rgb(var(--color-accent-glow)/0.2)]"

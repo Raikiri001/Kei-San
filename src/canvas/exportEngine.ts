@@ -7,11 +7,55 @@ import { drawHalftone, resolveInkColor } from "@/canvas/halftone";
 import { drawEdgeGlow, getEdgeAverageColor } from "@/canvas/edgeBlend";
 import { edgeColorCache } from "@/canvas/analysisCaches";
 
+/** Greedy word-wrap of a single authored line (already split on "\n") against
+ * `maxWidth` — canvas has no native reflow, so this is what makes the export
+ * match the DOM preview's real textbox wrapping (content reflows to the box's
+ * boxWidth, independent of fontSize) instead of one un-wrapped line per "\n". */
+function wrapLine(ctx: CanvasRenderingContext2D, line: string, maxWidth: number): string[] {
+  const words = line.split(" ");
+  const wrapped: string[] = [];
+  let current = words[0] ?? "";
+  for (let i = 1; i < words.length; i++) {
+    const candidate = `${current} ${words[i]}`;
+    if (current === "" || ctx.measureText(candidate).width <= maxWidth) {
+      current = candidate;
+    } else {
+      wrapped.push(current);
+      current = words[i];
+    }
+  }
+  wrapped.push(current);
+  return wrapped;
+}
+
+/** Draws one line and, if `underline` is set, a manually-drawn rule beneath it —
+ * canvas has no native text-decoration. Spans just the rendered line (not the
+ * whole box), positioned using whatever `ctx.textAlign` is currently set to. */
+function fillTextLine(ctx: CanvasRenderingContext2D, line: string, drawX: number, y: number, fontSize: number, underline: boolean) {
+  ctx.fillText(line, drawX, y);
+  if (!underline || line.length === 0) return;
+  const width = ctx.measureText(line).width;
+  const startX = ctx.textAlign === "center" ? drawX - width / 2 : ctx.textAlign === "right" ? drawX - width : drawX;
+  // textBaseline is "middle" for the caller's whole draw pass, so `y` is the
+  // glyph box's vertical center, not its baseline — this offset approximates
+  // where the baseline (and so the underline a bit below it) actually falls.
+  const underlineY = y + fontSize * 0.35;
+  ctx.save();
+  ctx.strokeStyle = ctx.fillStyle;
+  ctx.lineWidth = Math.max(1, fontSize * 0.06);
+  ctx.beginPath();
+  ctx.moveTo(startX, underlineY);
+  ctx.lineTo(startX + width, underlineY);
+  ctx.stroke();
+  ctx.restore();
+}
+
 /** Left-aligns words within `width`, stretching inter-word gaps so the line's edges land
  * flush at both ends — canvas has no native "justify", so this distributes the leftover
  * space by hand. Single-word lines (nothing to stretch) and the last line of a paragraph
  * (standard typographic convention: the final line stays ragged, not stretched) fall back
- * to a plain left-aligned draw instead. */
+ * to a plain left-aligned draw instead. Underline (if set) still spans the *full* box width
+ * for a justified line, matching how a continuous rule reads under justified text. */
 function drawJustifiedLine(
   ctx: CanvasRenderingContext2D,
   line: string,
@@ -19,27 +63,39 @@ function drawJustifiedLine(
   y: number,
   width: number,
   isLastLine: boolean,
+  fontSize: number,
+  underline: boolean,
 ) {
   const words = line.split(" ").filter(Boolean);
+  ctx.textAlign = "left";
   if (words.length <= 1 || isLastLine) {
-    ctx.textAlign = "left";
-    ctx.fillText(line, leftX, y);
+    fillTextLine(ctx, line, leftX, y, fontSize, underline);
     return;
   }
   const wordsWidth = words.reduce((sum, word) => sum + ctx.measureText(word).width, 0);
   const gap = (width - wordsWidth) / (words.length - 1);
-  ctx.textAlign = "left";
   let cursorX = leftX;
   words.forEach((word) => {
     ctx.fillText(word, cursorX, y);
     cursorX += ctx.measureText(word).width + gap;
   });
+  if (underline) {
+    ctx.save();
+    ctx.strokeStyle = ctx.fillStyle;
+    ctx.lineWidth = Math.max(1, fontSize * 0.06);
+    ctx.beginPath();
+    ctx.moveTo(leftX, y + fontSize * 0.35);
+    ctx.lineTo(leftX + width, y + fontSize * 0.35);
+    ctx.stroke();
+    ctx.restore();
+  }
 }
 
 /** `ctx.fillText` ignores "\n", so multi-line paragraphs need each line drawn separately.
- * `x` is the box's own center (matching the DOM preview's centered box); left/right/justify
- * measure the widest line to find that box's edges, so short lines align against the same
- * edge a browser would wrap them to, not against the anchor point itself. */
+ * `x` is the box's own center (matching the DOM preview's centered box). Each authored
+ * line is greedily word-wrapped against `boxWidth` first — a real textbox reflow, not one
+ * unwrapped line per "\n" — and left/right/justify then align against that same boxWidth
+ * (not just the widest rendered line), matching the DOM preview's actual container. */
 function drawMultilineText(
   ctx: CanvasRenderingContext2D,
   content: string,
@@ -47,31 +103,31 @@ function drawMultilineText(
   y: number,
   fontSize: number,
   align: TextAlign,
+  boxWidth: number,
+  underline: boolean,
 ) {
-  const lines = content.split("\n");
+  const lines = content.split("\n").flatMap((line) => wrapLine(ctx, line, boxWidth));
   const lineHeight = fontSize * 1.2;
   const totalHeight = lineHeight * Math.max(lines.length - 1, 0);
   const startY = y - totalHeight / 2;
+  const leftX = x - boxWidth / 2;
 
   if (align === "center") {
     ctx.textAlign = "center";
-    lines.forEach((line, idx) => ctx.fillText(line, x, startY + idx * lineHeight));
+    lines.forEach((line, idx) => fillTextLine(ctx, line, x, startY + idx * lineHeight, fontSize, underline));
     return;
   }
 
-  const maxWidth = Math.max(...lines.map((line) => ctx.measureText(line).width));
-  const leftX = x - maxWidth / 2;
-
   if (align === "justify") {
     lines.forEach((line, idx) =>
-      drawJustifiedLine(ctx, line, leftX, startY + idx * lineHeight, maxWidth, idx === lines.length - 1),
+      drawJustifiedLine(ctx, line, leftX, startY + idx * lineHeight, boxWidth, idx === lines.length - 1, fontSize, underline),
     );
     return;
   }
 
   ctx.textAlign = align === "left" ? "left" : "right";
-  const anchorX = align === "left" ? leftX : x + maxWidth / 2;
-  lines.forEach((line, idx) => ctx.fillText(line, anchorX, startY + idx * lineHeight));
+  const anchorX = align === "left" ? leftX : x + boxWidth / 2;
+  lines.forEach((line, idx) => fillTextLine(ctx, line, anchorX, startY + idx * lineHeight, fontSize, underline));
 }
 
 type OrderedElement = { kind: "image"; el: ImageElement } | { kind: "text"; el: TextElement };
@@ -153,13 +209,15 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
       ctx.save();
       ctx.translate(text.x, text.y);
       ctx.rotate((text.rotation * Math.PI) / 180);
-      // Matches the live DOM render order (TextElementView.tsx): scale is the
+      // Matches the live DOM render order (TextElementView.tsx): Warp is the
       // innermost stretch, applied before rotation wraps the already-stretched
-      // shape as a rigid unit. Previously missing entirely — a scaleX/scaleY-
-      // stretched text element rendered correctly on canvas but silently
-      // un-stretched in the exported PNG.
-      ctx.scale(text.scaleX, text.scaleY);
-      ctx.font = `${text.fontSize}px ${FONT_STACKS[text.fontFamily]}`;
+      // shape as a rigid unit — a purely decorative effect now, independent of
+      // the box's own boxWidth/boxHeight (which drive wrapping below), unlike
+      // the old scaleX/scaleY this replaced (which conflated the two).
+      ctx.scale(text.warpX, text.warpY);
+      const fontStyle = text.italic ? "italic " : "";
+      const fontWeight = text.bold ? "bold " : "";
+      ctx.font = `${fontStyle}${fontWeight}${text.fontSize}px ${FONT_STACKS[text.fontFamily]}`;
       ctx.fillStyle = text.color;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
@@ -167,7 +225,7 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
       if (text.orientation === "vertical") {
         drawVerticalText(ctx, text.content, 0, 0, text.fontSize);
       } else {
-        drawMultilineText(ctx, text.content, 0, 0, text.fontSize, text.align);
+        drawMultilineText(ctx, text.content, 0, 0, text.fontSize, text.align, text.boxWidth, text.underline);
       }
       ctx.restore();
     }

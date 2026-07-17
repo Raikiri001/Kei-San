@@ -49,9 +49,20 @@ export interface TextElement {
   x: number;
   /** Center-anchored, true canvas px */
   y: number;
-  /** Corner-drag stretch factors on top of fontSize, default 1 — see TextElementView. */
-  scaleX: number;
-  scaleY: number;
+  /** Explicit text-frame dimensions (true canvas px), set via the corner/edge
+   * resize handles — a real textbox: content reflows/wraps to fit this width,
+   * independent of fontSize (which only ever controls glyph size). Same
+   * mechanism as an image's displayWidth/displayHeight. */
+  boxWidth: number;
+  boxHeight: number;
+  /** Warp: a purely decorative glyph stretch (percentage-based, 1 = 100% = no
+   * warp), layered on top of the properly-sized, properly-wrapping box above —
+   * NOT a sizing mechanism itself, unlike the old scaleX/scaleY it replaces. */
+  warpX: number;
+  warpY: number;
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
   /** Clockwise rotation in degrees around the element's own center. Default 0. */
   rotation: number;
   /** Shared stacking order across images and texts — higher paints on top. */

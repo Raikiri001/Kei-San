@@ -45,6 +45,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const [cropPreview, setCropPreview] = useState<CropState | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const cropContentRef = useRef<HTMLDivElement>(null);
   const cropDragRef = useRef<{ startScreenX: number; startScreenY: number; start: CropState } | null>(null);
 
   const isSelected = selectedElementId === image.id;
@@ -174,19 +175,30 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   }, [isCropping, exitCropMode]);
 
   // Wheel (plain mouse scroll, or a trackpad pinch — browsers report pinch
-  // gestures as wheel events too) zooms the crop while double-clicked in;
-  // stopPropagation keeps it from also bubbling to the canvas viewport's own
-  // wheel-to-zoom handler.
-  const handleCropWheel = useCallback(
-    (e: React.WheelEvent) => {
-      if (!isCropping) return;
+  // gestures as wheel events too) zooms the crop while double-clicked in.
+  // This MUST be a real native listener with { passive: false }, not React's
+  // onWheel prop: React registers its synthetic wheel listener as passive
+  // (matching native scroll-perf conventions), which silently no-ops
+  // preventDefault after the first tick or two — letting the gesture fall
+  // through to the browser's own pinch-to-zoom-the-page behavior instead of
+  // staying scoped to this crop. A plain addEventListener with passive:false
+  // is the only way to make preventDefault actually stick for every tick.
+  const cropLiveRef = useRef({ cropZoom, cropOffsetX, cropOffsetY });
+  cropLiveRef.current = { cropZoom, cropOffsetX, cropOffsetY };
+
+  useEffect(() => {
+    const el = cropContentRef.current;
+    if (!el || !isCropping) return;
+    function onWheelNative(e: WheelEvent) {
       e.preventDefault();
       e.stopPropagation();
-      const nextZoom = clamp(cropZoom - e.deltaY * CROP_ZOOM_WHEEL_STEP, CROP_ZOOM_MIN, CROP_ZOOM_MAX);
-      setCropPreview({ zoom: nextZoom, offsetX: cropOffsetX, offsetY: cropOffsetY });
-    },
-    [isCropping, cropZoom, cropOffsetX, cropOffsetY],
-  );
+      const { cropZoom: z, cropOffsetX: ox, cropOffsetY: oy } = cropLiveRef.current;
+      const nextZoom = clamp(z - e.deltaY * CROP_ZOOM_WHEEL_STEP, CROP_ZOOM_MIN, CROP_ZOOM_MAX);
+      setCropPreview({ zoom: nextZoom, offsetX: ox, offsetY: oy });
+    }
+    el.addEventListener("wheel", onWheelNative, { passive: false });
+    return () => el.removeEventListener("wheel", onWheelNative);
+  }, [isCropping]);
 
   const handleCropPointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -271,7 +283,6 @@ export function ImageElementView({ image }: { image: ImageElement }) {
         onPointerDown: handleCropPointerDown,
         onPointerMove: handleCropPointerMove,
         onPointerUp: handleCropPointerUp,
-        onWheel: handleCropWheel,
       }
     : {};
 
@@ -337,7 +348,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
         boxShadow: edgeColor ? getEdgeGlowBoxShadow(edgeColor, image.edgeBlendMargin) : undefined,
       }}
     >
-      <div className="relative h-full w-full touch-none overflow-hidden" {...cropHandlers}>
+      <div ref={cropContentRef} className="relative h-full w-full touch-none overflow-hidden" {...cropHandlers}>
         {image.circleMask ? (
           <canvas ref={canvasRef} className="h-full w-full" />
         ) : (
@@ -373,6 +384,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
           maxW={DISPLAY_SIZE_MAX}
           minH={DISPLAY_SIZE_MIN}
           maxH={DISPLAY_SIZE_MAX}
+          snapGrid={{ canvasWidth: width, canvasHeight: height, cols, rows }}
           onPreview={onResizePreview}
           onCommit={onResizeCommit}
           onRotatePreview={onRotatePreview}

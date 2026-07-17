@@ -34,8 +34,15 @@ export function computeCropSourceRect(
   const height = naturalH / cropZoom;
   const maxOffsetX = (naturalW - width) / 2;
   const maxOffsetY = (naturalH - height) / 2;
-  const centerX = naturalW / 2 + clamp(cropOffsetX, -1, 1) * maxOffsetX;
-  const centerY = naturalH / 2 + clamp(cropOffsetY, -1, 1) * maxOffsetY;
+  // Minus, not plus: the DOM crop preview (ImageElementView) pans by moving the
+  // *image* itself by +offset (grab-and-slide — dragging right slides the image
+  // right), which is equivalent to the sampled source window moving the
+  // opposite way, i.e. by -offset. Getting this backwards doesn't break either
+  // path in isolation, only their agreement — was previously flipped, so the
+  // canvas-rendered result (halftone preview, and PNG export) landed mirrored
+  // relative to the plain DOM preview at the same stored crop values.
+  const centerX = naturalW / 2 - clamp(cropOffsetX, -1, 1) * maxOffsetX;
+  const centerY = naturalH / 2 - clamp(cropOffsetY, -1, 1) * maxOffsetY;
 
   return {
     x: centerX - width / 2,

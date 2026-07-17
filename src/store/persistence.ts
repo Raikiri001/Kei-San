@@ -1,11 +1,26 @@
-import { HISTORY_STORAGE_KEY, MAX_HISTORY_ENTRIES } from "@/constants/defaults";
+import {
+  DEFAULT_TEXT_BOX_HEIGHT,
+  DEFAULT_TEXT_BOX_WIDTH,
+  HISTORY_STORAGE_KEY,
+  MAX_HISTORY_ENTRIES,
+} from "@/constants/defaults";
 import { generateThumbnail, generateThumbnailFromCanvas } from "@/canvas/exportEngine";
 import { DOT_PITCH } from "@/canvas/halftone";
 import { resolveDefaultMargin } from "@/canvas/edgeBlend";
 import type { ImageElement, ProjectState, SavedDesign, TextElement } from "@/store/types";
 
-type LegacyTextElement = Omit<TextElement, "scaleX" | "scaleY" | "align" | "rotation"> &
-  Partial<Pick<TextElement, "scaleX" | "scaleY" | "align" | "rotation">>;
+type LegacyTextElement = Omit<
+  TextElement,
+  "boxWidth" | "boxHeight" | "warpX" | "warpY" | "bold" | "italic" | "underline" | "align" | "rotation"
+> &
+  Partial<Pick<TextElement, "boxWidth" | "boxHeight" | "warpX" | "warpY" | "bold" | "italic" | "underline" | "align" | "rotation">> & {
+    // Pre-redesign field names — a saved text element may have either of these
+    // (never both), carrying the same "how much to stretch" meaning warpX/Y
+    // has now, which is why the migration below maps them across directly
+    // instead of discarding them.
+    scaleX?: number;
+    scaleY?: number;
+  };
 
 /** Legacy (pre-multi-image / pre-Phase-3 / pre-scaleX-scaleY) shape a SavedDesign may have been persisted as. */
 interface LegacySavedDesign extends Omit<SavedDesign, "images" | "texts"> {
@@ -36,14 +51,30 @@ function normalizeDesign(raw: LegacySavedDesign): SavedDesign {
     cropOffsetY: img.cropOffsetY ?? 0,
     zIndex: img.zIndex ?? cursor++,
   }));
-  const texts = rawTexts.map((txt) => ({
-    ...txt,
-    scaleX: txt.scaleX ?? 1,
-    scaleY: txt.scaleY ?? 1,
-    align: txt.align ?? ("center" as const),
-    rotation: txt.rotation ?? 0,
-    zIndex: txt.zIndex ?? cursor++,
-  }));
+  const texts = rawTexts.map((txt) => {
+    // Pre-redesign saves only ever had scaleX/scaleY (a stretch factor that
+    // conflated box sizing with glyph distortion) — mapping those straight
+    // into warpX/warpY preserves the same *visual* stretched look under the
+    // new model (which separates "how big is the box" from "how warped are
+    // the glyphs"), rather than silently discarding it. There's no way to
+    // recover the old box's actual pixel size from saved data alone (that
+    // required a live DOM measurement), so boxWidth/Height fall back to the
+    // same flat default a brand-new text element gets.
+    const { scaleX: _scaleX, scaleY: _scaleY, ...rest } = txt;
+    return {
+      ...rest,
+      boxWidth: txt.boxWidth ?? DEFAULT_TEXT_BOX_WIDTH,
+      boxHeight: txt.boxHeight ?? DEFAULT_TEXT_BOX_HEIGHT,
+      warpX: txt.warpX ?? txt.scaleX ?? 1,
+      warpY: txt.warpY ?? txt.scaleY ?? 1,
+      bold: txt.bold ?? false,
+      italic: txt.italic ?? false,
+      underline: txt.underline ?? false,
+      align: txt.align ?? ("center" as const),
+      rotation: txt.rotation ?? 0,
+      zIndex: txt.zIndex ?? cursor++,
+    };
+  });
 
   return { ...raw, images, texts };
 }

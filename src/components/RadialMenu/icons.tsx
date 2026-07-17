@@ -140,6 +140,45 @@ export function CropIcon() {
   );
 }
 
+export function BoldIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="currentColor" stroke="none">
+      <path d="M6 4h5.2a3.3 3.3 0 0 1 1.9 6 3.5 3.5 0 0 1-1.6 6.5H6Zm2.6 2.3v3.6h2.5a1.8 1.8 0 0 0 0-3.6Zm0 5.9v3.5h3a1.75 1.75 0 0 0 0-3.5Z" />
+    </svg>
+  );
+}
+
+export function ItalicIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M11.5 4h4M4.5 16h4M13 4 7 16" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function UnderlineIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M6 4v6a4 4 0 0 0 8 0V4" strokeLinecap="round" />
+      <path d="M4.5 16h11" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Reads as "stretch the content, not the frame" — a rectangle (the box) with
+ * arrows pulling past its own edges, distinct from DimensionsIcon's plain
+ * box-with-ticks (which is the frame/layout size itself, not this decorative
+ * distortion effect layered on top of it). */
+export function WarpIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="6" y="6" width="8" height="8" rx="0.6" />
+      <path d="M2.5 10h2M15.5 10h2M4 8.7 2.5 10l1.5 1.3M16 8.7 17.5 10 16 11.3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 2.5v2M10 15.5v2M8.7 4 10 2.5l1.3 1.5M8.7 16l1.3 1.5 1.3-1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function ResetIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">

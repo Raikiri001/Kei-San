@@ -29,17 +29,15 @@ interface ResizeHandlesProps {
   maxW: number;
   minH: number;
   maxH: number;
+  /** Canvas + grid dimensions for Canva-style "clip to the nearest column/row" edge
+   * snapping while resizing — see useResizeDrag's own doc comment. Omit to disable. */
+  snapGrid?: { canvasWidth: number; canvasHeight: number; cols: number; rows: number };
   onPreview: (box: Box) => void;
   onCommit: (box: Box) => void;
   onRotatePreview: (rotationDeg: number) => void;
   onRotateCommit: (rotationDeg: number) => void;
   /** Viewport (screen-space) center of the element, for the rotate handle's angle math. */
   getScreenCenter: () => { x: number; y: number };
-  /** Cancels an ambient CSS-scale ancestor (e.g. a text element's scaleX/scaleY
-   * stretch) so handles render at a consistent, undistorted size regardless of how
-   * much the parent has been stretched. Defaults to 1 (no ambient scale, e.g. images). */
-  counterScaleX?: number;
-  counterScaleY?: number;
 }
 
 const HANDLES: { id: ResizeHandleId; position: string; cursor: string }[] = [
@@ -75,13 +73,12 @@ export function ResizeHandles({
   maxW,
   minH,
   maxH,
+  snapGrid,
   onPreview,
   onCommit,
   onRotatePreview,
   onRotateCommit,
   getScreenCenter,
-  counterScaleX = 1,
-  counterScaleY = 1,
 }: ResizeHandlesProps) {
   const aspectLocked = useUIStore((s) => s.aspectLocked);
   const toggleAspectLocked = useUIStore((s) => s.toggleAspectLocked);
@@ -103,10 +100,9 @@ export function ResizeHandles({
           maxW={maxW}
           minH={minH}
           maxH={maxH}
+          snapGrid={snapGrid}
           onPreview={onPreview}
           onCommit={onCommit}
-          counterScaleX={counterScaleX}
-          counterScaleY={counterScaleY}
           popDelayMs={idx * 25}
         />
       ))}
@@ -116,8 +112,6 @@ export function ResizeHandles({
         getRotation={getRotation}
         onPreview={onRotatePreview}
         onCommit={onRotateCommit}
-        counterScaleX={counterScaleX}
-        counterScaleY={counterScaleY}
       />
 
       {/* Diagonal offset beyond the se corner (rather than the old bottom-center
@@ -134,7 +128,7 @@ export function ResizeHandles({
         className={`glass-panel absolute left-full top-full z-10 flex h-6 w-6 items-center justify-center transition-[color,opacity,border-color] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
           aspectLocked ? "border-accent/70 text-accent" : "opacity-70 hover:opacity-100"
         }`}
-        style={{ transform: `translate(1.25rem, 1.25rem) scale(${counterScaleX}, ${counterScaleY})` }}
+        style={{ transform: "translate(1.25rem, 1.25rem)" }}
       >
         <span className="flex h-3.5 w-3.5 items-center justify-center">{aspectLocked ? <LockIcon /> : <UnlockIcon />}</span>
       </button>
@@ -154,10 +148,9 @@ interface ResizeHandleProps {
   maxW: number;
   minH: number;
   maxH: number;
+  snapGrid?: { canvasWidth: number; canvasHeight: number; cols: number; rows: number };
   onPreview: (box: Box) => void;
   onCommit: (box: Box) => void;
-  counterScaleX: number;
-  counterScaleY: number;
   popDelayMs: number;
 }
 
@@ -173,10 +166,9 @@ function ResizeHandle({
   maxW,
   minH,
   maxH,
+  snapGrid,
   onPreview,
   onCommit,
-  counterScaleX,
-  counterScaleY,
   popDelayMs,
 }: ResizeHandleProps) {
   const { onPointerDown, onPointerMove, onPointerUp } = useResizeDrag({
@@ -189,6 +181,7 @@ function ResizeHandle({
     maxW,
     minH,
     maxH,
+    snapGrid,
     onPreview,
     onCommit,
   });
@@ -206,7 +199,7 @@ function ResizeHandle({
         width: HANDLE_HIT_SIZE,
         height: HANDLE_HIT_SIZE,
         cursor,
-        transform: `translate(-50%, -50%) scale(${counterScaleX}, ${counterScaleY})`,
+        transform: "translate(-50%, -50%)",
       }}
     >
       <span
@@ -222,8 +215,6 @@ interface RotateHandleProps {
   getRotation: () => number;
   onPreview: (rotationDeg: number) => void;
   onCommit: (rotationDeg: number) => void;
-  counterScaleX: number;
-  counterScaleY: number;
 }
 
 /** Small circular handle + connecting stem, distinct in shape from the square
@@ -233,7 +224,7 @@ interface RotateHandleProps {
  * a diagonal offset beyond the NE corner instead (see TextElementView.tsx) so
  * this component stays identical for both image and text consumers rather
  * than needing to special-case one of them. */
-function RotateHandle({ getScreenCenter, getRotation, onPreview, onCommit, counterScaleX, counterScaleY }: RotateHandleProps) {
+function RotateHandle({ getScreenCenter, getRotation, onPreview, onCommit }: RotateHandleProps) {
   const { onPointerDown, onPointerMove, onPointerUp } = useRotateDrag({
     getScreenCenter,
     getRotation,
@@ -242,7 +233,7 @@ function RotateHandle({ getScreenCenter, getRotation, onPreview, onCommit, count
   });
 
   return (
-    <div className="absolute left-1/2 top-0 z-10" style={{ transform: `scale(${counterScaleX}, ${counterScaleY})` }}>
+    <div className="absolute left-1/2 top-0 z-10">
       <span
         className="absolute left-1/2 top-0 w-px bg-[rgb(var(--color-accent-glow)/0.7)]"
         style={{ height: ROTATE_HANDLE_OFFSET, transform: "translate(-50%, -100%)" }}

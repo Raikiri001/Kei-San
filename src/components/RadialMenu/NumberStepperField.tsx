@@ -9,6 +9,9 @@ interface NumberStepperFieldProps {
   min: number;
   max: number;
   ariaLabel: string;
+  /** Unit suffix shown after the input — "px" for sizes, "%" for percentage-based
+   * fields like Warp. Defaults to "px". */
+  unit?: string;
 }
 
 /**
@@ -17,7 +20,7 @@ interface NumberStepperFieldProps {
  * the same number twice. Now there's exactly one place the value appears, and
  * it's directly editable there.
  */
-export function NumberStepperField({ draft, onDec, onInc, min, max, ariaLabel }: NumberStepperFieldProps) {
+export function NumberStepperField({ draft, onDec, onInc, min, max, ariaLabel, unit = "px" }: NumberStepperFieldProps) {
   return (
     <span className="flex items-center gap-1">
       <Stepper onDec={onDec} onInc={onInc} />
@@ -33,7 +36,7 @@ export function NumberStepperField({ draft, onDec, onInc, min, max, ariaLabel }:
         className={numberInputClass}
         aria-label={ariaLabel}
       />
-      <span className="shrink-0 text-[9px] uppercase tracking-wide opacity-50">px</span>
+      <span className="shrink-0 text-[9px] uppercase tracking-wide opacity-50">{unit}</span>
     </span>
   );
 }

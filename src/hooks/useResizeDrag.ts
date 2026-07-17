@@ -1,4 +1,6 @@
 import { useCallback, useRef } from "react";
+import { snapLineToGrid } from "@/utils/grid";
+import { RESIZE_SNAP_THRESHOLD_SCREEN_PX } from "@/constants/defaults";
 
 export type ResizeHandleId = "nw" | "ne" | "sw" | "se" | "n" | "s" | "e" | "w";
 
@@ -28,6 +30,12 @@ interface UseResizeDragOptions {
   maxW: number;
   minH: number;
   maxH: number;
+  /** Canvas + grid dimensions for Canva-style "clip to the nearest column/row"
+   * edge snapping. Optional — omit to disable snapping entirely (e.g. nothing
+   * meaningful to snap to). Only applies at rotations within 0.5° of an exact
+   * multiple of 90° — see applyGridSnap's doc comment for why other angles
+   * skip it (a diagonal edge can't snap to a horizontal/vertical grid line). */
+  snapGrid?: { canvasWidth: number; canvasHeight: number; cols: number; rows: number };
   /** Called continuously while dragging with a live, unclamped-except-by-min/max preview box. */
   onPreview: (box: Box) => void;
   /** Called once on release with the final box. */
@@ -117,6 +125,88 @@ function computeResizedBox(
 }
 
 /**
+ * Snaps whichever edge(s) `handle` actually moves to the nearest grid
+ * column/row line, Canva-style — so the user doesn't have to be pixel-precise
+ * to land exactly on a line.
+ *
+ * Only applies at rotations within 0.5° of an exact multiple of 90° — at any
+ * other angle the box's edges are diagonal in world space and simply don't
+ * correspond to a single horizontal/vertical grid line, so snapping is
+ * skipped rather than doing something visually wrong. At 90°/270° though, the
+ * box's edges ARE still axis-aligned in world space — they're just swapped:
+ * what `computeResizedBox` calls "width" now runs along the world *Y* axis,
+ * and "height" along world X. `cos`/`sin` here are the exact (-1/0/1) values
+ * for whichever of the 4 cardinal rotations this is, derived from the
+ * quadrant index rather than `Math.cos/sin` so there's no float drift feeding
+ * into the snap math; multiplying them through the same forward-rotation
+ * formula `resolve()` uses to place the box (`worldDX/DY` above) gives the
+ * *actual* world-space position of the moving edge/corner and the fixed
+ * anchor, on whichever world axis this handle's motion actually lands on.
+ */
+function applyGridSnap(
+  handle: ResizeHandleId,
+  box0: Box,
+  result: Box,
+  rotationDeg: number,
+  snapGrid: { canvasWidth: number; canvasHeight: number; cols: number; rows: number },
+  thresholdPx: number,
+  minW: number,
+  maxW: number,
+  minH: number,
+  maxH: number,
+): Box {
+  const quadrantRaw = Math.round(rotationDeg / 90);
+  if (Math.abs(rotationDeg - quadrantRaw * 90) > 0.5) return result;
+  const quadrant = ((quadrantRaw % 4) + 4) % 4;
+  const cos = [1, 0, -1, 0][quadrant];
+  const sin = [0, 1, 0, -1][quadrant];
+
+  const { sx, sy } = HANDLE_SIGN[handle];
+  const { x, y, w, h } = result;
+
+  // World position of the fixed anchor (opposite corner/edge, from the box's
+  // pre-drag size) and the moving point (this handle's corner/edge, from the
+  // freshly-resized w/h) — both via the same local-offset-from-center ->
+  // world rotation `resolve()` uses, so these are the box's *actual* rendered
+  // positions on screen, not a rotation-naive approximation.
+  const anchorWorldX = box0.x - sx * (box0.w / 2) * cos + sy * (box0.h / 2) * sin;
+  const anchorWorldY = box0.y - sx * (box0.w / 2) * sin - sy * (box0.h / 2) * cos;
+  const movingWorldX = x + sx * (w / 2) * cos - sy * (h / 2) * sin;
+  const movingWorldY = y + sx * (w / 2) * sin + sy * (h / 2) * cos;
+
+  let newW = w;
+  let newH = h;
+  const swapped = quadrant % 2 === 1;
+
+  if (sx !== 0) {
+    if (!swapped) {
+      const snapped = snapLineToGrid(movingWorldX, snapGrid.canvasWidth, snapGrid.cols, thresholdPx);
+      if (snapped !== movingWorldX) newW = clamp(Math.abs(snapped - anchorWorldX), minW, maxW);
+    } else {
+      const snapped = snapLineToGrid(movingWorldY, snapGrid.canvasHeight, snapGrid.rows, thresholdPx);
+      if (snapped !== movingWorldY) newW = clamp(Math.abs(snapped - anchorWorldY), minW, maxW);
+    }
+  }
+  if (sy !== 0) {
+    if (!swapped) {
+      const snapped = snapLineToGrid(movingWorldY, snapGrid.canvasHeight, snapGrid.rows, thresholdPx);
+      if (snapped !== movingWorldY) newH = clamp(Math.abs(snapped - anchorWorldY), minH, maxH);
+    } else {
+      const snapped = snapLineToGrid(movingWorldX, snapGrid.canvasWidth, snapGrid.cols, thresholdPx);
+      if (snapped !== movingWorldX) newH = clamp(Math.abs(snapped - anchorWorldX), minH, maxH);
+    }
+  }
+
+  if (newW === w && newH === h) return result;
+
+  // Reconstruct the world center from the fixed anchor for the (possibly)
+  // snapped w/h, using the same anchor + rotated-half-extent relation as above.
+  const newX = anchorWorldX + sx * (newW / 2) * cos - sy * (newH / 2) * sin;
+  const newY = anchorWorldY + sx * (newW / 2) * sin + sy * (newH / 2) * cos;
+  return { x: newX, y: newY, w: newW, h: newH };
+}
+
+/**
  * Anchor-relative corner/edge resize — a sibling to useDrag, not built on it, since the
  * math (opposite-corner-fixed sizing, optional live-Shift uniform scaling, rotation
  * compensation) is fundamentally different from a simple delta-translate move.
@@ -131,6 +221,7 @@ export function useResizeDrag({
   maxW,
   minH,
   maxH,
+  snapGrid,
   onPreview,
   onCommit,
 }: UseResizeDragOptions) {
@@ -182,9 +273,12 @@ export function useResizeDrag({
       const worldDX = localResult.x * cos - localResult.y * sin;
       const worldDY = localResult.x * sin + localResult.y * cos;
 
-      return { x: state.box0.x + worldDX, y: state.box0.y + worldDY, w: localResult.w, h: localResult.h };
+      const result = { x: state.box0.x + worldDX, y: state.box0.y + worldDY, w: localResult.w, h: localResult.h };
+      if (!snapGrid) return result;
+      const thresholdPx = RESIZE_SNAP_THRESHOLD_SCREEN_PX / zoom;
+      return applyGridSnap(handle, state.box0, result, state.rotation, snapGrid, thresholdPx, minW, maxW, minH, maxH);
     },
-    [handle, zoom, minW, maxW, minH, maxH],
+    [handle, zoom, minW, maxW, minH, maxH, snapGrid],
   );
 
   const onPointerMove = useCallback(

@@ -10,6 +10,10 @@ import { HandIcon, MoonIcon, SunIcon } from "@/components/RadialMenu/icons";
 import clsx from "clsx";
 
 const TAP_THRESHOLD_PX = 4;
+/** How long to wait after the last zoom change before snapping an open radial
+ * menu back to its element — see the effect below for why this is a settle-then-
+ * jump instead of a live per-tick reposition. */
+const ZOOM_SETTLE_MS = 220;
 
 /** True when the given element is a text input/textarea/contentEditable region —
  * Space must keep typing a literal space there instead of engaging temporary pan. */
@@ -40,6 +44,8 @@ export function CanvasWorkspace() {
   const setSpacePanning = useUIStore((s) => s.setSpacePanning);
   const setSelectedElementId = useUIStore((s) => s.setSelectedElementId);
   const dragPreviewNode = useUIStore((s) => s.dragPreviewNode);
+  const radialMenu = useUIStore((s) => s.radialMenu);
+  const moveRadialMenu = useUIStore((s) => s.moveRadialMenu);
 
   const theme = useUIStore((s) => s.theme);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
@@ -113,6 +119,46 @@ export function CanvasWorkspace() {
     didFitRef.current = true;
   }, [width, height, setZoom]);
 
+  // Screen px (relative to the viewport box) where canvas-space (0,0) currently
+  // sits — the wrapper is flex-centered and scales about its own center, so this
+  // depends on viewport size, zoom, and pan together (see the effect above).
+  const originX = viewportSize.width / 2 - (width * zoom) / 2 + panX;
+  const originY = viewportSize.height / 2 - (height * zoom) / 2 + panY;
+
+  // An open radial menu's x/y is a plain screen position — zooming the canvas
+  // moves every element under it without touching that stored position, so the
+  // menu would otherwise visibly detach from whatever it was opened on. Rather
+  // than recompute it on every zoom tick (which would make it crawl/lag behind
+  // a fast zoom gesture instead of tracking cleanly), this captures the canvas-
+  // space point it's anchored to once a zoom change starts, then waits for the
+  // gesture to settle (ZOOM_SETTLE_MS of no further change) and jumps it there
+  // in one step.
+  const zoomAnchorRef = useRef<{ x: number; y: number } | null>(null);
+  const prevZoomRef = useRef(zoom);
+  useEffect(() => {
+    if (prevZoomRef.current === zoom) return;
+    const oldZoom = prevZoomRef.current;
+    prevZoomRef.current = zoom;
+    if (!radialMenu?.open) return;
+
+    if (!zoomAnchorRef.current) {
+      const oldOriginX = viewportSize.width / 2 - (width * oldZoom) / 2 + panX;
+      const oldOriginY = viewportSize.height / 2 - (height * oldZoom) / 2 + panY;
+      zoomAnchorRef.current = {
+        x: (radialMenu.x - oldOriginX) / oldZoom,
+        y: (radialMenu.y - oldOriginY) / oldZoom,
+      };
+    }
+
+    const timer = setTimeout(() => {
+      const anchor = zoomAnchorRef.current;
+      zoomAnchorRef.current = null;
+      if (!anchor) return;
+      moveRadialMenu(anchor.x * zoom + originX, anchor.y * zoom + originY);
+    }, ZOOM_SETTLE_MS);
+    return () => clearTimeout(timer);
+  }, [zoom, radialMenu, viewportSize.width, viewportSize.height, width, height, panX, panY, originX, originY, moveRadialMenu]);
+
   function handleWheel(e: React.WheelEvent) {
     e.preventDefault();
     zoomBy(-e.deltaY * 0.001);
@@ -153,12 +199,6 @@ export function CanvasWorkspace() {
     const rect = e.currentTarget.getBoundingClientRect();
     setHoverPos({ x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
   }
-
-  // Screen px (relative to the viewport box) where canvas-space (0,0) currently
-  // sits — the wrapper is flex-centered and scales about its own center, so this
-  // depends on viewport size, zoom, and pan together (see the effect above).
-  const originX = viewportSize.width / 2 - (width * zoom) / 2 + panX;
-  const originY = viewportSize.height / 2 - (height * zoom) / 2 + panY;
 
   return (
     <div
