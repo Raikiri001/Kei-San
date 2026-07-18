@@ -6,8 +6,9 @@ import { useDrag } from "@/hooks/useDrag";
 import { snapToNearestNode } from "@/utils/grid";
 import { FONT_STACKS } from "@/constants/fonts";
 import { DISPLAY_SIZE_MAX, DISPLAY_SIZE_MIN } from "@/constants/defaults";
-import { PencilIcon } from "@/components/RadialMenu/icons";
 import { ResizeHandles } from "@/components/CanvasWorkspace/ResizeHandles";
+import { hexToRgba } from "@/canvas/colorExtraction";
+import { getTextGlowShadow } from "@/canvas/textGlow";
 import type { TextElement } from "@/store/types";
 
 const ALIGN_CLASS: Record<TextElement["align"], string> = {
@@ -25,6 +26,7 @@ export function TextElementView({ text }: { text: TextElement }) {
   const updateText = useProjectStore((s) => s.updateText);
   const zoom = useUIStore((s) => s.zoom);
   const openRadialMenu = useUIStore((s) => s.openRadialMenu);
+  const closeRadialMenu = useUIStore((s) => s.closeRadialMenu);
   const moveRadialMenu = useUIStore((s) => s.moveRadialMenu);
   const radialMenu = useUIStore((s) => s.radialMenu);
   const selectedElementId = useUIStore((s) => s.selectedElementId);
@@ -41,21 +43,6 @@ export function TextElementView({ text }: { text: TextElement }) {
 
   const isSelected = selectedElementId === text.id;
   const isEditing = editingTextId === text.id;
-
-  // Pulses the pencil button's corner brackets once when this text becomes
-  // newly selected — same "materializing" confirmation cue as the toolbar/
-  // radial pills' expand pulse, just triggered by selection instead of hover.
-  const [pencilPulsing, setPencilPulsing] = useState(false);
-  const wasSelectedRef = useRef(false);
-  useEffect(() => {
-    if (isSelected && !wasSelectedRef.current) {
-      setPencilPulsing(true);
-      const t = setTimeout(() => setPencilPulsing(false), 380);
-      wasSelectedRef.current = true;
-      return () => clearTimeout(t);
-    }
-    wasSelectedRef.current = isSelected;
-  }, [isSelected]);
 
   const getPosition = useCallback(() => ({ x: text.x, y: text.y }), [text.x, text.y]);
   const onPreview = useCallback(
@@ -76,13 +63,27 @@ export function TextElementView({ text }: { text: TextElement }) {
     [width, height, cols, rows, updateText, text.id, setDragPreviewNode],
   );
 
-  // Tapping text is the primary way to edit it now — it opens the inline
-  // on-canvas box directly instead of the radial ring (which used to pop over
-  // the toolbar). The ring is still reachable, but only via the pencil handle.
-  const onTap = useCallback(() => {
-    setSelectedElementId(text.id);
-    setEditingTextId(text.id);
-  }, [setSelectedElementId, setEditingTextId, text.id]);
+  // Tapping the text opens its radial menu (same convention as images opening
+  // theirs on tap — see ImageElementView) — openRadialMenu already selects the
+  // element as a side effect, so there's no separate setSelectedElementId call
+  // needed here. Double-click is the fast path straight into the inline editor.
+  const onTap = useCallback(
+    (screenX: number, screenY: number) => openRadialMenu(screenX, screenY, "text", text.id),
+    [openRadialMenu, text.id],
+  );
+
+  const handleDoubleClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      // The first of the two clicks already opened the ring via onTap above —
+      // close it back out so the pills don't sit on top of the text while
+      // it's being edited.
+      closeRadialMenu();
+      setSelectedElementId(text.id);
+      setEditingTextId(text.id);
+    },
+    [closeRadialMenu, setSelectedElementId, setEditingTextId, text.id],
+  );
 
   const onDragMove = useCallback(
     (screenX: number, screenY: number) => {
@@ -160,11 +161,6 @@ export function TextElementView({ text }: { text: TextElement }) {
     if (e.key === "Escape") e.currentTarget.blur();
   }
 
-  function handlePencilClick(e: React.MouseEvent) {
-    e.stopPropagation();
-    openRadialMenu(e.clientX, e.clientY, "text", text.id);
-  }
-
   const panActive = useUIStore((s) => s.panToolActive || s.isSpacePanning);
 
   const pos = sizePreview ?? preview ?? { x: text.x, y: text.y };
@@ -180,6 +176,7 @@ export function TextElementView({ text }: { text: TextElement }) {
       ref={wrapperRef}
       data-radial-context="text"
       {...dragHandlers}
+      onDoubleClick={isEditing ? undefined : handleDoubleClick}
       className="absolute touch-none"
       style={{
         left: 0,
@@ -207,8 +204,10 @@ export function TextElementView({ text }: { text: TextElement }) {
         // entirely on the inner content div below instead.
         transform: `translate(${box.x}px, ${box.y}px) translate(-50%, -50%) rotate(${rotation}deg)`,
         cursor: isEditing ? "text" : panActive ? "inherit" : "grab",
+        // No outlineOffset: any gap here reads as the box not actually landing
+        // on a grid anchor when it resizes/snaps flush — the outline needs to
+        // sit exactly on the box's true (snapped) edge, not floating outside it.
         outline: isSelected ? "1.5px solid rgb(var(--color-accent-glow) / 0.8)" : "none",
-        outlineOffset: 4,
       }}
     >
       <div
@@ -228,41 +227,14 @@ export function TextElementView({ text }: { text: TextElement }) {
             fontWeight: text.bold ? 700 : 400,
             fontStyle: text.italic ? "italic" : "normal",
             textDecoration: text.underline ? "underline" : "none",
-            color: text.color,
+            color: hexToRgba(text.color, text.colorAlpha),
+            textShadow: text.glow ? getTextGlowShadow(text.glowColor, text.glowSize) : undefined,
             writingMode: text.orientation === "vertical" ? "vertical-rl" : "horizontal-tb",
           }}
         >
           {isEditing ? undefined : text.content}
         </div>
       </div>
-
-      {isSelected && (
-        <button
-          type="button"
-          onClick={handlePencilClick}
-          onPointerDown={(e) => e.stopPropagation()}
-          data-pulse={pencilPulsing ? "true" : undefined}
-          className="glass-panel corner-frame accent-glow-hover absolute left-full top-0 z-10 flex h-11 w-11 items-center justify-center"
-          style={{
-            // Diagonally beyond the NE corner — the rotate handle occupies
-            // top-center (Illustrator/Photoshop convention), so the pencil
-            // button stays clear of it. Counter-scales against the ambient
-            // canvas zoom only now (no more text-warp to also counter, since
-            // warp no longer lives on this element's own ancestor chain) so
-            // this stays a fixed, comfortable hit target on screen regardless
-            // of zoom level.
-            transform: `translate(-50%, -50%) scale(${1 / zoom}) translate(1.75rem, -1.75rem)`,
-          }}
-          aria-label="Open text tools"
-        >
-          <span className="corner-tl" />
-          <span className="corner-bl" />
-          <span className="corner-br" />
-          <span className="flex h-5 w-5 items-center justify-center">
-            <PencilIcon />
-          </span>
-        </button>
-      )}
 
       {isSelected && !isEditing && !panActive && (
         <ResizeHandles
@@ -279,6 +251,7 @@ export function TextElementView({ text }: { text: TextElement }) {
           onRotatePreview={onRotatePreview}
           onRotateCommit={onRotateCommit}
           getScreenCenter={getScreenCenter}
+          onDragStart={closeRadialMenu}
         />
       )}
     </div>

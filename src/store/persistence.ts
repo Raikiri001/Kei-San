@@ -1,4 +1,6 @@
 import {
+  DEFAULT_GLOW_COLOR,
+  DEFAULT_GLOW_SIZE,
   DEFAULT_TEXT_BOX_HEIGHT,
   DEFAULT_TEXT_BOX_WIDTH,
   HISTORY_STORAGE_KEY,
@@ -11,9 +13,38 @@ import type { ImageElement, ProjectState, SavedDesign, TextElement } from "@/sto
 
 type LegacyTextElement = Omit<
   TextElement,
-  "boxWidth" | "boxHeight" | "warpX" | "warpY" | "bold" | "italic" | "underline" | "align" | "rotation"
+  | "boxWidth"
+  | "boxHeight"
+  | "warpX"
+  | "warpY"
+  | "bold"
+  | "italic"
+  | "underline"
+  | "align"
+  | "rotation"
+  | "colorAlpha"
+  | "glow"
+  | "glowColor"
+  | "glowSize"
 > &
-  Partial<Pick<TextElement, "boxWidth" | "boxHeight" | "warpX" | "warpY" | "bold" | "italic" | "underline" | "align" | "rotation">> & {
+  Partial<
+    Pick<
+      TextElement,
+      | "boxWidth"
+      | "boxHeight"
+      | "warpX"
+      | "warpY"
+      | "bold"
+      | "italic"
+      | "underline"
+      | "align"
+      | "rotation"
+      | "colorAlpha"
+      | "glow"
+      | "glowColor"
+      | "glowSize"
+    >
+  > & {
     // Pre-redesign field names — a saved text element may have either of these
     // (never both), carrying the same "how much to stretch" meaning warpX/Y
     // has now, which is why the migration below maps them across directly
@@ -22,11 +53,12 @@ type LegacyTextElement = Omit<
     scaleY?: number;
   };
 
-/** Legacy (pre-multi-image / pre-Phase-3 / pre-scaleX-scaleY) shape a SavedDesign may have been persisted as. */
-interface LegacySavedDesign extends Omit<SavedDesign, "images" | "texts"> {
+/** Legacy (pre-multi-image / pre-Phase-3 / pre-scaleX-scaleY / pre-alpha) shape a SavedDesign may have been persisted as. */
+interface LegacySavedDesign extends Omit<SavedDesign, "images" | "texts" | "backgroundAlpha"> {
   images?: ImageElement[];
   image?: ImageElement | null;
   texts?: LegacyTextElement[];
+  backgroundAlpha?: number;
 }
 
 /** Migrates any older saved entry forward so old localStorage data never crashes the app. */
@@ -49,6 +81,7 @@ function normalizeDesign(raw: LegacySavedDesign): SavedDesign {
     cropZoom: img.cropZoom ?? 1,
     cropOffsetX: img.cropOffsetX ?? 0,
     cropOffsetY: img.cropOffsetY ?? 0,
+    opacity: img.opacity ?? 1,
     zIndex: img.zIndex ?? cursor++,
   }));
   const texts = rawTexts.map((txt) => {
@@ -72,11 +105,15 @@ function normalizeDesign(raw: LegacySavedDesign): SavedDesign {
       underline: txt.underline ?? false,
       align: txt.align ?? ("center" as const),
       rotation: txt.rotation ?? 0,
+      colorAlpha: txt.colorAlpha ?? 1,
+      glow: txt.glow ?? false,
+      glowColor: txt.glowColor ?? DEFAULT_GLOW_COLOR,
+      glowSize: txt.glowSize ?? DEFAULT_GLOW_SIZE,
       zIndex: txt.zIndex ?? cursor++,
     };
   });
 
-  return { ...raw, images, texts };
+  return { ...raw, images, texts, backgroundAlpha: raw.backgroundAlpha ?? 1 };
 }
 
 export function loadDesignsHistory(): SavedDesign[] {

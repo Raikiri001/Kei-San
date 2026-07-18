@@ -92,6 +92,61 @@ export function hslToRgb(h: number, s: number, l: number): RGB {
   };
 }
 
+/** Composes a #rrggbb hex string with an alpha (0-1) into a CSS rgba() string. */
+export function hexToRgba(hex: string, alpha: number): string {
+  const rgb = hexToRgb(hex) ?? { r: 0, g: 0, b: 0 };
+  return `rgba(${Math.round(rgb.r)}, ${Math.round(rgb.g)}, ${Math.round(rgb.b)}, ${alpha})`;
+}
+
+/** HSV (aka HSB): h in [0,360), s/v in [0,1] — the "drag toward white/black" square
+ * picker's native color space, distinct from the HSL used elsewhere for the
+ * suggestion-swatch math (HSL's lightness axis behaves differently: at l=0.5 it's
+ * the pure hue regardless of saturation, whereas HSV's v axis is what actually
+ * darkens straight toward black the way the picker board's vertical drag expects). */
+export function rgbToHsv({ r, g, b }: RGB): { h: number; s: number; v: number } {
+  const rn = r / 255;
+  const gn = g / 255;
+  const bn = b / 255;
+  const max = Math.max(rn, gn, bn);
+  const min = Math.min(rn, gn, bn);
+  const d = max - min;
+  const v = max;
+  const s = max === 0 ? 0 : d / max;
+
+  if (d === 0) return { h: 0, s, v };
+  let h: number;
+  switch (max) {
+    case rn:
+      h = ((gn - bn) / d) % 6;
+      break;
+    case gn:
+      h = (bn - rn) / d + 2;
+      break;
+    default:
+      h = (rn - gn) / d + 4;
+  }
+  h *= 60;
+  if (h < 0) h += 360;
+  return { h, s, v };
+}
+
+export function hsvToRgb(h: number, s: number, v: number): RGB {
+  const hn = ((h % 360) + 360) % 360;
+  const c = v * s;
+  const x = c * (1 - Math.abs(((hn / 60) % 2) - 1));
+  const m = v - c;
+  let rp = 0;
+  let gp = 0;
+  let bp = 0;
+  if (hn < 60) [rp, gp, bp] = [c, x, 0];
+  else if (hn < 120) [rp, gp, bp] = [x, c, 0];
+  else if (hn < 180) [rp, gp, bp] = [0, c, x];
+  else if (hn < 240) [rp, gp, bp] = [0, x, c];
+  else if (hn < 300) [rp, gp, bp] = [x, 0, c];
+  else [rp, gp, bp] = [c, 0, x];
+  return { r: Math.round((rp + m) * 255), g: Math.round((gp + m) * 255), b: Math.round((bp + m) * 255) };
+}
+
 const ALPHA_SKIP_THRESHOLD = 16;
 
 /**

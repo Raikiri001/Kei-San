@@ -15,6 +15,8 @@ import {
   DISPLAY_SIZE_MIN,
   FONT_SIZE_MAX,
   FONT_SIZE_MIN,
+  GLOW_SIZE_MAX,
+  GLOW_SIZE_MIN,
   RESCALE_STEP_PX,
   WARP_MAX,
   WARP_MIN,
@@ -31,8 +33,10 @@ import {
   DeleteIcon,
   DimensionsIcon,
   FontIcon,
+  GlowIcon,
   ItalicIcon,
   LayersIcon,
+  LayoutIcon,
   OrientationIcon,
   PaletteIcon,
   PencilIcon,
@@ -101,6 +105,15 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
     onCommit: (fontSize) => {
       if (!text) return;
       updateText(text.id, { fontSize });
+    },
+  });
+
+  const glowSizeDraft = useDraftNumber(text ? text.glowSize : 0, {
+    min: GLOW_SIZE_MIN,
+    max: GLOW_SIZE_MAX,
+    onCommit: (glowSize) => {
+      if (!text) return;
+      updateText(text.id, { glowSize });
     },
   });
 
@@ -245,7 +258,11 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
     { key: "send-to-back", icon: <SendToBackIcon />, label: "Send to Back", onClick: () => sendToBack(id) },
   ];
 
-  const items: RingItem[] = [
+  // Typography controls grouped one level in behind a "Text" group pill —
+  // keeps the root ring's item count (and therefore its radius, see
+  // ring-layout.ts) small and fixed regardless of whether Colors happens to
+  // be available this session.
+  const textSubItems: RingItem[] = [
     {
       key: "font-family",
       icon: <FontIcon />,
@@ -278,6 +295,98 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
         </span>
       ),
     },
+    {
+      key: "size",
+      icon: <SizeIcon />,
+      label: "Font Size",
+      wide: true,
+      expandedContent: (
+        <NumberStepperField
+          draft={fontSizeDraft}
+          onDec={() => updateText(id, { fontSize: Math.max(FONT_SIZE_MIN, text.fontSize - 8) })}
+          onInc={() => updateText(id, { fontSize: Math.min(FONT_SIZE_MAX, text.fontSize + 8) })}
+          min={FONT_SIZE_MIN}
+          max={FONT_SIZE_MAX}
+          ariaLabel="Font size in pixels"
+        />
+      ),
+    },
+  ];
+
+  // Always available (not gated on an uploaded image's suggestions existing) —
+  // custom swatches and the eyedropper inside ColorPickerPanel work regardless
+  // of whether any image-derived suggestions do.
+  textSubItems.push({
+    key: "colors",
+    icon: <PaletteIcon />,
+    label: "Colors",
+    popoverContent: (
+      <ColorPickerPanel
+        suggestionGroups={suggestions ? [{ label: "Suggested", suggestions }] : []}
+        value={text.color}
+        alpha={text.colorAlpha}
+        onChange={(color) => updateText(id, { color })}
+        onAlphaChange={(colorAlpha) => updateText(id, { colorAlpha })}
+      />
+    ),
+  });
+
+  // Glow: an outer, blurred, colored halo — a group pill (toggle + size +
+  // color, same stacked-controls pattern as Dimensions/Warp) rather than a
+  // single pill, since it has three independently editable pieces.
+  const glowSubItems: RingItem[] = [
+    {
+      key: "glow-toggle",
+      icon: <GlowIcon />,
+      label: text.glow ? "Glow: On" : "Glow: Off",
+      status: text.glow ? "on" : "off",
+      onClick: () => updateText(id, { glow: !text.glow }),
+    },
+    {
+      key: "glow-size",
+      icon: <GlowIcon />,
+      label: "Glow Size",
+      wide: true,
+      disabled: !text.glow,
+      expandedContent: (
+        <NumberStepperField
+          draft={glowSizeDraft}
+          onDec={() => updateText(id, { glowSize: clamp(text.glowSize - 8, GLOW_SIZE_MIN, GLOW_SIZE_MAX) })}
+          onInc={() => updateText(id, { glowSize: clamp(text.glowSize + 8, GLOW_SIZE_MIN, GLOW_SIZE_MAX) })}
+          min={GLOW_SIZE_MIN}
+          max={GLOW_SIZE_MAX}
+          ariaLabel="Glow size in pixels"
+        />
+      ),
+    },
+    {
+      key: "glow-color",
+      icon: <PaletteIcon />,
+      label: "Glow Color",
+      disabled: !text.glow,
+      popoverContent: (
+        <ColorPickerPanel
+          suggestionGroups={[]}
+          value={text.glowColor}
+          onChange={(glowColor) => updateText(id, { glowColor })}
+        />
+      ),
+    },
+  ];
+
+  textSubItems.push({
+    key: "glow",
+    icon: <GlowIcon />,
+    label: "Glow",
+    active: text.glow,
+    subItems: glowSubItems,
+  });
+
+  // Box/arrangement controls grouped behind a "Layout" group pill — Dimensions
+  // and Warp are themselves group pills, so this is a two-deep drill-down
+  // (Layout -> Dimensions -> W/H fields), which the ring already supports (see
+  // resolveActiveItems's path walk in RadialMenu.tsx).
+  const layoutSubItems: RingItem[] = [
     {
       key: "orientation",
       icon: <OrientationIcon />,
@@ -318,22 +427,6 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
         ]
       : []),
     {
-      key: "size",
-      icon: <SizeIcon />,
-      label: "Font Size",
-      wide: true,
-      expandedContent: (
-        <NumberStepperField
-          draft={fontSizeDraft}
-          onDec={() => updateText(id, { fontSize: Math.max(FONT_SIZE_MIN, text.fontSize - 8) })}
-          onInc={() => updateText(id, { fontSize: Math.min(FONT_SIZE_MAX, text.fontSize + 8) })}
-          min={FONT_SIZE_MIN}
-          max={FONT_SIZE_MAX}
-          ariaLabel="Font size in pixels"
-        />
-      ),
-    },
-    {
       key: "dimensions",
       icon: <DimensionsIcon />,
       label: "Dimensions",
@@ -346,50 +439,51 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
       active: text.warpX !== 1 || text.warpY !== 1,
       subItems: warpSubItems,
     },
+  ];
+
+  // Root ring: a fixed 5 pills regardless of state (Colors/Align availability
+  // only ever changes a nested submenu's count, not this one) — see
+  // ring-layout.ts for why keeping the root count small and stable keeps the
+  // ring close to the tap point instead of ballooning outward.
+  return [
     {
       key: "content",
       icon: <PencilIcon />,
       label: "Edit Text",
       // The ring is only a secondary path to editing now — the primary path is
-      // tapping the text directly, which opens the same inline on-canvas box.
+      // double-clicking the text directly, which opens the same inline
+      // on-canvas box (see TextElementView's onDoubleClick).
       onClick: () => {
         closeRadialMenu();
         setEditingTextId(id);
       },
     },
-  ];
-
-  if (suggestions) {
-    items.push({
-      key: "colors",
-      icon: <PaletteIcon />,
-      label: "Colors",
-      popoverContent: (
-        <ColorPickerPanel
-          suggestionGroups={[{ label: "Suggested", suggestions }]}
-          value={text.color}
-          onChange={(color) => updateText(id, { color })}
-        />
-      ),
-    });
-  }
-
-  items.push({
-    key: "layers",
-    icon: <LayersIcon />,
-    label: "Layers",
-    subItems: layerSubItems,
-  });
-
-  items.push({
-    key: "delete",
-    icon: <DeleteIcon />,
-    label: "Delete",
-    onClick: () => {
-      deleteText(id);
-      closeRadialMenu();
+    {
+      key: "text",
+      icon: <FontIcon />,
+      label: "Text",
+      subItems: textSubItems,
     },
-  });
-
-  return items;
+    {
+      key: "layout",
+      icon: <LayoutIcon />,
+      label: "Layout",
+      subItems: layoutSubItems,
+    },
+    {
+      key: "layers",
+      icon: <LayersIcon />,
+      label: "Layers",
+      subItems: layerSubItems,
+    },
+    {
+      key: "delete",
+      icon: <DeleteIcon />,
+      label: "Delete",
+      onClick: () => {
+        deleteText(id);
+        closeRadialMenu();
+      },
+    },
+  ];
 }

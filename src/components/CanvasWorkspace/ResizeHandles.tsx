@@ -38,6 +38,10 @@ interface ResizeHandlesProps {
   onRotateCommit: (rotationDeg: number) => void;
   /** Viewport (screen-space) center of the element, for the rotate handle's angle math. */
   getScreenCenter: () => { x: number; y: number };
+  /** Fired on pointerdown for any resize or rotate handle, before the drag itself
+   * starts — lets the parent hide an open radial menu so its pills don't sit on
+   * top of the element while it's being resized/rotated. */
+  onDragStart?: () => void;
 }
 
 const HANDLES: { id: ResizeHandleId; position: string; cursor: string }[] = [
@@ -79,6 +83,7 @@ export function ResizeHandles({
   onRotatePreview,
   onRotateCommit,
   getScreenCenter,
+  onDragStart,
 }: ResizeHandlesProps) {
   const aspectLocked = useUIStore((s) => s.aspectLocked);
   const toggleAspectLocked = useUIStore((s) => s.toggleAspectLocked);
@@ -103,6 +108,7 @@ export function ResizeHandles({
           snapGrid={snapGrid}
           onPreview={onPreview}
           onCommit={onCommit}
+          onDragStart={onDragStart}
           popDelayMs={idx * 25}
         />
       ))}
@@ -112,6 +118,7 @@ export function ResizeHandles({
         getRotation={getRotation}
         onPreview={onRotatePreview}
         onCommit={onRotateCommit}
+        onDragStart={onDragStart}
       />
 
       {/* Diagonal offset beyond the se corner (rather than the old bottom-center
@@ -151,6 +158,7 @@ interface ResizeHandleProps {
   snapGrid?: { canvasWidth: number; canvasHeight: number; cols: number; rows: number };
   onPreview: (box: Box) => void;
   onCommit: (box: Box) => void;
+  onDragStart?: () => void;
   popDelayMs: number;
 }
 
@@ -169,6 +177,7 @@ function ResizeHandle({
   snapGrid,
   onPreview,
   onCommit,
+  onDragStart,
   popDelayMs,
 }: ResizeHandleProps) {
   const { onPointerDown, onPointerMove, onPointerUp } = useResizeDrag({
@@ -191,7 +200,10 @@ function ResizeHandle({
   // pattern, rather than literally enlarging the visible square.
   return (
     <div
-      onPointerDown={onPointerDown}
+      onPointerDown={(e) => {
+        onDragStart?.();
+        onPointerDown(e);
+      }}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       className={`absolute z-10 flex touch-none items-center justify-center ${position}`}
@@ -215,6 +227,7 @@ interface RotateHandleProps {
   getRotation: () => number;
   onPreview: (rotationDeg: number) => void;
   onCommit: (rotationDeg: number) => void;
+  onDragStart?: () => void;
 }
 
 /** Small circular handle + connecting stem, distinct in shape from the square
@@ -224,7 +237,7 @@ interface RotateHandleProps {
  * a diagonal offset beyond the NE corner instead (see TextElementView.tsx) so
  * this component stays identical for both image and text consumers rather
  * than needing to special-case one of them. */
-function RotateHandle({ getScreenCenter, getRotation, onPreview, onCommit }: RotateHandleProps) {
+function RotateHandle({ getScreenCenter, getRotation, onPreview, onCommit, onDragStart }: RotateHandleProps) {
   const { onPointerDown, onPointerMove, onPointerUp } = useRotateDrag({
     getScreenCenter,
     getRotation,
@@ -239,7 +252,10 @@ function RotateHandle({ getScreenCenter, getRotation, onPreview, onCommit }: Rot
         style={{ height: ROTATE_HANDLE_OFFSET, transform: "translate(-50%, -100%)" }}
       />
       <div
-        onPointerDown={onPointerDown}
+        onPointerDown={(e) => {
+          onDragStart?.();
+          onPointerDown(e);
+        }}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         title="Rotate (hold Shift to snap to 15°)"

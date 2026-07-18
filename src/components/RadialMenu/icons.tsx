@@ -237,6 +237,19 @@ export function TextContentIcon() {
   );
 }
 
+/** Group-pill glyph for the text ring's "Layout" submenu (orientation, align,
+ * dimensions, warp) — a frame divided into quadrants, distinct from
+ * DimensionsIcon's plain ticked box (which is the specific box-size control
+ * nested one level inside this group, not the group itself). */
+export function LayoutIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="3.5" y="3.5" width="13" height="13" rx="0.8" />
+      <path d="M3.5 9.5h13M9.5 3.5v13" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function BackChevronIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
@@ -302,6 +315,17 @@ export function SendBackwardIcon() {
   );
 }
 
+/** Four inward-pointing corner brackets — "fit to view"/"reset view" glyph,
+ * distinct from ResetIcon's circular-arrow (that one reverts a *value*, this
+ * one reverts the *viewport*). */
+export function ResetViewIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M3 7V4.5a1.5 1.5 0 0 1 1.5-1.5H7M17 7V4.5A1.5 1.5 0 0 0 15.5 3H13M3 13v2.5A1.5 1.5 0 0 0 4.5 17H7M17 13v2.5a1.5 1.5 0 0 1-1.5 1.5H13" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function HandIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -347,6 +371,50 @@ export function SaveIcon() {
       <path d="M4.5 3.5h8.6L15.5 6v10.5h-11v-13Z" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M6.7 3.5v4h5.3v-4" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M6.7 16.5v-5.2h6.6v5.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Pipette/eyedropper glyph — diagonal barrel + a small droplet dot at the tip,
+ * distinct in silhouette from PencilIcon (which reads as "edit", not "sample"). */
+export function EyedropperIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M12.5 3.8 16.2 7.5 8.8 14.9 5.1 11.2Z" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10.9 5.4 14.6 9.1" strokeLinecap="round" />
+      <path d="M5.1 11.2 3.3 15.4a0.9 0.9 0 0 0 1.2 1.2l4.2-1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="4" cy="16" r="0.9" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function PlusIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M10 4v12M4 10h12" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Half-filled circle over a checker swatch — reads as "opacity/transparency"
+ * distinct from HalftoneIcon's dot-grid pattern. */
+export function OpacityIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <circle cx="10" cy="10" r="6.5" />
+      <path d="M10 3.5a6.5 6.5 0 0 1 0 13Z" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function GlowIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <circle cx="10" cy="10" r="3" />
+      <path
+        d="M10 2.5v2M10 15.5v2M2.5 10h2M15.5 10h2M4.6 4.6l1.4 1.4M13.9 13.9l1.4 1.4M4.6 15.4l1.4-1.4M13.9 6.1l1.4-1.4"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

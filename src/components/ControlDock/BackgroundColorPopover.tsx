@@ -17,6 +17,8 @@ import { ToolbarIconButton } from "@/components/ControlDock/ToolbarIconButton";
 export function BackgroundColorPopover() {
   const backgroundColor = useProjectStore((s) => s.project.backgroundColor);
   const setBackgroundColor = useProjectStore((s) => s.setBackgroundColor);
+  const backgroundAlpha = useProjectStore((s) => s.project.backgroundAlpha);
+  const setBackgroundAlpha = useProjectStore((s) => s.setBackgroundAlpha);
   const images = useProjectStore((s) => s.project.images);
 
   const [open, setOpen] = useState(false);
@@ -72,7 +74,13 @@ export function BackgroundColorPopover() {
           <span className="corner-tl" />
           <span className="corner-bl" />
           <span className="corner-br" />
-          <ColorPickerPanel suggestionGroups={suggestionGroups} value={backgroundColor} onChange={setBackgroundColor} />
+          <ColorPickerPanel
+            suggestionGroups={suggestionGroups}
+            value={backgroundColor}
+            alpha={backgroundAlpha}
+            onChange={setBackgroundColor}
+            onAlphaChange={setBackgroundAlpha}
+          />
         </div>
       )}
     </div>

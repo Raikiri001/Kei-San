@@ -42,6 +42,16 @@ export const ROTATE_HANDLE_OFFSET = 22;
 export const FONT_SIZE_MIN = 12;
 export const FONT_SIZE_MAX = 400;
 
+/** Text glow: an outer, blurred, colored halo around the glyphs — off by default. */
+export const DEFAULT_GLOW_COLOR = "#ffffff";
+export const GLOW_SIZE_MIN = 4;
+export const GLOW_SIZE_MAX = 120;
+export const DEFAULT_GLOW_SIZE = 24;
+
+/** Shared opacity/alpha clamp range for images, text color, and canvas background. */
+export const OPACITY_MIN = 0;
+export const OPACITY_MAX = 1;
+
 /** Clamp range for text elements' Warp tool (a fraction, 1 = 100% = no warp). */
 export const WARP_MIN = 0.2;
 export const WARP_MAX = 5;
@@ -50,6 +60,10 @@ export const WARP_STEP_PERCENT = 10;
 
 export const MAX_HISTORY_ENTRIES = 20;
 export const HISTORY_STORAGE_KEY = "wallpaper-designs-history";
+
+/** User-saved custom color swatches — a standalone preference, not tied to any one project. */
+export const CUSTOM_SWATCHES_STORAGE_KEY = "wallpaper-custom-swatches";
+export const MAX_CUSTOM_SWATCHES = 24;
 
 export interface ResolutionPreset {
   label: string;

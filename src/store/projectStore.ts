@@ -7,6 +7,8 @@ import { resolveDefaultMargin } from "@/canvas/edgeBlend";
 import {
   DEFAULT_BACKGROUND,
   DEFAULT_COLS,
+  DEFAULT_GLOW_COLOR,
+  DEFAULT_GLOW_SIZE,
   DEFAULT_HEIGHT,
   DEFAULT_ROWS,
   DEFAULT_TEXT_BOX_HEIGHT,
@@ -24,6 +26,7 @@ function createBaselineProject(): ProjectState {
     rows: DEFAULT_ROWS,
     cols: DEFAULT_COLS,
     backgroundColor: DEFAULT_BACKGROUND,
+    backgroundAlpha: 1,
     images: [],
     texts: [],
     updatedAt: Date.now(),
@@ -45,6 +48,7 @@ type NewImageInput = Omit<
   | "cropZoom"
   | "cropOffsetX"
   | "cropOffsetY"
+  | "opacity"
 > &
   Partial<
     Pick<
@@ -58,6 +62,7 @@ type NewImageInput = Omit<
       | "cropZoom"
       | "cropOffsetX"
       | "cropOffsetY"
+      | "opacity"
     >
   >;
 
@@ -67,6 +72,7 @@ interface ProjectStore {
   setDimensions: (width: number, height: number) => void;
   setGrid: (cols: number, rows: number) => void;
   setBackgroundColor: (color: string) => void;
+  setBackgroundAlpha: (alpha: number) => void;
   addImage: (image: NewImageInput) => string;
   updateImage: (id: string, patch: Partial<ImageElement>) => void;
   deleteImage: (id: string) => void;
@@ -137,6 +143,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     touchDirty();
   },
 
+  setBackgroundAlpha: (backgroundAlpha) => {
+    set((s) => ({ project: { ...s.project, backgroundAlpha, updatedAt: Date.now() } }));
+    touchDirty();
+  },
+
   addImage: (partial) => {
     const { project } = get();
     const id = createId();
@@ -155,6 +166,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       cropZoom: 1,
       cropOffsetX: 0,
       cropOffsetY: 0,
+      opacity: 1,
       x: project.width / 2 + cascade * partial.displayWidth * 0.06,
       y: project.height / 2 + cascade * partial.displayHeight * 0.06,
       zIndex: nextZIndex(project),
@@ -203,6 +215,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       orientation: "horizontal",
       align: "center",
       color: "#f5f5f5",
+      colorAlpha: 1,
+      glow: false,
+      glowColor: DEFAULT_GLOW_COLOR,
+      glowSize: DEFAULT_GLOW_SIZE,
       x: project.width / 2 + cascade * 48,
       y: project.height / 2 + cascade * 36,
       boxWidth: DEFAULT_TEXT_BOX_WIDTH,

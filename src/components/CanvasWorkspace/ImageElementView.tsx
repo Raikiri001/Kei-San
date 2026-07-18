@@ -32,6 +32,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const updateImage = useProjectStore((s) => s.updateImage);
   const zoom = useUIStore((s) => s.zoom);
   const openRadialMenu = useUIStore((s) => s.openRadialMenu);
+  const closeRadialMenu = useUIStore((s) => s.closeRadialMenu);
   const moveRadialMenu = useUIStore((s) => s.moveRadialMenu);
   const radialMenu = useUIStore((s) => s.radialMenu);
   const selectedElementId = useUIStore((s) => s.selectedElementId);
@@ -339,16 +340,27 @@ export function ImageElementView({ image }: { image: ImageElement }) {
         // center for any angle; the previous order let the pivot drift away
         // from center as rotation increased.
         transform: `translate(${box.x}px, ${box.y}px) translate(${-box.w / 2}px, ${-box.h / 2}px) rotate(${rotation}deg)`,
+        // No outlineOffset (same fix as TextElementView): a gap here reads as
+        // the box not actually landing on a grid anchor when it resizes/snaps
+        // flush — the outline (and the dashed crop frame) needs to sit
+        // exactly on the box's true edge, not floating outside it.
         outline: isCropping
           ? "1.5px dashed rgb(var(--color-accent-glow) / 0.9)"
           : isSelected
             ? "1.5px solid rgb(var(--color-accent-glow) / 0.8)"
             : "none",
-        outlineOffset: 2,
         boxShadow: edgeColor ? getEdgeGlowBoxShadow(edgeColor, image.edgeBlendMargin) : undefined,
       }}
     >
-      <div ref={cropContentRef} className="relative h-full w-full touch-none overflow-hidden" {...cropHandlers}>
+      <div
+        ref={cropContentRef}
+        className="relative h-full w-full touch-none overflow-hidden"
+        // Opacity lives on the content div, not the outer wrapper — the
+        // selection outline/resize handles stay fully visible even when the
+        // image itself is highly transparent, instead of fading along with it.
+        style={{ opacity: image.opacity }}
+        {...cropHandlers}
+      >
         {image.circleMask ? (
           <canvas ref={canvasRef} className="h-full w-full" />
         ) : (
@@ -390,6 +402,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
           onRotatePreview={onRotatePreview}
           onRotateCommit={onRotateCommit}
           getScreenCenter={getScreenCenter}
+          onDragStart={closeRadialMenu}
         />
       )}
     </div>

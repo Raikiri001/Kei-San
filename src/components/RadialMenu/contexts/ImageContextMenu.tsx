@@ -13,6 +13,7 @@ import {
   EdgeGlowIcon,
   HalftoneIcon,
   LayersIcon,
+  OpacityIcon,
   ResetIcon,
   SendBackwardIcon,
   SendToBackIcon,
@@ -26,6 +27,10 @@ const DOT_PITCH_STEP = 2;
 const BLEND_MARGIN_MIN = 8;
 const BLEND_MARGIN_MAX = 400;
 const BLEND_MARGIN_STEP = 10;
+
+const OPACITY_PERCENT_MIN = 0;
+const OPACITY_PERCENT_MAX = 100;
+const OPACITY_PERCENT_STEP = 10;
 
 function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
@@ -80,6 +85,15 @@ export function useImageContextItems(targetId: string | null): RingItem[] {
     onCommit: (edgeBlendMargin) => {
       if (!image) return;
       updateImage(image.id, { edgeBlendMargin });
+    },
+  });
+
+  const opacityDraft = useDraftNumber(image ? Math.round(image.opacity * 100) : 100, {
+    min: OPACITY_PERCENT_MIN,
+    max: OPACITY_PERCENT_MAX,
+    onCommit: (percent) => {
+      if (!image) return;
+      updateImage(image.id, { opacity: clamp(percent / 100, 0, 1) });
     },
   });
 
@@ -244,6 +258,24 @@ export function useImageContextItems(targetId: string | null): RingItem[] {
       label: "Edge Blend",
       active: image.edgeBlend,
       subItems: edgeBlendSubItems,
+    },
+    {
+      key: "opacity",
+      icon: <OpacityIcon />,
+      label: "Opacity",
+      active: image.opacity < 1,
+      wide: true,
+      expandedContent: (
+        <NumberStepperField
+          draft={opacityDraft}
+          onDec={() => updateImage(id, { opacity: clamp((image.opacity * 100 - OPACITY_PERCENT_STEP) / 100, 0, 1) })}
+          onInc={() => updateImage(id, { opacity: clamp((image.opacity * 100 + OPACITY_PERCENT_STEP) / 100, 0, 1) })}
+          min={OPACITY_PERCENT_MIN}
+          max={OPACITY_PERCENT_MAX}
+          ariaLabel="Opacity percentage"
+          unit="%"
+        />
+      ),
     },
     {
       key: "size",

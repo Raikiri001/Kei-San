@@ -6,6 +6,8 @@ import { drawVerticalText } from "@/canvas/verticalText";
 import { drawHalftone, resolveInkColor } from "@/canvas/halftone";
 import { drawEdgeGlow, getEdgeAverageColor } from "@/canvas/edgeBlend";
 import { edgeColorCache } from "@/canvas/analysisCaches";
+import { hexToRgba } from "@/canvas/colorExtraction";
+import { applyTextGlow } from "@/canvas/textGlow";
 
 /** Greedy word-wrap of a single authored line (already split on "\n") against
  * `maxWidth` — canvas has no native reflow, so this is what makes the export
@@ -146,8 +148,14 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D context unavailable");
 
-  ctx.fillStyle = project.backgroundColor;
-  ctx.fillRect(0, 0, project.width, project.height);
+  // backgroundAlpha === 0 leaves the canvas at its native transparent default
+  // (skipping the fill entirely, not just filling with a 0-alpha color) so a
+  // PNG export with a fully transparent background never picks up antialiasing
+  // fringe from a technically-invisible-but-still-composited fill rect.
+  if (project.backgroundAlpha > 0) {
+    ctx.fillStyle = hexToRgba(project.backgroundColor, project.backgroundAlpha);
+    ctx.fillRect(0, 0, project.width, project.height);
+  }
 
   const inkColor = resolveInkColor(project.backgroundColor);
   const loadedImages = new Map(
@@ -177,6 +185,12 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
         const edgeColor = edgeColorCache.get(image.dataUrl) ?? getEdgeAverageColor(img);
         drawEdgeGlow(ctx, edgeColor, drawX, drawY, image.displayWidth, image.displayHeight, image.edgeBlendMargin);
       }
+
+      // Applied after the edge glow (not before) so the glow itself stays at
+      // full strength regardless of the image's own transparency — matches
+      // the live DOM preview, where opacity lives on the inner content div,
+      // not the outer wrapper the edge-glow box-shadow is drawn on.
+      ctx.globalAlpha = image.opacity;
 
       if (image.circleMask) {
         drawHalftone(
@@ -218,9 +232,10 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
       const fontStyle = text.italic ? "italic " : "";
       const fontWeight = text.bold ? "bold " : "";
       ctx.font = `${fontStyle}${fontWeight}${text.fontSize}px ${FONT_STACKS[text.fontFamily]}`;
-      ctx.fillStyle = text.color;
+      ctx.fillStyle = hexToRgba(text.color, text.colorAlpha);
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
+      if (text.glow) applyTextGlow(ctx, text.glowColor, text.glowSize);
 
       if (text.orientation === "vertical") {
         drawVerticalText(ctx, text.content, 0, 0, text.fontSize);

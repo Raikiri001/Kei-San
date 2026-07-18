@@ -30,6 +30,8 @@ export interface ImageElement {
   /** Crop pan, each a fraction (-1..1) of the max pannable distance at the current cropZoom — not raw px, so it stays valid if the frame is later resized. */
   cropOffsetX: number;
   cropOffsetY: number;
+  /** Overall element opacity/transparency, 0 (fully transparent) - 1 (fully opaque). */
+  opacity: number;
 }
 
 export type TextOrientation = "horizontal" | "vertical";
@@ -45,6 +47,14 @@ export interface TextElement {
   orientation: TextOrientation;
   align: TextAlign;
   color: string;
+  /** Alpha (0-1) applied to the text's own fill color (and its glow, if on). */
+  colorAlpha: number;
+  /** Outer glow around the glyphs — a colored, blurred halo independent of the
+   * fill color, off by default. */
+  glow: boolean;
+  glowColor: string;
+  /** Glow blur radius, true canvas px. */
+  glowSize: number;
   /** Center-anchored, true canvas px */
   x: number;
   /** Center-anchored, true canvas px */
@@ -79,6 +89,9 @@ export interface ProjectState {
   rows: number;
   cols: number;
   backgroundColor: string;
+  /** Alpha (0-1) of the canvas background fill — 0 lets PNG export produce a
+   * transparent background instead of a solid color. */
+  backgroundAlpha: number;
   images: ImageElement[];
   texts: TextElement[];
   updatedAt: number;
