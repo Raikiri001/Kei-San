@@ -39,6 +39,7 @@ export function useRotateDrag({ getScreenCenter, getRotation, onPreview, onCommi
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
+      if (e.button !== 0) return;
       e.stopPropagation();
       const center = getScreenCenter();
       dragState.current = { center, startPointerAngle: angleAt(center, e), startRotation: getRotation() };

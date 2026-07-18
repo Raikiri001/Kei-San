@@ -3,9 +3,10 @@ import clsx from "clsx";
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
 import { useDrag } from "@/hooks/useDrag";
-import { snapToNearestNode } from "@/utils/grid";
-import { FONT_STACKS } from "@/constants/fonts";
-import { DISPLAY_SIZE_MAX, DISPLAY_SIZE_MIN } from "@/constants/defaults";
+import { snapToNearestNode, snapToAlignmentGuides } from "@/utils/grid";
+import { resolveRadialContext } from "@/utils/radialContext";
+import { getFontStack } from "@/constants/fonts";
+import { DISPLAY_SIZE_MAX, DISPLAY_SIZE_MIN, ALIGN_GUIDE_SNAP_THRESHOLD_SCREEN_PX } from "@/constants/defaults";
 import { ResizeHandles } from "@/components/CanvasWorkspace/ResizeHandles";
 import { hexToRgba } from "@/canvas/colorExtraction";
 import { getTextGlowShadow } from "@/canvas/textGlow";
@@ -24,16 +25,30 @@ export function TextElementView({ text }: { text: TextElement }) {
   const cols = useProjectStore((s) => s.project.cols);
   const rows = useProjectStore((s) => s.project.rows);
   const updateText = useProjectStore((s) => s.updateText);
+  const moveElementsBy = useProjectStore((s) => s.moveElementsBy);
+  const allImages = useProjectStore((s) => s.project.images);
+  const allTexts = useProjectStore((s) => s.project.texts);
   const zoom = useUIStore((s) => s.zoom);
   const openRadialMenu = useUIStore((s) => s.openRadialMenu);
   const closeRadialMenu = useUIStore((s) => s.closeRadialMenu);
   const moveRadialMenu = useUIStore((s) => s.moveRadialMenu);
   const radialMenu = useUIStore((s) => s.radialMenu);
-  const selectedElementId = useUIStore((s) => s.selectedElementId);
+  const selectedElementIds = useUIStore((s) => s.selectedElementIds);
   const setSelectedElementId = useUIStore((s) => s.setSelectedElementId);
+  const toggleElementSelection = useUIStore((s) => s.toggleElementSelection);
+  const groupDragOffset = useUIStore((s) => s.groupDragOffset);
+  const setGroupDragOffset = useUIStore((s) => s.setGroupDragOffset);
   const editingTextId = useUIStore((s) => s.editingTextId);
   const setEditingTextId = useUIStore((s) => s.setEditingTextId);
   const setDragPreviewNode = useUIStore((s) => s.setDragPreviewNode);
+  const setAlignmentGuide = useUIStore((s) => s.setAlignmentGuide);
+  // Master anchor toggle: on, moved elements snap to the nearest anchor node
+  // (and the dots render — see GridOverlay); off, moves are completely
+  // free-form with no position snapping at all. Resize-edge snapping (in
+  // useResizeDrag/ResizeHandles below) is independent of this toggle — it
+  // always stays on, just dropping to whole-cell row/column/edge lines
+  // instead of the fine half-cell anchor lattice when this is off.
+  const showAnchors = useUIStore((s) => s.showAnchors);
 
   const [preview, setPreview] = useState<{ x: number; y: number } | null>(null);
   const [sizePreview, setSizePreview] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -41,41 +56,135 @@ export function TextElementView({ text }: { text: TextElement }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  const isSelected = selectedElementId === text.id;
+  const isSelected = selectedElementIds.includes(text.id);
+  const isGroupDragging = isSelected && selectedElementIds.length > 1;
   const isEditing = editingTextId === text.id;
 
   const getPosition = useCallback(() => ({ x: text.x, y: text.y }), [text.x, text.y]);
-  const onPreview = useCallback(
-    (x: number, y: number) => {
-      setPreview({ x, y });
-      setDragPreviewNode(snapToNearestNode(x, y, width, height, cols, rows));
+
+  // See ImageElementView's identical helper for the full rationale: Shift
+  // constrains free-form (anchors-off) moves to one axis, then the result is
+  // smart-guide-snapped to the nearest row/column line or canvas mid-line.
+  const resolveFreeformTarget = useCallback(
+    (x: number, y: number, shiftKey: boolean) => {
+      let nx = x;
+      let ny = y;
+      if (shiftKey) {
+        if (Math.abs(nx - text.x) > Math.abs(ny - text.y)) ny = text.y;
+        else nx = text.x;
+      }
+      const thresholdPx = ALIGN_GUIDE_SNAP_THRESHOLD_SCREEN_PX / zoom;
+      return snapToAlignmentGuides(nx, ny, width, height, cols, rows, thresholdPx);
     },
-    [width, height, cols, rows, setDragPreviewNode],
+    [text.x, text.y, width, height, cols, rows, zoom],
+  );
+
+  const onPreview = useCallback(
+    (x: number, y: number, shiftKey: boolean) => {
+      if (showAnchors) {
+        setPreview({ x, y });
+        setDragPreviewNode(snapToNearestNode(x, y, width, height, cols, rows, true));
+        if (isGroupDragging) setGroupDragOffset({ dx: x - text.x, dy: y - text.y });
+        return;
+      }
+      const target = resolveFreeformTarget(x, y, shiftKey);
+      setPreview({ x: target.x, y: target.y });
+      setAlignmentGuide(target.guideX, target.guideY);
+      if (isGroupDragging) setGroupDragOffset({ dx: target.x - text.x, dy: target.y - text.y });
+    },
+    [
+      width,
+      height,
+      cols,
+      rows,
+      showAnchors,
+      setDragPreviewNode,
+      setAlignmentGuide,
+      resolveFreeformTarget,
+      isGroupDragging,
+      text.x,
+      text.y,
+      setGroupDragOffset,
+    ],
   );
 
   const onCommit = useCallback(
-    (x: number, y: number) => {
-      const snapped = snapToNearestNode(x, y, width, height, cols, rows);
-      updateText(text.id, { x: snapped.x, y: snapped.y });
+    (x: number, y: number, shiftKey: boolean) => {
+      const target = showAnchors ? snapToNearestNode(x, y, width, height, cols, rows, true) : resolveFreeformTarget(x, y, shiftKey);
+      if (isGroupDragging) {
+        // Only this dragged element (the group's anchor) actually snaps to the
+        // grid — the same raw delta is then applied to every other selected
+        // element as-is, so the whole group's relative spacing never shifts.
+        const dx = target.x - text.x;
+        const dy = target.y - text.y;
+        const groupImageIds = allImages.filter((i) => selectedElementIds.includes(i.id)).map((i) => i.id);
+        const otherTextIds = allTexts.filter((t) => t.id !== text.id && selectedElementIds.includes(t.id)).map((t) => t.id);
+        moveElementsBy(groupImageIds, otherTextIds, dx, dy);
+        updateText(text.id, { x: target.x, y: target.y });
+        setGroupDragOffset(null);
+      } else {
+        updateText(text.id, { x: target.x, y: target.y });
+      }
       setPreview(null);
       setDragPreviewNode(null);
+      setAlignmentGuide(null, null);
     },
-    [width, height, cols, rows, updateText, text.id, setDragPreviewNode],
+    [
+      width,
+      height,
+      cols,
+      rows,
+      showAnchors,
+      resolveFreeformTarget,
+      updateText,
+      text.id,
+      text.x,
+      text.y,
+      setDragPreviewNode,
+      setAlignmentGuide,
+      isGroupDragging,
+      selectedElementIds,
+      allImages,
+      allTexts,
+      moveElementsBy,
+      setGroupDragOffset,
+    ],
   );
 
-  // Tapping the text opens its radial menu (same convention as images opening
-  // theirs on tap — see ImageElementView) — openRadialMenu already selects the
-  // element as a side effect, so there's no separate setSelectedElementId call
-  // needed here. Double-click is the fast path straight into the inline editor.
+  // Left-click (no drag) only selects — it no longer opens the radial menu,
+  // which is now reserved for right-click (see handleContextMenu below) so a
+  // plain click on a member of an existing multi-selection doesn't collapse
+  // it before the user gets a chance to right-click the whole group. Double-
+  // click is the fast path straight into the inline editor.
   const onTap = useCallback(
-    (screenX: number, screenY: number) => openRadialMenu(screenX, screenY, "text", text.id),
-    [openRadialMenu, text.id],
+    (_screenX: number, _screenY: number, additive: boolean) => {
+      if (additive) toggleElementSelection(text.id);
+      else setSelectedElementId(text.id);
+    },
+    [text.id, toggleElementSelection, setSelectedElementId],
+  );
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (isEditing) return;
+      // Right-clicking a member of an existing multi-selection opens the
+      // menu for the whole selection; right-clicking anything else selects
+      // just that element first, same as a plain click would.
+      const alreadyInGroup = isSelected && selectedElementIds.length > 1;
+      const targets = alreadyInGroup ? selectedElementIds : [text.id];
+      if (!alreadyInGroup) setSelectedElementId(text.id);
+      const context = resolveRadialContext(targets, allImages, allTexts);
+      openRadialMenu(e.clientX, e.clientY, context, targets);
+    },
+    [isEditing, isSelected, selectedElementIds, text.id, allImages, allTexts, setSelectedElementId, openRadialMenu],
   );
 
   const handleDoubleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation();
-      // The first of the two clicks already opened the ring via onTap above —
+      // In case a right-click had already opened the ring on this element,
       // close it back out so the pills don't sit on top of the text while
       // it's being edited.
       closeRadialMenu();
@@ -87,7 +196,7 @@ export function TextElementView({ text }: { text: TextElement }) {
 
   const onDragMove = useCallback(
     (screenX: number, screenY: number) => {
-      if (radialMenu?.open && radialMenu.targetId === text.id) moveRadialMenu(screenX, screenY);
+      if (radialMenu?.open && radialMenu.targetIds.includes(text.id)) moveRadialMenu(screenX, screenY);
     },
     [radialMenu, moveRadialMenu, text.id],
   );
@@ -163,13 +272,19 @@ export function TextElementView({ text }: { text: TextElement }) {
 
   const panActive = useUIStore((s) => s.panToolActive || s.isSpacePanning);
 
-  const pos = sizePreview ?? preview ?? { x: text.x, y: text.y };
+  // Every OTHER selected element (not the one actively being dragged, whose own
+  // `preview` already takes precedence below) previews itself offset by the
+  // shared group-drag delta while a multi-selection is being moved.
+  const groupPos = isSelected && groupDragOffset ? { x: text.x + groupDragOffset.dx, y: text.y + groupDragOffset.dy } : { x: text.x, y: text.y };
+  const pos = sizePreview ?? preview ?? groupPos;
   const box = sizePreview ?? { x: pos.x, y: pos.y, w: text.boxWidth, h: text.boxHeight };
   const rotation = rotationPreview ?? text.rotation;
   // While pan mode is active, the element must not intercept the drag — letting
   // pointerdown bubble to the canvas background lets the same gesture pan the
-  // view even when it starts on top of a text element.
-  const dragHandlers = isEditing || panActive ? {} : { onPointerDown, onPointerMove, onPointerUp };
+  // view even when it starts on top of a text element. Locked elements never
+  // attach drag handlers at all — see ResizeHandles below for the equivalent
+  // gate on resize/rotate.
+  const dragHandlers = isEditing || panActive || text.locked ? {} : { onPointerDown, onPointerMove, onPointerUp };
 
   return (
     <div
@@ -177,6 +292,7 @@ export function TextElementView({ text }: { text: TextElement }) {
       data-radial-context="text"
       {...dragHandlers}
       onDoubleClick={isEditing ? undefined : handleDoubleClick}
+      onContextMenu={handleContextMenu}
       className="absolute touch-none"
       style={{
         left: 0,
@@ -222,7 +338,7 @@ export function TextElementView({ text }: { text: TextElement }) {
           onKeyDown={isEditing ? handleKeyDown : undefined}
           className={clsx("w-full whitespace-pre-wrap outline-none", ALIGN_CLASS[text.align])}
           style={{
-            fontFamily: FONT_STACKS[text.fontFamily],
+            fontFamily: getFontStack(text.fontFamily),
             fontSize: text.fontSize,
             fontWeight: text.bold ? 700 : 400,
             fontStyle: text.italic ? "italic" : "normal",
@@ -236,7 +352,7 @@ export function TextElementView({ text }: { text: TextElement }) {
         </div>
       </div>
 
-      {isSelected && !isEditing && !panActive && (
+      {isSelected && !isEditing && !panActive && !text.locked && selectedElementIds.length === 1 && (
         <ResizeHandles
           getBox={getResizeBox}
           rotation={rotation}

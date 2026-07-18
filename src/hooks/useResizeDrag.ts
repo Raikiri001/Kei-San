@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import { snapLineToGrid } from "@/utils/grid";
+import { useUIStore } from "@/store/uiStore";
 import { RESIZE_SNAP_THRESHOLD_SCREEN_PX } from "@/constants/defaults";
 
 export type ResizeHandleId = "nw" | "ne" | "sw" | "se" | "n" | "s" | "e" | "w";
@@ -154,6 +155,7 @@ function applyGridSnap(
   maxW: number,
   minH: number,
   maxH: number,
+  dense: boolean,
 ): Box {
   const quadrantRaw = Math.round(rotationDeg / 90);
   if (Math.abs(rotationDeg - quadrantRaw * 90) > 0.5) return result;
@@ -180,19 +182,19 @@ function applyGridSnap(
 
   if (sx !== 0) {
     if (!swapped) {
-      const snapped = snapLineToGrid(movingWorldX, snapGrid.canvasWidth, snapGrid.cols, thresholdPx);
+      const snapped = snapLineToGrid(movingWorldX, snapGrid.canvasWidth, snapGrid.cols, thresholdPx, dense);
       if (snapped !== movingWorldX) newW = clamp(Math.abs(snapped - anchorWorldX), minW, maxW);
     } else {
-      const snapped = snapLineToGrid(movingWorldY, snapGrid.canvasHeight, snapGrid.rows, thresholdPx);
+      const snapped = snapLineToGrid(movingWorldY, snapGrid.canvasHeight, snapGrid.rows, thresholdPx, dense);
       if (snapped !== movingWorldY) newW = clamp(Math.abs(snapped - anchorWorldY), minW, maxW);
     }
   }
   if (sy !== 0) {
     if (!swapped) {
-      const snapped = snapLineToGrid(movingWorldY, snapGrid.canvasHeight, snapGrid.rows, thresholdPx);
+      const snapped = snapLineToGrid(movingWorldY, snapGrid.canvasHeight, snapGrid.rows, thresholdPx, dense);
       if (snapped !== movingWorldY) newH = clamp(Math.abs(snapped - anchorWorldY), minH, maxH);
     } else {
-      const snapped = snapLineToGrid(movingWorldX, snapGrid.canvasWidth, snapGrid.cols, thresholdPx);
+      const snapped = snapLineToGrid(movingWorldX, snapGrid.canvasWidth, snapGrid.cols, thresholdPx, dense);
       if (snapped !== movingWorldX) newH = clamp(Math.abs(snapped - anchorWorldX), minH, maxH);
     }
   }
@@ -226,9 +228,13 @@ export function useResizeDrag({
   onCommit,
 }: UseResizeDragOptions) {
   const dragState = useRef<{ startScreenX: number; startScreenY: number; box0: Box; rotation: number } | null>(null);
+  // Same lattice the anchor dots show/hide with — toggling them off also
+  // drops resize-edge snapping down to whole-cell (row/column/edge) lines only.
+  const dense = useUIStore((s) => s.showAnchors);
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
+      if (e.button !== 0) return;
       e.stopPropagation();
       dragState.current = {
         startScreenX: e.clientX,
@@ -276,9 +282,9 @@ export function useResizeDrag({
       const result = { x: state.box0.x + worldDX, y: state.box0.y + worldDY, w: localResult.w, h: localResult.h };
       if (!snapGrid) return result;
       const thresholdPx = RESIZE_SNAP_THRESHOLD_SCREEN_PX / zoom;
-      return applyGridSnap(handle, state.box0, result, state.rotation, snapGrid, thresholdPx, minW, maxW, minH, maxH);
+      return applyGridSnap(handle, state.box0, result, state.rotation, snapGrid, thresholdPx, minW, maxW, minH, maxH, dense);
     },
-    [handle, zoom, minW, maxW, minH, maxH, snapGrid],
+    [handle, zoom, minW, maxW, minH, maxH, snapGrid, dense],
   );
 
   const onPointerMove = useCallback(

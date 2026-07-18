@@ -123,8 +123,13 @@ export function DimensionsIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
       <rect x="5" y="5" width="10" height="10" rx="0.8" />
-      <path d="M5 3v-.8M15 3v-.8M4.2 2.2h1.6M14.2 2.2h1.6" strokeLinecap="round" />
-      <path d="M3 5h-.8M3 15h-.8M2.2 4.2v1.6M2.2 14.2v1.6" strokeLinecap="round" />
+      {/* Dimension-line brackets on all 4 sides, symmetric about the center —
+          the old version only bracketed the top+left, which pulled the whole
+          icon's visual weight into that corner and read as off-center. */}
+      <path d="M5 2.5h10M5 17.5h10" strokeLinecap="round" />
+      <path d="M5 1.7v1.6M15 1.7v1.6M5 16.7v1.6M15 16.7v1.6" strokeLinecap="round" />
+      <path d="M2.5 5v10M17.5 5v10" strokeLinecap="round" />
+      <path d="M1.7 5h1.6M1.7 15h1.6M16.7 5h1.6M16.7 15h1.6" strokeLinecap="round" />
     </svg>
   );
 }
@@ -426,6 +431,25 @@ export function PaletteIcon() {
       <circle cx="7" cy="8" r="0.8" fill="currentColor" stroke="none" />
       <circle cx="10" cy="6.3" r="0.8" fill="currentColor" stroke="none" />
       <circle cx="13" cy="8" r="0.8" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function TagIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M10.5 3.5H5.5a2 2 0 0 0-2 2v5l7.6 7.6a1.4 1.4 0 0 0 2 0l4-4a1.4 1.4 0 0 0 0-2L10.5 3.5Z" strokeLinejoin="round" />
+      <circle cx="7" cy="7" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  );
+}
+
+export function GridLayoutIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <rect x="3" y="3" width="6" height="14" rx="0.8" />
+      <rect x="11" y="3" width="6" height="6.2" rx="0.8" />
+      <rect x="11" y="10.8" width="6" height="6.2" rx="0.8" />
     </svg>
   );
 }

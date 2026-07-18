@@ -1,4 +1,4 @@
-import type { FontFamilyKey } from "@/constants/fonts";
+import type { FontId } from "@/constants/fonts";
 
 export interface ImageElement {
   id: string;
@@ -32,6 +32,8 @@ export interface ImageElement {
   cropOffsetY: number;
   /** Overall element opacity/transparency, 0 (fully transparent) - 1 (fully opaque). */
   opacity: number;
+  /** Blocks move/resize/rotate/delete while true; all other edits (style, crop, layer order) remain available. */
+  locked: boolean;
 }
 
 export type TextOrientation = "horizontal" | "vertical";
@@ -42,7 +44,7 @@ export type TextAlign = "left" | "center" | "right" | "justify";
 export interface TextElement {
   id: string;
   content: string;
-  fontFamily: FontFamilyKey;
+  fontFamily: FontId;
   fontSize: number;
   orientation: TextOrientation;
   align: TextAlign;
@@ -77,6 +79,8 @@ export interface TextElement {
   rotation: number;
   /** Shared stacking order across images and texts — higher paints on top. */
   zIndex: number;
+  /** Blocks move/resize/rotate/delete while true; all other edits (style, layer order) remain available. */
+  locked: boolean;
 }
 
 export type CanvasElement = ImageElement | TextElement;
@@ -101,12 +105,12 @@ export interface SavedDesign extends ProjectState {
   thumbnailDataUrl: string;
 }
 
-export type RadialMenuContext = "image" | "text";
+export type RadialMenuContext = "image" | "text" | "mixed";
 
 export interface RadialMenuState {
   open: boolean;
   x: number;
   y: number;
   context: RadialMenuContext;
-  targetId: string | null;
+  targetIds: string[];
 }

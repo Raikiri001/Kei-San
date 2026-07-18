@@ -32,8 +32,19 @@ export function computeCropSourceRect(
 ): Rect {
   const width = naturalW / cropZoom;
   const height = naturalH / cropZoom;
-  const maxOffsetX = (naturalW - width) / 2;
-  const maxOffsetY = (naturalH - height) / 2;
+  // abs, not clamped to >= 0: below cropZoom 1, `width`/`height` exceed the
+  // natural image (that's what lets the image render smaller than its frame,
+  // see CROP_ZOOM_MIN's doc comment) — the oversized sample rect samples past
+  // the image's real edges (rendering as blank space once stretched to the
+  // frame), and shifting *where* the real image sits inside that oversized
+  // rect is exactly what makes panning slide the smaller image toward one
+  // side of the frame instead of leaving it pinned to center. The center-point
+  // formula below already produces the correct direction/magnitude for this
+  // case once maxOffset is a positive distance rather than clamped to 0 — see
+  // the matching abs() in ImageElementView's live DOM preview, which this must
+  // stay in agreement with (this function's output feeds the exported PNG).
+  const maxOffsetX = Math.abs(naturalW - width) / 2;
+  const maxOffsetY = Math.abs(naturalH - height) / 2;
   // Minus, not plus: the DOM crop preview (ImageElementView) pans by moving the
   // *image* itself by +offset (grab-and-slide — dragging right slides the image
   // right), which is equivalent to the sampled source window moving the

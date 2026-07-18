@@ -4,11 +4,19 @@ import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
 import { useDrag } from "@/hooks/useDrag";
 import { useLoadedImage } from "@/hooks/useLoadedImage";
-import { snapToNearestNode } from "@/utils/grid";
+import { snapToNearestNode, snapToAlignmentGuides } from "@/utils/grid";
+import { resolveRadialContext } from "@/utils/radialContext";
 import { drawHalftone, resolveInkColor } from "@/canvas/halftone";
 import { getEdgeAverageColor, getEdgeGlowBoxShadow } from "@/canvas/edgeBlend";
 import { edgeColorCache } from "@/canvas/analysisCaches";
-import { DISPLAY_SIZE_MAX, DISPLAY_SIZE_MIN, CROP_ZOOM_MIN, CROP_ZOOM_MAX, CROP_ZOOM_WHEEL_STEP } from "@/constants/defaults";
+import {
+  DISPLAY_SIZE_MAX,
+  DISPLAY_SIZE_MIN,
+  CROP_ZOOM_MIN,
+  CROP_ZOOM_MAX,
+  CROP_ZOOM_WHEEL_STEP,
+  ALIGN_GUIDE_SNAP_THRESHOLD_SCREEN_PX,
+} from "@/constants/defaults";
 import { ResizeHandles } from "@/components/CanvasWorkspace/ResizeHandles";
 import type { RGB } from "@/canvas/colorExtraction";
 import type { ImageElement } from "@/store/types";
@@ -30,15 +38,28 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const rows = useProjectStore((s) => s.project.rows);
   const backgroundColor = useProjectStore((s) => s.project.backgroundColor);
   const updateImage = useProjectStore((s) => s.updateImage);
+  const moveElementsBy = useProjectStore((s) => s.moveElementsBy);
+  const allImages = useProjectStore((s) => s.project.images);
+  const allTexts = useProjectStore((s) => s.project.texts);
   const zoom = useUIStore((s) => s.zoom);
   const openRadialMenu = useUIStore((s) => s.openRadialMenu);
   const closeRadialMenu = useUIStore((s) => s.closeRadialMenu);
   const moveRadialMenu = useUIStore((s) => s.moveRadialMenu);
   const radialMenu = useUIStore((s) => s.radialMenu);
-  const selectedElementId = useUIStore((s) => s.selectedElementId);
+  const selectedElementIds = useUIStore((s) => s.selectedElementIds);
   const setSelectedElementId = useUIStore((s) => s.setSelectedElementId);
+  const toggleElementSelection = useUIStore((s) => s.toggleElementSelection);
+  const groupDragOffset = useUIStore((s) => s.groupDragOffset);
+  const setGroupDragOffset = useUIStore((s) => s.setGroupDragOffset);
   const croppingImageId = useUIStore((s) => s.croppingImageId);
   const setCroppingImageId = useUIStore((s) => s.setCroppingImageId);
+  // Master anchor toggle: on, moved elements snap to the nearest anchor node
+  // (and the dots render — see GridOverlay); off, moves are completely
+  // free-form with no position snapping at all. Resize-edge snapping (in
+  // useResizeDrag/ResizeHandles below) is independent of this toggle — it
+  // always stays on, just dropping to whole-cell row/column/edge lines
+  // instead of the fine half-cell anchor lattice when this is off.
+  const showAnchors = useUIStore((s) => s.showAnchors);
 
   const [preview, setPreview] = useState<{ x: number; y: number } | null>(null);
   const [sizePreview, setSizePreview] = useState<{ x: number; y: number; w: number; h: number } | null>(null);
@@ -49,7 +70,8 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const cropContentRef = useRef<HTMLDivElement>(null);
   const cropDragRef = useRef<{ startScreenX: number; startScreenY: number; start: CropState } | null>(null);
 
-  const isSelected = selectedElementId === image.id;
+  const isSelected = selectedElementIds.includes(image.id);
+  const isGroupDragging = isSelected && selectedElementIds.length > 1;
   const isCropping = croppingImageId === image.id;
 
   // Only decoded when actually needed (halftone canvas, or an edge-blend color
@@ -59,30 +81,132 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const loadedImg = useLoadedImage(needsDecodedImage ? image.dataUrl : null);
 
   const setDragPreviewNode = useUIStore((s) => s.setDragPreviewNode);
+  const setAlignmentGuide = useUIStore((s) => s.setAlignmentGuide);
 
   const getPosition = useCallback(() => ({ x: image.x, y: image.y }), [image.x, image.y]);
 
-  const onPreview = useCallback(
-    (x: number, y: number) => {
-      setPreview({ x, y });
-      setDragPreviewNode(snapToNearestNode(x, y, width, height, cols, rows));
+  // Free-form-move (anchors off) target resolution: Shift constrains the move to
+  // whichever axis has moved further from the committed position (Illustrator-
+  // style controlled drag), then the result is smart-guide-snapped to the
+  // nearest row/column line or canvas mid-line — same idea as anchors-on
+  // node-snapping, but to line *alignment* instead of a lattice point, and only
+  // engaging within a small pixel threshold instead of always-on.
+  const resolveFreeformTarget = useCallback(
+    (x: number, y: number, shiftKey: boolean) => {
+      let nx = x;
+      let ny = y;
+      if (shiftKey) {
+        if (Math.abs(nx - image.x) > Math.abs(ny - image.y)) ny = image.y;
+        else nx = image.x;
+      }
+      const thresholdPx = ALIGN_GUIDE_SNAP_THRESHOLD_SCREEN_PX / zoom;
+      return snapToAlignmentGuides(nx, ny, width, height, cols, rows, thresholdPx);
     },
-    [width, height, cols, rows, setDragPreviewNode],
+    [image.x, image.y, width, height, cols, rows, zoom],
+  );
+
+  const onPreview = useCallback(
+    (x: number, y: number, shiftKey: boolean) => {
+      if (showAnchors) {
+        setPreview({ x, y });
+        setDragPreviewNode(snapToNearestNode(x, y, width, height, cols, rows, true));
+        if (isGroupDragging) setGroupDragOffset({ dx: x - image.x, dy: y - image.y });
+        return;
+      }
+      const target = resolveFreeformTarget(x, y, shiftKey);
+      setPreview({ x: target.x, y: target.y });
+      setAlignmentGuide(target.guideX, target.guideY);
+      if (isGroupDragging) setGroupDragOffset({ dx: target.x - image.x, dy: target.y - image.y });
+    },
+    [
+      width,
+      height,
+      cols,
+      rows,
+      showAnchors,
+      setDragPreviewNode,
+      setAlignmentGuide,
+      resolveFreeformTarget,
+      isGroupDragging,
+      image.x,
+      image.y,
+      setGroupDragOffset,
+    ],
   );
 
   const onCommit = useCallback(
-    (x: number, y: number) => {
-      const snapped = snapToNearestNode(x, y, width, height, cols, rows);
-      updateImage(image.id, { x: snapped.x, y: snapped.y });
+    (x: number, y: number, shiftKey: boolean) => {
+      const target = showAnchors ? snapToNearestNode(x, y, width, height, cols, rows, true) : resolveFreeformTarget(x, y, shiftKey);
+      if (isGroupDragging) {
+        // Only this dragged element (the group's anchor) actually snaps to the
+        // grid — the same raw delta is then applied to every other selected
+        // element as-is, so the whole group's relative spacing never shifts.
+        const dx = target.x - image.x;
+        const dy = target.y - image.y;
+        const otherImageIds = allImages.filter((i) => i.id !== image.id && selectedElementIds.includes(i.id)).map((i) => i.id);
+        const groupTextIds = allTexts.filter((t) => selectedElementIds.includes(t.id)).map((t) => t.id);
+        moveElementsBy(otherImageIds, groupTextIds, dx, dy);
+        updateImage(image.id, { x: target.x, y: target.y });
+        setGroupDragOffset(null);
+      } else {
+        updateImage(image.id, { x: target.x, y: target.y });
+      }
       setPreview(null);
       setDragPreviewNode(null);
+      setAlignmentGuide(null, null);
     },
-    [width, height, cols, rows, updateImage, image.id, setDragPreviewNode],
+    [
+      width,
+      height,
+      cols,
+      rows,
+      showAnchors,
+      resolveFreeformTarget,
+      updateImage,
+      image.id,
+      image.x,
+      image.y,
+      setDragPreviewNode,
+      setAlignmentGuide,
+      isGroupDragging,
+      selectedElementIds,
+      allImages,
+      allTexts,
+      moveElementsBy,
+      setGroupDragOffset,
+    ],
   );
 
+  // Left-click (no drag) only selects — it no longer opens the radial menu,
+  // which is now reserved for right-click (see handleContextMenu below) so a
+  // plain click on a member of an existing multi-selection doesn't collapse
+  // it before the user gets a chance to right-click the whole group.
   const onTap = useCallback(
-    (screenX: number, screenY: number) => openRadialMenu(screenX, screenY, "image", image.id),
-    [openRadialMenu, image.id],
+    (_screenX: number, _screenY: number, additive: boolean) => {
+      if (additive) toggleElementSelection(image.id);
+      else setSelectedElementId(image.id);
+    },
+    [image.id, toggleElementSelection, setSelectedElementId],
+  );
+
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      // Right-click opens the menu even while in crop mode (e.g. to jump to
+      // another setting, or exit crop via a different control) — it no
+      // longer bails out of crop mode itself, since opening the menu doesn't
+      // touch cropZoom/cropOffset.
+      // Right-clicking a member of an existing multi-selection opens the
+      // menu for the whole selection; right-clicking anything else selects
+      // just that element first, same as a plain click would.
+      const alreadyInGroup = isSelected && selectedElementIds.length > 1;
+      const targets = alreadyInGroup ? selectedElementIds : [image.id];
+      if (!alreadyInGroup) setSelectedElementId(image.id);
+      const context = resolveRadialContext(targets, allImages, allTexts);
+      openRadialMenu(e.clientX, e.clientY, context, targets);
+    },
+    [isSelected, selectedElementIds, image.id, allImages, allTexts, setSelectedElementId, openRadialMenu],
   );
 
   const getResizeBox = useCallback(
@@ -113,7 +237,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
 
   const onDragMove = useCallback(
     (screenX: number, screenY: number) => {
-      if (radialMenu?.open && radialMenu.targetId === image.id) moveRadialMenu(screenX, screenY);
+      if (radialMenu?.open && radialMenu.targetIds.includes(image.id)) moveRadialMenu(screenX, screenY);
     },
     [radialMenu, moveRadialMenu, image.id],
   );
@@ -159,12 +283,13 @@ export function ImageElementView({ image }: { image: ImageElement }) {
     [isCropping, exitCropMode, setSelectedElementId, setCroppingImageId, image.id],
   );
 
-  // Selecting something else (another element, or clicking the background)
-  // always ends crop mode for this image — same "click away to commit"
-  // convention as Illustrator/Photoshop's clip-content editing.
+  // Selecting something else (another element, a multi-selection, or clicking
+  // the background) always ends crop mode for this image — same "click away
+  // to commit" convention as Illustrator/Photoshop's clip-content editing.
+  const isSoleSelection = selectedElementIds.length === 1 && selectedElementIds[0] === image.id;
   useEffect(() => {
-    if (isCropping && selectedElementId !== image.id) exitCropMode();
-  }, [selectedElementId, image.id, isCropping, exitCropMode]);
+    if (isCropping && !isSoleSelection) exitCropMode();
+  }, [isSoleSelection, isCropping, exitCropMode]);
 
   useEffect(() => {
     if (!isCropping) return;
@@ -220,8 +345,14 @@ export function ImageElementView({ image }: { image: ImageElement }) {
       if (!state) return;
       const deltaX = (e.clientX - state.startScreenX) / zoom;
       const deltaY = (e.clientY - state.startScreenY) / zoom;
-      const maxPanX = (image.displayWidth * (state.start.zoom - 1)) / 2;
-      const maxPanY = (image.displayHeight * (state.start.zoom - 1)) / 2;
+      // abs, not a >0-only magnitude: below zoom 1 the image renders smaller than
+      // its frame (see CROP_ZOOM_MIN's doc comment), and panning there is still
+      // meaningful — it slides the smaller image around within the frame instead
+      // of leaving it pinned to center, e.g. tucking it into a corner. Only at
+      // zoom exactly 1 (image exactly fills the frame either way) is there truly
+      // nothing to pan.
+      const maxPanX = (image.displayWidth * Math.abs(state.start.zoom - 1)) / 2;
+      const maxPanY = (image.displayHeight * Math.abs(state.start.zoom - 1)) / 2;
       const nextOffsetX = maxPanX > 0 ? clamp(state.start.offsetX + deltaX / maxPanX, -1, 1) : 0;
       const nextOffsetY = maxPanY > 0 ? clamp(state.start.offsetY + deltaY / maxPanY, -1, 1) : 0;
       setCropPreview({ zoom: state.start.zoom, offsetX: nextOffsetX, offsetY: nextOffsetY });
@@ -273,12 +404,18 @@ export function ImageElementView({ image }: { image: ImageElement }) {
 
   const panActive = useUIStore((s) => s.panToolActive || s.isSpacePanning);
 
-  const pos = preview ?? { x: image.x, y: image.y };
+  // Every OTHER selected element (not the one actively being dragged, whose own
+  // `preview` already takes precedence below) previews itself offset by the
+  // shared group-drag delta while a multi-selection is being moved.
+  const pos =
+    preview ?? (isSelected && groupDragOffset ? { x: image.x + groupDragOffset.dx, y: image.y + groupDragOffset.dy } : { x: image.x, y: image.y });
   const box = sizePreview ?? { x: pos.x, y: pos.y, w: image.displayWidth, h: image.displayHeight };
   const rotation = rotationPreview ?? image.rotation;
   // While pan mode or crop mode is active, the element must not intercept the
   // normal move-drag — crop mode swaps in its own pan/zoom handlers below instead.
-  const dragHandlers = panActive || isCropping ? {} : { onPointerDown, onPointerMove, onPointerUp };
+  // Locked elements never attach drag handlers at all — see ResizeHandles below
+  // for the equivalent gate on resize/rotate.
+  const dragHandlers = panActive || isCropping || image.locked ? {} : { onPointerDown, onPointerMove, onPointerUp };
   const cropHandlers = isCropping
     ? {
         onPointerDown: handleCropPointerDown,
@@ -291,9 +428,14 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   // the overflow-hidden content wrapper below — at cropZoom=1 (the default) this
   // is exactly box.w x box.h, i.e. the whole image squished to fill the frame
   // with no cropping at all. Panning/zooming further in is what implements the
-  // separate crop function; the two aren't mutually exclusive.
-  const panX = cropOffsetX * ((box.w * cropZoom - box.w) / 2);
-  const panY = cropOffsetY * ((box.h * cropZoom - box.h) / 2);
+  // separate crop function; the two aren't mutually exclusive. Below zoom 1 the
+  // image renders smaller than the frame (see CROP_ZOOM_MIN) — abs, not clamped
+  // to >= 0, so panning still slides the smaller image around within the frame
+  // (e.g. into a corner) instead of leaving it pinned to center; matches the
+  // same abs guard in coverFit.ts, which is what keeps this live preview and
+  // the exported PNG in agreement.
+  const panX = cropOffsetX * Math.abs((box.w * cropZoom - box.w) / 2);
+  const panY = cropOffsetY * Math.abs((box.h * cropZoom - box.h) / 2);
 
   const [edgeColor, setEdgeColor] = useState<RGB | null>(() =>
     image.edgeBlend ? (edgeColorCache.get(image.dataUrl) ?? null) : null,
@@ -322,6 +464,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
       data-radial-context="image"
       {...dragHandlers}
       onDoubleClick={handleDoubleClick}
+      onContextMenu={handleContextMenu}
       className={clsx(
         "absolute touch-none",
         !panActive && !isCropping && "cursor-grab active:cursor-grabbing",
@@ -344,12 +487,25 @@ export function ImageElementView({ image }: { image: ImageElement }) {
         // the box not actually landing on a grid anchor when it resizes/snaps
         // flush — the outline (and the dashed crop frame) needs to sit
         // exactly on the box's true edge, not floating outside it.
+        // Cropping's frame outline is deliberately thicker/fully-opaque (vs.
+        // the thin selection outline) — its dashes need to read clearly as
+        // "this is the crop frame boundary," not blend in as a faint hint.
+        // CSS's dashed-border/outline dash length scales with the stroke
+        // width itself (no separate dash-length property exists), so the
+        // wider stroke also produces visibly larger dashes, not just a
+        // thicker line.
         outline: isCropping
-          ? "1.5px dashed rgb(var(--color-accent-glow) / 0.9)"
+          ? "3px dashed rgb(var(--color-accent-glow) / 1)"
           : isSelected
             ? "1.5px solid rgb(var(--color-accent-glow) / 0.8)"
             : "none",
-        boxShadow: edgeColor ? getEdgeGlowBoxShadow(edgeColor, image.edgeBlendMargin) : undefined,
+        // Crop-frame glow takes priority over the edge-blend glow while
+        // actively cropping (both use box-shadow, so only one can apply).
+        boxShadow: isCropping
+          ? "0 0 0 1px rgb(0 0 0 / 0.4), 0 0 14px 2px rgb(var(--color-accent-glow) / 0.5)"
+          : edgeColor
+            ? getEdgeGlowBoxShadow(edgeColor, image.edgeBlendMargin)
+            : undefined,
       }}
     >
       <div
@@ -387,7 +543,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
         </div>
       )}
 
-      {isSelected && !panActive && !isCropping && (
+      {isSelected && !panActive && !isCropping && !image.locked && selectedElementIds.length === 1 && (
         <ResizeHandles
           getBox={getResizeBox}
           rotation={rotation}

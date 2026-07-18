@@ -67,9 +67,10 @@ const sweepVariants: Variants = {
 // measured *content* width (icon+label+expandedContent only) to get the pill's
 // full target width, since the padding itself isn't part of what gets measured.
 const PILL_PADDING_X = 24;
-// Matches the stack variant's py-2 (8px each side) — analogous to PILL_PADDING_X
-// above but for the stacked pill's animated *height* instead of width.
-const PILL_PADDING_Y = 16;
+// Must match the stack variant's py-3 (12px each side) below — analogous to
+// PILL_PADDING_X above but for the stacked pill's animated *height* instead
+// of width.
+const PILL_PADDING_Y = 24;
 
 function pillBaseClass(hasStatus?: boolean, active?: boolean, disabled?: boolean, stack?: boolean) {
   return clsx(
@@ -81,10 +82,19 @@ function pillBaseClass(hasStatus?: boolean, active?: boolean, disabled?: boolean
     // so centering it clips evenly off both sides, hiding the icon (the
     // leftmost thing in the content) behind the collapsed window's left edge.
     // items-start + justify-start instead: content anchors to the box's own
-    // top-left, so the icon (first, top-left of the content) is exactly
-    // what's still visible in that collapsed corner — same principle as a
-    // normal row pill, which is left-aligned by default for the same reason.
-    stack ? "flex-col items-start justify-start px-2 py-2" : "h-11 items-center px-3",
+    // top-left corner. That alone would read as off-center while *collapsed*
+    // (nothing else around to get clipped, so the icon just sits in the
+    // corner) — the fix isn't flipping to centered alignment (the label span
+    // stays in the DOM at opacity:0 rather than display:none, so it still
+    // occupies its layout width even while invisible, and centering that
+    // whole icon+hidden-label block visibly shifts the icon left of true
+    // center). It's sizing the padding itself so the anchored icon lands
+    // exactly in the middle: px-3/py-3 (12px) on each side of the 20px icon
+    // sums to exactly COLLAPSED_W (44px), so top-left anchoring places the
+    // icon flush against symmetric padding on every side — the same
+    // arithmetic coincidence a normal row pill already relies on (px-3 + a
+    // 20px icon exactly filling COLLAPSED_W there too).
+    stack ? "flex-col items-start justify-start px-3 py-3" : "h-11 items-center px-3",
     !disabled && "accent-glow-hover press-sweep press-scale",
     !hasStatus && (active
       ? "border-accent/70 text-accent shadow-[0_0_16px_rgb(var(--color-accent-glow)/0.5),0_0_32px_rgb(var(--color-accent-glow)/0.2)]"
@@ -246,7 +256,14 @@ export function IconPill({
       <span className="corner-bl" />
       <span className="corner-br" />
       <Sweep prefersReducedMotion={prefersReducedMotion} />
-      <span ref={contentRef} className={clsx("flex items-center gap-2", stack && "flex-col gap-1.5")}>
+      {/* items-start (not -center) for stack: expandedContent below is always
+          mounted (just opacity-0 while collapsed — see its span below), so it
+          contributes real layout width/height even collapsed; centering
+          against that hidden-but-present sibling would pull the icon+label
+          row off from the collapsed box's true center, the same padding-vs-
+          hidden-content mismatch pillBaseClass's stack padding comment above
+          works around one level up. */}
+      <span ref={contentRef} className={clsx("flex gap-2", stack ? "flex-col items-start gap-1.5" : "items-center")}>
         <span className={clsx("flex items-center gap-2", stack && "justify-center")}>
           <motion.span
             variants={prefersReducedMotion ? undefined : iconVariants}

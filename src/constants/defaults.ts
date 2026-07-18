@@ -18,8 +18,12 @@ export const RESCALE_STEP_PX = 20;
 export const DEFAULT_TEXT_BOX_WIDTH = 400;
 export const DEFAULT_TEXT_BOX_HEIGHT = 150;
 
-/** Clamp range for an image's crop-mode zoom (1 = whole image squished to its frame, no crop). */
-export const CROP_ZOOM_MIN = 1;
+/** Clamp range for an image's crop-mode zoom (1 = whole image squished to its
+ * frame, no crop). Below 1 the image renders smaller than its frame — like
+ * Illustrator's crop frame, the frame itself stays fixed and the image can
+ * shrink inside it, revealing blank space around it rather than always
+ * having to fully cover the frame. */
+export const CROP_ZOOM_MIN = 0.2;
 export const CROP_ZOOM_MAX = 6;
 /** Wheel-to-crop-zoom sensitivity — deltaY (or trackpad-pinch deltaY, reported as a ctrl+wheel event) times this per tick. */
 export const CROP_ZOOM_WHEEL_STEP = 0.0025;
@@ -27,6 +31,12 @@ export const CROP_ZOOM_WHEEL_STEP = 0.0025;
 /** How close (screen px, independent of zoom) a dragged resize edge must be to a
  * grid line before it snaps to it — Canva-style "clip to the nearest column/row". */
 export const RESIZE_SNAP_THRESHOLD_SCREEN_PX = 10;
+
+/** How close (screen px, independent of zoom) a free-form-moved element's own
+ * center must be to a row/column line or the canvas mid-line before it snaps
+ * and shows an alignment guide — Illustrator/InDesign-style smart guides,
+ * used only while the anchor toggle is off (see showAnchors's doc comment). */
+export const ALIGN_GUIDE_SNAP_THRESHOLD_SCREEN_PX = 8;
 
 export const ROTATION_SNAP_DEGREES = 15;
 /** Visible resize-handle dot size — deliberately small; the actual pointer/touch

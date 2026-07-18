@@ -21,7 +21,14 @@ export function DesignCard({
   onDelete: () => void;
 }) {
   return (
-    <div className="corner-frame glass-panel group relative overflow-hidden">
+    // shrink-0: this card is a flex child of the drawer's scrollable list — that
+    // list (and this card itself, via overflow-hidden) both have non-visible
+    // overflow, which per the flexbox spec zeroes their automatic min-size floor.
+    // Without shrink-0, the default flex-shrink:1 on every card then lets them
+    // all compress to fit whatever space is left instead of the list actually
+    // scrolling — the list would rather squash every card's aspect-video
+    // thumbnail down to a sliver than let its own height exceed the drawer.
+    <div className="corner-frame glass-panel group relative shrink-0 overflow-hidden">
       <span className="corner-tl" />
       <span className="corner-bl" />
       <span className="corner-br" />

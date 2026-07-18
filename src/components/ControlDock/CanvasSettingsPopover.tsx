@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { useProjectStore } from "@/store/projectStore";
+import { useUIStore } from "@/store/uiStore";
 import { useDraftNumber } from "@/hooks/useDraftNumber";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { saveCurrentProject } from "@/store/persistence";
@@ -32,6 +33,8 @@ export function CanvasSettingsPopover() {
   const project = useProjectStore((s) => s.project);
   const setDimensions = useProjectStore((s) => s.setDimensions);
   const setGrid = useProjectStore((s) => s.setGrid);
+  const showAnchors = useUIStore((s) => s.showAnchors);
+  const toggleShowAnchors = useUIStore((s) => s.toggleShowAnchors);
 
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -200,6 +203,16 @@ export function CanvasSettingsPopover() {
                   </select>
                 </Field>
               </div>
+              <label className="mt-3 flex items-center gap-2 text-[11px]">
+                <input
+                  type="checkbox"
+                  checked={showAnchors}
+                  onChange={toggleShowAnchors}
+                  className="h-3.5 w-3.5 accent-[var(--color-accent)]"
+                />
+                Anchor Toggle
+                <span className="opacity-60">(off: free move, resize still snaps to rows/cols/edges)</span>
+              </label>
             </div>
           </div>
         </div>

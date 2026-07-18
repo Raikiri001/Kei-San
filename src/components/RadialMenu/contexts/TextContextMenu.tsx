@@ -37,6 +37,7 @@ import {
   ItalicIcon,
   LayersIcon,
   LayoutIcon,
+  LockIcon,
   OrientationIcon,
   PaletteIcon,
   PencilIcon,
@@ -45,9 +46,12 @@ import {
   SendToBackIcon,
   SizeIcon,
   UnderlineIcon,
+  UnlockIcon,
   WarpIcon,
 } from "@/components/RadialMenu/icons";
 import { ColorPickerPanel } from "@/components/RadialMenu/contexts/ColorPickerPanel";
+import { FontPickerPanel } from "@/components/RadialMenu/contexts/FontPickerPanel";
+import { FONTS } from "@/constants/fonts";
 import type { RingItem } from "@/components/RadialMenu/RadialMenu";
 import type { TextAlign } from "@/store/types";
 
@@ -76,16 +80,29 @@ function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n));
 }
 
-export function useTextContextItems(targetId: string | null): RingItem[] {
-  const text = useProjectStore((s) => s.project.texts.find((t) => t.id === targetId));
-  const updateText = useProjectStore((s) => s.updateText);
-  const deleteText = useProjectStore((s) => s.deleteText);
-  const bringToFront = useProjectStore((s) => s.bringToFront);
-  const bringForward = useProjectStore((s) => s.bringForward);
-  const sendBackward = useProjectStore((s) => s.sendBackward);
-  const sendToBack = useProjectStore((s) => s.sendToBack);
+export function useTextContextItems(targetIds: string[]): RingItem[] {
+  // Select the raw (referentially stable) array from the store, then filter
+  // in plain render-body code — filtering *inside* a zustand selector would
+  // return a new array every call, which trips React's "getSnapshot should be
+  // cached" infinite-update-loop guard.
+  const allTexts = useProjectStore((s) => s.project.texts);
+  const texts = allTexts.filter((t) => targetIds.includes(t.id));
+  const updateManyTexts = useProjectStore((s) => s.updateManyTexts);
+  const deleteMany = useProjectStore((s) => s.deleteMany);
+  const bringToFrontMany = useProjectStore((s) => s.bringToFrontMany);
+  const bringForwardMany = useProjectStore((s) => s.bringForwardMany);
+  const sendBackwardMany = useProjectStore((s) => s.sendBackwardMany);
+  const sendToBackMany = useProjectStore((s) => s.sendToBackMany);
   const closeRadialMenu = useUIStore((s) => s.closeRadialMenu);
   const setEditingTextId = useUIStore((s) => s.setEditingTextId);
+  const aspectLocked = useUIStore((s) => s.aspectLocked);
+  const toggleAspectLocked = useUIStore((s) => s.toggleAspectLocked);
+
+  // Displayed values read from the first selected text — the standard
+  // "anchor element" convention for multi-edit; every mutation below applies
+  // to the whole `ids` set via updateManyTexts, not just the anchor.
+  const text = texts[0];
+  const ids = targetIds;
 
   // Colors pill sources suggestions from the first uploaded image, if any exist.
   const sourceImage = useProjectStore((s) => s.project.images[0]);
@@ -102,19 +119,13 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
   const fontSizeDraft = useDraftNumber(text ? text.fontSize : 0, {
     min: FONT_SIZE_MIN,
     max: FONT_SIZE_MAX,
-    onCommit: (fontSize) => {
-      if (!text) return;
-      updateText(text.id, { fontSize });
-    },
+    onCommit: (fontSize) => updateManyTexts(ids, { fontSize }),
   });
 
   const glowSizeDraft = useDraftNumber(text ? text.glowSize : 0, {
     min: GLOW_SIZE_MIN,
     max: GLOW_SIZE_MAX,
-    onCommit: (glowSize) => {
-      if (!text) return;
-      updateText(text.id, { glowSize });
-    },
+    onCommit: (glowSize) => updateManyTexts(ids, { glowSize }),
   });
 
   // Dimensions now edit the text's own boxWidth/boxHeight directly — a real
@@ -124,18 +135,12 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
   const widthDraft = useDraftNumber(text ? Math.round(text.boxWidth) : 0, {
     min: DISPLAY_SIZE_MIN,
     max: DISPLAY_SIZE_MAX,
-    onCommit: (boxWidth) => {
-      if (!text) return;
-      updateText(text.id, { boxWidth });
-    },
+    onCommit: (boxWidth) => updateManyTexts(ids, { boxWidth }),
   });
   const heightDraft = useDraftNumber(text ? Math.round(text.boxHeight) : 0, {
     min: DISPLAY_SIZE_MIN,
     max: DISPLAY_SIZE_MAX,
-    onCommit: (boxHeight) => {
-      if (!text) return;
-      updateText(text.id, { boxHeight });
-    },
+    onCommit: (boxHeight) => updateManyTexts(ids, { boxHeight }),
   });
 
   // Warp: a purely decorative glyph stretch, displayed/edited as a percentage
@@ -143,22 +148,16 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
   const warpXDraft = useDraftNumber(text ? Math.round(text.warpX * 100) : 100, {
     min: Math.round(WARP_MIN * 100),
     max: Math.round(WARP_MAX * 100),
-    onCommit: (percent) => {
-      if (!text) return;
-      updateText(text.id, { warpX: clamp(percent / 100, WARP_MIN, WARP_MAX) });
-    },
+    onCommit: (percent) => updateManyTexts(ids, { warpX: clamp(percent / 100, WARP_MIN, WARP_MAX) }),
   });
   const warpYDraft = useDraftNumber(text ? Math.round(text.warpY * 100) : 100, {
     min: Math.round(WARP_MIN * 100),
     max: Math.round(WARP_MAX * 100),
-    onCommit: (percent) => {
-      if (!text) return;
-      updateText(text.id, { warpY: clamp(percent / 100, WARP_MIN, WARP_MAX) });
-    },
+    onCommit: (percent) => updateManyTexts(ids, { warpY: clamp(percent / 100, WARP_MIN, WARP_MAX) }),
   });
 
-  if (!text || !targetId) return [];
-  const id = targetId;
+  if (!text) return [];
+  const id = text.id;
 
   // Width/Height combined into one stacked "Dimensions" pill (a square icon
   // button that unfurls into a compact box, both dimensions growing together)
@@ -176,8 +175,8 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
             <span className={fieldLabelClass}>W</span>
             <NumberStepperField
               draft={widthDraft}
-              onDec={() => updateText(id, { boxWidth: clamp(text.boxWidth - RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
-              onInc={() => updateText(id, { boxWidth: clamp(text.boxWidth + RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
+              onDec={() => updateManyTexts(ids, { boxWidth: clamp(text.boxWidth - RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
+              onInc={() => updateManyTexts(ids, { boxWidth: clamp(text.boxWidth + RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
               min={DISPLAY_SIZE_MIN}
               max={DISPLAY_SIZE_MAX}
               ariaLabel="Width in pixels"
@@ -187,8 +186,8 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
             <span className={fieldLabelClass}>H</span>
             <NumberStepperField
               draft={heightDraft}
-              onDec={() => updateText(id, { boxHeight: clamp(text.boxHeight - RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
-              onInc={() => updateText(id, { boxHeight: clamp(text.boxHeight + RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
+              onDec={() => updateManyTexts(ids, { boxHeight: clamp(text.boxHeight - RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
+              onInc={() => updateManyTexts(ids, { boxHeight: clamp(text.boxHeight + RESCALE_STEP_PX, DISPLAY_SIZE_MIN, DISPLAY_SIZE_MAX) })}
               min={DISPLAY_SIZE_MIN}
               max={DISPLAY_SIZE_MAX}
               ariaLabel="Height in pixels"
@@ -201,7 +200,8 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
       key: "reset-dimensions",
       icon: <ResetIcon />,
       label: "Reset Size",
-      onClick: () => updateText(id, { boxWidth: DEFAULT_TEXT_BOX_WIDTH, boxHeight: DEFAULT_TEXT_BOX_HEIGHT }),
+      disabled: text.locked,
+      onClick: () => updateManyTexts(ids, { boxWidth: DEFAULT_TEXT_BOX_WIDTH, boxHeight: DEFAULT_TEXT_BOX_HEIGHT }),
     },
   ];
 
@@ -219,8 +219,8 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
             <span className={fieldLabelClass}>X</span>
             <NumberStepperField
               draft={warpXDraft}
-              onDec={() => updateText(id, { warpX: clamp(text.warpX - WARP_STEP_PERCENT / 100, WARP_MIN, WARP_MAX) })}
-              onInc={() => updateText(id, { warpX: clamp(text.warpX + WARP_STEP_PERCENT / 100, WARP_MIN, WARP_MAX) })}
+              onDec={() => updateManyTexts(ids, { warpX: clamp(text.warpX - WARP_STEP_PERCENT / 100, WARP_MIN, WARP_MAX) })}
+              onInc={() => updateManyTexts(ids, { warpX: clamp(text.warpX + WARP_STEP_PERCENT / 100, WARP_MIN, WARP_MAX) })}
               min={Math.round(WARP_MIN * 100)}
               max={Math.round(WARP_MAX * 100)}
               ariaLabel="Horizontal warp percentage"
@@ -231,8 +231,8 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
             <span className={fieldLabelClass}>Y</span>
             <NumberStepperField
               draft={warpYDraft}
-              onDec={() => updateText(id, { warpY: clamp(text.warpY - WARP_STEP_PERCENT / 100, WARP_MIN, WARP_MAX) })}
-              onInc={() => updateText(id, { warpY: clamp(text.warpY + WARP_STEP_PERCENT / 100, WARP_MIN, WARP_MAX) })}
+              onDec={() => updateManyTexts(ids, { warpY: clamp(text.warpY - WARP_STEP_PERCENT / 100, WARP_MIN, WARP_MAX) })}
+              onInc={() => updateManyTexts(ids, { warpY: clamp(text.warpY + WARP_STEP_PERCENT / 100, WARP_MIN, WARP_MAX) })}
               min={Math.round(WARP_MIN * 100)}
               max={Math.round(WARP_MAX * 100)}
               ariaLabel="Vertical warp percentage"
@@ -247,15 +247,22 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
       icon: <ResetIcon />,
       label: "Reset Warp",
       disabled: text.warpX === 1 && text.warpY === 1,
-      onClick: () => updateText(id, { warpX: 1, warpY: 1 }),
+      onClick: () => updateManyTexts(ids, { warpX: 1, warpY: 1 }),
     },
   ];
 
   const layerSubItems: RingItem[] = [
-    { key: "bring-to-front", icon: <BringToFrontIcon />, label: "Bring to Front", onClick: () => bringToFront(id) },
-    { key: "bring-forward", icon: <BringForwardIcon />, label: "Bring Forward", onClick: () => bringForward(id) },
-    { key: "send-backward", icon: <SendBackwardIcon />, label: "Send Backward", onClick: () => sendBackward(id) },
-    { key: "send-to-back", icon: <SendToBackIcon />, label: "Send to Back", onClick: () => sendToBack(id) },
+    { key: "bring-to-front", icon: <BringToFrontIcon />, label: "Bring to Front", onClick: () => bringToFrontMany(ids) },
+    { key: "bring-forward", icon: <BringForwardIcon />, label: "Bring Forward", onClick: () => bringForwardMany(ids) },
+    { key: "send-backward", icon: <SendBackwardIcon />, label: "Send Backward", onClick: () => sendBackwardMany(ids) },
+    { key: "send-to-back", icon: <SendToBackIcon />, label: "Send to Back", onClick: () => sendToBackMany(ids) },
+    {
+      key: "lock-toggle",
+      icon: text.locked ? <LockIcon /> : <UnlockIcon />,
+      label: text.locked ? "Lock: On" : "Lock: Off",
+      status: text.locked ? "on" : "off",
+      onClick: () => updateManyTexts(ids, { locked: !text.locked }),
+    },
   ];
 
   // Typography controls grouped one level in behind a "Text" group pill —
@@ -266,8 +273,10 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
     {
       key: "font-family",
       icon: <FontIcon />,
-      label: text.fontFamily === "sans" ? "Sans" : "Serif",
-      onClick: () => updateText(id, { fontFamily: text.fontFamily === "sans" ? "serif" : "sans" }),
+      label: FONTS.find((f) => f.id === text.fontFamily)?.name ?? "Font",
+      popoverContent: (
+        <FontPickerPanel value={text.fontFamily} onChange={(fontFamily) => updateManyTexts(ids, { fontFamily })} />
+      ),
     },
     {
       key: "style",
@@ -281,7 +290,7 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
             <button
               key={key}
               type="button"
-              onClick={() => updateText(id, { [key]: !text[key] })}
+              onClick={() => updateManyTexts(ids, { [key]: !text[key] })}
               aria-label={label}
               aria-pressed={text[key]}
               className={clsx(
@@ -303,8 +312,8 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
       expandedContent: (
         <NumberStepperField
           draft={fontSizeDraft}
-          onDec={() => updateText(id, { fontSize: Math.max(FONT_SIZE_MIN, text.fontSize - 8) })}
-          onInc={() => updateText(id, { fontSize: Math.min(FONT_SIZE_MAX, text.fontSize + 8) })}
+          onDec={() => updateManyTexts(ids, { fontSize: Math.max(FONT_SIZE_MIN, text.fontSize - 8) })}
+          onInc={() => updateManyTexts(ids, { fontSize: Math.min(FONT_SIZE_MAX, text.fontSize + 8) })}
           min={FONT_SIZE_MIN}
           max={FONT_SIZE_MAX}
           ariaLabel="Font size in pixels"
@@ -325,8 +334,8 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
         suggestionGroups={suggestions ? [{ label: "Suggested", suggestions }] : []}
         value={text.color}
         alpha={text.colorAlpha}
-        onChange={(color) => updateText(id, { color })}
-        onAlphaChange={(colorAlpha) => updateText(id, { colorAlpha })}
+        onChange={(color) => updateManyTexts(ids, { color })}
+        onAlphaChange={(colorAlpha) => updateManyTexts(ids, { colorAlpha })}
       />
     ),
   });
@@ -340,7 +349,7 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
       icon: <GlowIcon />,
       label: text.glow ? "Glow: On" : "Glow: Off",
       status: text.glow ? "on" : "off",
-      onClick: () => updateText(id, { glow: !text.glow }),
+      onClick: () => updateManyTexts(ids, { glow: !text.glow }),
     },
     {
       key: "glow-size",
@@ -351,8 +360,8 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
       expandedContent: (
         <NumberStepperField
           draft={glowSizeDraft}
-          onDec={() => updateText(id, { glowSize: clamp(text.glowSize - 8, GLOW_SIZE_MIN, GLOW_SIZE_MAX) })}
-          onInc={() => updateText(id, { glowSize: clamp(text.glowSize + 8, GLOW_SIZE_MIN, GLOW_SIZE_MAX) })}
+          onDec={() => updateManyTexts(ids, { glowSize: clamp(text.glowSize - 8, GLOW_SIZE_MIN, GLOW_SIZE_MAX) })}
+          onInc={() => updateManyTexts(ids, { glowSize: clamp(text.glowSize + 8, GLOW_SIZE_MIN, GLOW_SIZE_MAX) })}
           min={GLOW_SIZE_MIN}
           max={GLOW_SIZE_MAX}
           ariaLabel="Glow size in pixels"
@@ -368,7 +377,7 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
         <ColorPickerPanel
           suggestionGroups={[]}
           value={text.glowColor}
-          onChange={(glowColor) => updateText(id, { glowColor })}
+          onChange={(glowColor) => updateManyTexts(ids, { glowColor })}
         />
       ),
     },
@@ -393,7 +402,7 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
       label: text.orientation === "horizontal" ? "Horizontal" : "Vertical",
       active: text.orientation === "vertical",
       onClick: () =>
-        updateText(id, { orientation: text.orientation === "horizontal" ? "vertical" : "horizontal" }),
+        updateManyTexts(ids, { orientation: text.orientation === "horizontal" ? "vertical" : "horizontal" }),
     },
     ...(text.orientation === "horizontal"
       ? [
@@ -408,7 +417,7 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
                   <button
                     key={value}
                     type="button"
-                    onClick={() => updateText(id, { align: value })}
+                    onClick={() => updateManyTexts(ids, { align: value })}
                     aria-label={`Align ${label}`}
                     aria-pressed={text.align === value}
                     className={clsx(
@@ -439,6 +448,13 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
       active: text.warpX !== 1 || text.warpY !== 1,
       subItems: warpSubItems,
     },
+    {
+      key: "uniform-scale-toggle",
+      icon: aspectLocked ? <LockIcon /> : <UnlockIcon />,
+      label: aspectLocked ? "Uniform Scale: On" : "Uniform Scale: Off",
+      status: aspectLocked ? "on" : "off",
+      onClick: toggleAspectLocked,
+    },
   ];
 
   // Root ring: a fixed 5 pills regardless of state (Colors/Align availability
@@ -450,9 +466,13 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
       key: "content",
       icon: <PencilIcon />,
       label: "Edit Text",
+      // Editing content only makes sense for a single text at a time — disabled
+      // (rather than hidden) when a multi-selection is active, same convention
+      // as the other geometry/delete actions this menu disables while locked.
       // The ring is only a secondary path to editing now — the primary path is
       // double-clicking the text directly, which opens the same inline
       // on-canvas box (see TextElementView's onDoubleClick).
+      disabled: ids.length > 1,
       onClick: () => {
         closeRadialMenu();
         setEditingTextId(id);
@@ -480,8 +500,9 @@ export function useTextContextItems(targetId: string | null): RingItem[] {
       key: "delete",
       icon: <DeleteIcon />,
       label: "Delete",
+      disabled: text.locked,
       onClick: () => {
-        deleteText(id);
+        deleteMany(ids);
         closeRadialMenu();
       },
     },

@@ -9,6 +9,7 @@ import { ImageElementView } from "@/components/CanvasWorkspace/ImageElementView"
 import { TextElementView } from "@/components/CanvasWorkspace/TextElementView";
 import { HandIcon, MoonIcon, ResetViewIcon, SunIcon } from "@/components/RadialMenu/icons";
 import { useElementShortcuts } from "@/hooks/useElementShortcuts";
+import type { ImageElement, TextElement } from "@/store/types";
 import clsx from "clsx";
 
 const TAP_THRESHOLD_PX = 4;
@@ -23,6 +24,19 @@ function isTextEntryElement(el: Element | null): boolean {
   if (!el) return false;
   const tag = el.tagName;
   return tag === "INPUT" || tag === "TEXTAREA" || (el as HTMLElement).isContentEditable;
+}
+
+/** Axis-aligned bounding box (true canvas px, ignoring rotation — an
+ * acceptable simplification for a rubber-band hit-test) for a marquee-select
+ * candidate. */
+function elementBounds(entry: { kind: "image"; el: ImageElement } | { kind: "text"; el: TextElement }) {
+  const w = entry.kind === "image" ? entry.el.displayWidth : entry.el.boxWidth;
+  const h = entry.kind === "image" ? entry.el.displayHeight : entry.el.boxHeight;
+  return { x0: entry.el.x - w / 2, y0: entry.el.y - h / 2, x1: entry.el.x + w / 2, y1: entry.el.y + h / 2 };
+}
+
+function rectsOverlap(a: { x0: number; y0: number; x1: number; y1: number }, b: { x0: number; y0: number; x1: number; y1: number }): boolean {
+  return a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
 }
 
 export function CanvasWorkspace() {
@@ -47,8 +61,10 @@ export function CanvasWorkspace() {
   const togglePanTool = useUIStore((s) => s.togglePanTool);
   const isSpacePanning = useUIStore((s) => s.isSpacePanning);
   const setSpacePanning = useUIStore((s) => s.setSpacePanning);
-  const setSelectedElementId = useUIStore((s) => s.setSelectedElementId);
+  const setSelectedElementIds = useUIStore((s) => s.setSelectedElementIds);
   const dragPreviewNode = useUIStore((s) => s.dragPreviewNode);
+  const alignmentGuideX = useUIStore((s) => s.alignmentGuideX);
+  const alignmentGuideY = useUIStore((s) => s.alignmentGuideY);
   const radialMenu = useUIStore((s) => s.radialMenu);
   const moveRadialMenu = useUIStore((s) => s.moveRadialMenu);
 
@@ -66,6 +82,12 @@ export function CanvasWorkspace() {
   const [hoverPos, setHoverPos] = useState<{ x: number; y: number } | null>(null);
   const [isPanDragging, setIsPanDragging] = useState(false);
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+
+  // Canvas-space (true px) start point of a potential rubber-band selection
+  // drag, and the live rect while it's in progress — kept separate from
+  // bgDownRef (screen px, used only for the existing tap-threshold check).
+  const marqueeStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [marquee, setMarquee] = useState<{ x0: number; y0: number; x1: number; y1: number } | null>(null);
 
   // Tracked so the ruler (rendered in untransformed screen-space, outside the
   // pan/zoom transform) can compute where canvas-space (0,0) currently falls within
@@ -221,6 +243,10 @@ export function CanvasWorkspace() {
   }, [setZoom, setPan]);
 
   function handleBgPointerDown(e: React.PointerEvent) {
+    // Right-click is reserved for the (element-only) radial-menu context
+    // menu — a right-click-drag on empty background shouldn't start a pan or
+    // marquee-select track.
+    if (e.button !== 0) return;
     if (panActive) {
       panDragRef.current = { x: e.clientX, y: e.clientY, dragging: false };
       (e.currentTarget as Element).setPointerCapture(e.pointerId);
@@ -228,6 +254,9 @@ export function CanvasWorkspace() {
       return;
     }
     bgDownRef.current = { x: e.clientX, y: e.clientY };
+    const rect = e.currentTarget.getBoundingClientRect();
+    marqueeStartRef.current = { x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom };
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
   }
 
   function handleBgPointerUp(e: React.PointerEvent) {
@@ -238,10 +267,12 @@ export function CanvasWorkspace() {
     }
     const down = bgDownRef.current;
     bgDownRef.current = null;
+    marqueeStartRef.current = null;
+    setMarquee(null);
     if (!down) return;
     const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
     if (moved < TAP_THRESHOLD_PX) {
-      setSelectedElementId(null);
+      setSelectedElementIds([]);
     }
   }
 
@@ -253,7 +284,21 @@ export function CanvasWorkspace() {
       return;
     }
     const rect = e.currentTarget.getBoundingClientRect();
-    setHoverPos({ x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
+    const point = { x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom };
+    setHoverPos(point);
+
+    const start = marqueeStartRef.current;
+    if (start) {
+      const box = {
+        x0: Math.min(start.x, point.x),
+        y0: Math.min(start.y, point.y),
+        x1: Math.max(start.x, point.x),
+        y1: Math.max(start.y, point.y),
+      };
+      setMarquee({ x0: box.x0, y0: box.y0, x1: box.x1, y1: box.y1 });
+      const hitIds = orderedElements.filter((entry) => rectsOverlap(box, elementBounds(entry))).map((entry) => entry.el.id);
+      setSelectedElementIds(hitIds);
+    }
   }
 
   return (
@@ -290,13 +335,32 @@ export function CanvasWorkspace() {
             style={{ backgroundImage: "repeating-conic-gradient(#5b5f66 0% 25%, #3a3d42 0% 50%)", backgroundSize: "16px 16px" }}
           />
           <div className="pointer-events-none absolute inset-0" style={{ backgroundColor: hexToRgba(backgroundColor, backgroundAlpha) }} />
-          <GridOverlay width={width} height={height} cols={cols} rows={rows} nearestSnapNode={dragPreviewNode} />
+          <GridOverlay
+            width={width}
+            height={height}
+            cols={cols}
+            rows={rows}
+            nearestSnapNode={dragPreviewNode}
+            alignmentGuideX={alignmentGuideX}
+            alignmentGuideY={alignmentGuideY}
+          />
           {orderedElements.map((entry) =>
             entry.kind === "image" ? (
               <ImageElementView key={entry.el.id} image={entry.el} />
             ) : (
               <TextElementView key={entry.el.id} text={entry.el} />
             ),
+          )}
+          {marquee && (
+            <div
+              className="pointer-events-none absolute border border-accent/70 bg-[rgb(var(--color-accent-glow)/0.12)]"
+              style={{
+                left: marquee.x0,
+                top: marquee.y0,
+                width: marquee.x1 - marquee.x0,
+                height: marquee.y1 - marquee.y0,
+              }}
+            />
           )}
         </div>
       </div>

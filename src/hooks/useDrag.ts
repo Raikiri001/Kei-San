@@ -6,12 +6,15 @@ interface UseDragOptions {
   /** Reads the element's current committed position (true canvas px) at drag start. */
   getPosition: () => { x: number; y: number };
   zoom: number;
-  /** Called continuously while dragging with a live, unsnapped true-canvas-px position. */
-  onPreview: (x: number, y: number) => void;
+  /** Called continuously while dragging with a live, unsnapped true-canvas-px
+   * position, and the live Shift-key state (for callers that axis-constrain). */
+  onPreview: (x: number, y: number, shiftKey: boolean) => void;
   /** Called once on release if the pointer moved beyond the tap threshold. */
-  onCommit: (x: number, y: number) => void;
-  /** Called once on release if the pointer barely moved — treat as a click/tap. */
-  onTap?: (screenX: number, screenY: number) => void;
+  onCommit: (x: number, y: number, shiftKey: boolean) => void;
+  /** Called once on release if the pointer barely moved — treat as a click/tap.
+   * `additive` is true when Shift or Cmd/Ctrl was held, for building a
+   * multi-selection by clicking instead of only via the marquee drag-box. */
+  onTap?: (screenX: number, screenY: number, additive: boolean) => void;
   /** Called continuously while actively dragging with the raw pointer screen coords (not canvas-space) — lets a caller keep something anchored to the cursor/element in sync, e.g. an already-open radial menu. */
   onDragMove?: (screenX: number, screenY: number) => void;
 }
@@ -32,6 +35,10 @@ export function useDrag({ getPosition, zoom, onPreview, onCommit, onTap, onDragM
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
+      // Right-click is handled entirely by the element's own onContextMenu
+      // handler (opens the radial menu) — left button only here, so a
+      // right-click doesn't also get tracked as a move/tap.
+      if (e.button !== 0) return;
       e.stopPropagation();
       const { x, y } = getPosition();
       dragState.current = {
@@ -56,7 +63,7 @@ export function useDrag({ getPosition, zoom, onPreview, onCommit, onTap, onDragM
         state.dragging = true;
       }
       if (state.dragging) {
-        onPreview(state.startX + deltaScreenX / zoom, state.startY + deltaScreenY / zoom);
+        onPreview(state.startX + deltaScreenX / zoom, state.startY + deltaScreenY / zoom, e.shiftKey);
         onDragMove?.(e.clientX, e.clientY);
       }
     },
@@ -71,9 +78,9 @@ export function useDrag({ getPosition, zoom, onPreview, onCommit, onTap, onDragM
       const deltaScreenX = e.clientX - state.startScreenX;
       const deltaScreenY = e.clientY - state.startScreenY;
       if (state.dragging) {
-        onCommit(state.startX + deltaScreenX / zoom, state.startY + deltaScreenY / zoom);
+        onCommit(state.startX + deltaScreenX / zoom, state.startY + deltaScreenY / zoom, e.shiftKey);
       } else {
-        onTap?.(e.clientX, e.clientY);
+        onTap?.(e.clientX, e.clientY, e.shiftKey || e.metaKey || e.ctrlKey);
       }
     },
     [zoom, onCommit, onTap],

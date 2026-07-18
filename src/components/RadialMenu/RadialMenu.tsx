@@ -7,6 +7,7 @@ import { IconPill } from "@/components/RadialMenu/IconPill";
 import { BackChevronIcon } from "@/components/RadialMenu/icons";
 import { useImageContextItems } from "@/components/RadialMenu/contexts/ImageContextMenu";
 import { useTextContextItems } from "@/components/RadialMenu/contexts/TextContextMenu";
+import { useMixedContextItems } from "@/components/RadialMenu/contexts/MixedContextMenu";
 
 export interface RingItem {
   key: string;
@@ -66,8 +67,10 @@ export function RadialMenu() {
   const [ringPath, setRingPath] = useState<string[]>([]);
   const prefersReducedMotion = useReducedMotion();
 
-  const imageItems = useImageContextItems(radialMenu?.targetId ?? null);
-  const textItems = useTextContextItems(radialMenu?.targetId ?? null);
+  const targetIds = radialMenu?.targetIds ?? [];
+  const imageItems = useImageContextItems(targetIds);
+  const textItems = useTextContextItems(targetIds);
+  const mixedItems = useMixedContextItems(targetIds);
 
   useClickOutside(rootRef, closeRadialMenu, !!radialMenu?.open);
 
@@ -76,11 +79,12 @@ export function RadialMenu() {
   useEffect(() => {
     setOpenPopoverKey(null);
     setRingPath([]);
-  }, [radialMenu?.open, radialMenu?.targetId, radialMenu?.context]);
+  }, [radialMenu?.open, radialMenu?.targetIds, radialMenu?.context]);
 
   if (!radialMenu?.open) return null;
 
-  const rootItems = radialMenu.context === "image" ? imageItems : textItems;
+  const rootItems =
+    radialMenu.context === "image" ? imageItems : radialMenu.context === "text" ? textItems : mixedItems;
 
   const activeItems = resolveActiveItems(rootItems, ringPath);
   const backItem: RingItem = {
@@ -153,13 +157,16 @@ export function RadialMenu() {
               prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 32 }
             }
             data-pulse="true"
-            className="glass-panel corner-frame pointer-events-auto fixed z-10 max-h-[min(70vh,520px)] -translate-x-1/2 overflow-y-auto p-3"
+            className="glass-panel corner-frame pointer-events-auto fixed z-10 flex max-h-[min(70vh,520px)] -translate-x-1/2 flex-col"
             style={{ left: radialMenu.x, top: popoverTop }}
           >
+            {/* Corner brackets live on this outer, non-scrolling panel — only the
+                inner content div below scrolls, so the brackets stay pinned to the
+                panel's corners instead of drifting off with the scrolled content. */}
             <span className="corner-tl" />
             <span className="corner-bl" />
             <span className="corner-br" />
-            {openPopoverItem.popoverContent}
+            <div className="min-h-0 overflow-y-auto p-3">{openPopoverItem.popoverContent}</div>
           </motion.div>
         )}
       </div>

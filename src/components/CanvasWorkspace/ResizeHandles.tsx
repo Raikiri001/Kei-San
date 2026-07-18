@@ -1,7 +1,6 @@
 import { useUIStore } from "@/store/uiStore";
 import { useResizeDrag, type ResizeHandleId } from "@/hooks/useResizeDrag";
 import { useRotateDrag } from "@/hooks/useRotateDrag";
-import { LockIcon, UnlockIcon } from "@/components/RadialMenu/icons";
 import {
   HANDLE_HIT_SIZE,
   HANDLE_VISUAL_SIZE,
@@ -56,12 +55,18 @@ const HANDLES: { id: ResizeHandleId; position: string; cursor: string }[] = [
 ];
 
 /**
- * 8 resize handles (4 corners + 4 edge midpoints) + a rotate handle + a shared
- * aspect-lock toggle, rendered as children of an already-positioned/sized/rotated
- * element wrapper — handles are placed via 0%/50%/100% so they track the
- * wrapper's own width/height automatically, and since they're DOM children of
- * the wrapper's own `rotate()` transform, they visually follow the element's
- * current rotation for free (no extra position math needed here for that).
+ * 8 resize handles (4 corners + 4 edge midpoints) + a rotate handle, rendered
+ * as children of an already-positioned/sized/rotated element wrapper — handles
+ * are placed via 0%/50%/100% so they track the wrapper's own width/height
+ * automatically, and since they're DOM children of the wrapper's own
+ * `rotate()` transform, they visually follow the element's current rotation
+ * for free (no extra position math needed here for that).
+ *
+ * The uniform-scale ("aspect lock") toggle used to live here as an on-canvas
+ * button diagonally offset past the SE corner — it's now a radial-menu item
+ * (see ImageContextMenu/TextContextMenu's "Uniform Scale" toggle) so the
+ * corner stays free, but the underlying `aspectLocked` preference and its
+ * Shift-key interaction below are unchanged.
  *
  * Shift's meaning is scoped per-handle, not global:
  *   - corner drag:  Shift = uniform (aspect-locked) scale
@@ -86,7 +91,6 @@ export function ResizeHandles({
   onDragStart,
 }: ResizeHandlesProps) {
   const aspectLocked = useUIStore((s) => s.aspectLocked);
-  const toggleAspectLocked = useUIStore((s) => s.toggleAspectLocked);
   const getRotation = () => rotation;
 
   return (
@@ -120,25 +124,6 @@ export function ResizeHandles({
         onCommit={onRotateCommit}
         onDragStart={onDragStart}
       />
-
-      {/* Diagonal offset beyond the se corner (rather than the old bottom-center
-          spot, which the new `s` edge handle now occupies) so it never overlaps
-          a resize handle's — now larger — hit area. */}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          toggleAspectLocked();
-        }}
-        onPointerDown={(e) => e.stopPropagation()}
-        title={aspectLocked ? "Aspect ratio locked" : "Aspect ratio unlocked (hold Shift to lock temporarily)"}
-        className={`glass-panel absolute left-full top-full z-10 flex h-6 w-6 items-center justify-center transition-[color,opacity,border-color] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] ${
-          aspectLocked ? "border-accent/70 text-accent" : "opacity-70 hover:opacity-100"
-        }`}
-        style={{ transform: "translate(1.25rem, 1.25rem)" }}
-      >
-        <span className="flex h-3.5 w-3.5 items-center justify-center">{aspectLocked ? <LockIcon /> : <UnlockIcon />}</span>
-      </button>
     </>
   );
 }

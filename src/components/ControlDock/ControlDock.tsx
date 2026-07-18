@@ -8,6 +8,7 @@ import { ToolbarIconButton } from "@/components/ControlDock/ToolbarIconButton";
 import {
   DownloadIcon,
   FolderIcon,
+  GridLayoutIcon,
   NewDesignIcon,
   SaveIcon,
   TextContentIcon,
@@ -26,6 +27,7 @@ export function ControlDock() {
   const setName = useProjectStore((s) => s.setName);
   const addText = useProjectStore((s) => s.addText);
   const resetToNewDesign = useProjectStore((s) => s.resetToNewDesign);
+  const autoLayoutImages = useProjectStore((s) => s.autoLayoutImages);
 
   const guardDirty = useUIStore((s) => s.guardDirty);
   const markClean = useUIStore((s) => s.markClean);
@@ -119,8 +121,11 @@ export function ControlDock() {
 
       <DockDivider />
 
-      {/* Content group: tools that add elements to the canvas. */}
+      {/* Content group: tools that add elements to the canvas. Upload Image and
+          Auto-Fill Layout stay adjacent — both act on the image workflow
+          (bring images in, then auto-arrange them), unlike Add Text. */}
       <ToolbarIconButton onClick={() => setUploadDialogOpen(true)} icon={<UploadIcon />} label="Upload Image" />
+      <ToolbarIconButton onClick={autoLayoutImages} icon={<GridLayoutIcon />} label="Auto-Fill Layout" />
       <ToolbarIconButton onClick={handleAddText} icon={<TextContentIcon />} label="Add Text" />
     </div>
   );

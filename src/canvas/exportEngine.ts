@@ -1,4 +1,4 @@
-import { FONT_STACKS } from "@/constants/fonts";
+import { getFontStack } from "@/constants/fonts";
 import { loadImage } from "@/utils/fileToDataUrl";
 import { computeCropSourceRect } from "@/utils/coverFit";
 import type { ImageElement, ProjectState, TextAlign, TextElement } from "@/store/types";
@@ -148,6 +148,11 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
   const ctx = canvas.getContext("2d");
   if (!ctx) throw new Error("Canvas 2D context unavailable");
 
+  // Guards against exporting before a just-selected/curated font weight has
+  // finished downloading — more likely to matter now that there are 50 fonts
+  // to choose from instead of 2.
+  await document.fonts.ready;
+
   // backgroundAlpha === 0 leaves the canvas at its native transparent default
   // (skipping the fill entirely, not just filling with a 0-alpha color) so a
   // PNG export with a fully transparent background never picks up antialiasing
@@ -231,7 +236,7 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
       ctx.scale(text.warpX, text.warpY);
       const fontStyle = text.italic ? "italic " : "";
       const fontWeight = text.bold ? "bold " : "";
-      ctx.font = `${fontStyle}${fontWeight}${text.fontSize}px ${FONT_STACKS[text.fontFamily]}`;
+      ctx.font = `${fontStyle}${fontWeight}${text.fontSize}px ${getFontStack(text.fontFamily)}`;
       ctx.fillStyle = hexToRgba(text.color, text.colorAlpha);
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";

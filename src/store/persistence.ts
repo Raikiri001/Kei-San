@@ -9,6 +9,7 @@ import {
 import { generateThumbnail, generateThumbnailFromCanvas } from "@/canvas/exportEngine";
 import { DOT_PITCH } from "@/canvas/halftone";
 import { resolveDefaultMargin } from "@/canvas/edgeBlend";
+import { DEFAULT_FONT_ID, FONTS, type FontId } from "@/constants/fonts";
 import type { ImageElement, ProjectState, SavedDesign, TextElement } from "@/store/types";
 
 type LegacyTextElement = Omit<
@@ -26,6 +27,8 @@ type LegacyTextElement = Omit<
   | "glow"
   | "glowColor"
   | "glowSize"
+  | "fontFamily"
+  | "locked"
 > &
   Partial<
     Pick<
@@ -43,6 +46,7 @@ type LegacyTextElement = Omit<
       | "glow"
       | "glowColor"
       | "glowSize"
+      | "locked"
     >
   > & {
     // Pre-redesign field names — a saved text element may have either of these
@@ -51,14 +55,33 @@ type LegacyTextElement = Omit<
     // instead of discarding them.
     scaleX?: number;
     scaleY?: number;
+    // Raw legacy value — could be the old "sans"/"serif" FontFamilyKey, a
+    // current FontId, or (if the save predates fonts entirely) undefined.
+    // Widened to a bare string here since old JSON won't satisfy FontId.
+    fontFamily?: string;
   };
+
+type LegacyImageElement = Omit<ImageElement, "locked"> & Partial<Pick<ImageElement, "locked">>;
 
 /** Legacy (pre-multi-image / pre-Phase-3 / pre-scaleX-scaleY / pre-alpha) shape a SavedDesign may have been persisted as. */
 interface LegacySavedDesign extends Omit<SavedDesign, "images" | "texts" | "backgroundAlpha"> {
-  images?: ImageElement[];
-  image?: ImageElement | null;
+  images?: LegacyImageElement[];
+  image?: LegacyImageElement | null;
   texts?: LegacyTextElement[];
   backgroundAlpha?: number;
+}
+
+/** Maps an old-schema fontFamily value forward. "sans"/"serif" were the only
+ * two options pre-redesign and visually matched Inter/Noto Serif JP (the
+ * first link in each's old fallback chain), so mapping to those exact ids
+ * keeps reopened old designs looking identical instead of silently changing
+ * them. Falls back to the default if the stored id no longer exists (e.g. a
+ * font removed from the curated list in the future). */
+function migrateFontFamily(raw: string | undefined): FontId {
+  if (raw === "sans") return "inter";
+  if (raw === "serif") return "noto-serif-jp";
+  if (raw && FONTS.some((f) => f.id === raw)) return raw as FontId;
+  return DEFAULT_FONT_ID;
 }
 
 /** Migrates any older saved entry forward so old localStorage data never crashes the app. */
@@ -82,6 +105,7 @@ function normalizeDesign(raw: LegacySavedDesign): SavedDesign {
     cropOffsetX: img.cropOffsetX ?? 0,
     cropOffsetY: img.cropOffsetY ?? 0,
     opacity: img.opacity ?? 1,
+    locked: img.locked ?? false,
     zIndex: img.zIndex ?? cursor++,
   }));
   const texts = rawTexts.map((txt) => {
@@ -93,9 +117,10 @@ function normalizeDesign(raw: LegacySavedDesign): SavedDesign {
     // recover the old box's actual pixel size from saved data alone (that
     // required a live DOM measurement), so boxWidth/Height fall back to the
     // same flat default a brand-new text element gets.
-    const { scaleX: _scaleX, scaleY: _scaleY, ...rest } = txt;
+    const { scaleX: _scaleX, scaleY: _scaleY, fontFamily, ...rest } = txt;
     return {
       ...rest,
+      fontFamily: migrateFontFamily(fontFamily),
       boxWidth: txt.boxWidth ?? DEFAULT_TEXT_BOX_WIDTH,
       boxHeight: txt.boxHeight ?? DEFAULT_TEXT_BOX_HEIGHT,
       warpX: txt.warpX ?? txt.scaleX ?? 1,
@@ -109,6 +134,7 @@ function normalizeDesign(raw: LegacySavedDesign): SavedDesign {
       glow: txt.glow ?? false,
       glowColor: txt.glowColor ?? DEFAULT_GLOW_COLOR,
       glowSize: txt.glowSize ?? DEFAULT_GLOW_SIZE,
+      locked: txt.locked ?? false,
       zIndex: txt.zIndex ?? cursor++,
     };
   });
