@@ -3,11 +3,15 @@ import { loadImage } from "@/utils/fileToDataUrl";
 import { computeCropSourceRect } from "@/utils/coverFit";
 import type { ImageElement, ProjectState, TextAlign, TextElement } from "@/store/types";
 import { drawVerticalText } from "@/canvas/verticalText";
-import { drawHalftone, resolveInkColor } from "@/canvas/halftone";
+import { renderEffectStack } from "@/canvas/gl/glRenderer";
+import { getGLCanvas } from "@/canvas/gl/glContext";
 import { drawEdgeGlow, getEdgeAverageColor } from "@/canvas/edgeBlend";
+import { renderAsciiOverlay } from "@/canvas/asciiOverlay";
+import { drawBlobTrackerOverlay } from "@/canvas/blobTrackerOverlay";
 import { edgeColorCache } from "@/canvas/analysisCaches";
 import { hexToRgba } from "@/canvas/colorExtraction";
 import { applyTextGlow } from "@/canvas/textGlow";
+import { getEnabledContentLayers, getEnabledEdgeBlendLayers, getEnabledAsciiLayers, getEnabledBlobTrackerLayers } from "@/store/imageEffects";
 
 /** Greedy word-wrap of a single authored line (already split on "\n") against
  * `maxWidth` — canvas has no native reflow, so this is what makes the export
@@ -162,7 +166,6 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
     ctx.fillRect(0, 0, project.width, project.height);
   }
 
-  const inkColor = resolveInkColor(project.backgroundColor);
   const loadedImages = new Map(
     await Promise.all(
       project.images.map(async (image) => [image.id, await loadImage(image.dataUrl)] as const),
@@ -186,9 +189,12 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
       ctx.translate(image.x, image.y);
       ctx.rotate((image.rotation * Math.PI) / 180);
 
-      if (image.edgeBlend) {
+      const edgeBlendLayers = getEnabledEdgeBlendLayers(image.layers);
+      if (edgeBlendLayers.length > 0) {
         const edgeColor = edgeColorCache.get(image.dataUrl) ?? getEdgeAverageColor(img);
-        drawEdgeGlow(ctx, edgeColor, drawX, drawY, image.displayWidth, image.displayHeight, image.edgeBlendMargin);
+        for (const layer of edgeBlendLayers) {
+          drawEdgeGlow(ctx, edgeColor, drawX, drawY, image.displayWidth, image.displayHeight, layer.margin);
+        }
       }
 
       // Applied after the edge glow (not before) so the glow itself stays at
@@ -197,21 +203,56 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
       // not the outer wrapper the edge-glow box-shadow is drawn on.
       ctx.globalAlpha = image.opacity;
 
-      if (image.circleMask) {
-        drawHalftone(
-          ctx,
+      const contentLayers = getEnabledContentLayers(image.layers);
+      const asciiLayers = getEnabledAsciiLayers(image.layers);
+      const blobTrackerLayers = getEnabledBlobTrackerLayers(image.layers);
+      const boxW = Math.ceil(image.displayWidth);
+      const boxH = Math.ceil(image.displayHeight);
+      // Both ASCII and Blob Tracker need real pixel access (getImageData), which
+      // ignores the ctx.translate/rotate already applied above — so whenever either
+      // is enabled, their shared box-local (0,0 origin, unrotated) content is built
+      // in a scratch canvas first; the final drawImage below DOES respect the
+      // current transform, same as every other branch in this function.
+      const needsBoxCanvas = asciiLayers.length > 0 || blobTrackerLayers.length > 0;
+
+      if (needsBoxCanvas) {
+        const boxCanvas = document.createElement("canvas");
+        boxCanvas.width = boxW;
+        boxCanvas.height = boxH;
+        const boxCtx = boxCanvas.getContext("2d")!;
+        if (contentLayers.length > 0) {
+          renderEffectStack(img, image.displayWidth, image.displayHeight, contentLayers, image.cropZoom, image.cropOffsetX, image.cropOffsetY);
+          boxCtx.drawImage(getGLCanvas(), 0, 0, boxW, boxH);
+        } else {
+          const src = computeCropSourceRect(img.naturalWidth, img.naturalHeight, image.cropZoom, image.cropOffsetX, image.cropOffsetY);
+          boxCtx.drawImage(img, src.x, src.y, src.width, src.height, 0, 0, boxW, boxH);
+        }
+
+        // Always applied last, over whatever content was just drawn — see AsciiEffect's
+        // doc comment for why this is a structural fixed position, not stack-order-driven.
+        let finalCanvas: HTMLCanvasElement = boxCanvas;
+        if (asciiLayers.length > 0) {
+          finalCanvas = renderAsciiOverlay(boxCanvas, boxW, boxH, asciiLayers[asciiLayers.length - 1]);
+        }
+        // Blob Tracker samples whatever's on `finalCanvas` (content + ASCII, if any)
+        // to place its reticles, then draws directly onto that same box-local canvas
+        // — also always last, after ASCII.
+        for (const layer of blobTrackerLayers) {
+          const finalCtx = finalCanvas.getContext("2d")!;
+          drawBlobTrackerOverlay(finalCtx, finalCanvas, 0, 0, boxW, boxH, layer, layer.id);
+        }
+        ctx.drawImage(finalCanvas, 0, 0, boxW, boxH, drawX, drawY, image.displayWidth, image.displayHeight);
+      } else if (contentLayers.length > 0) {
+        renderEffectStack(
           img,
-          drawX,
-          drawY,
           image.displayWidth,
           image.displayHeight,
-          image.halftoneMode,
-          inkColor,
-          image.halftoneDotPitch,
+          contentLayers,
           image.cropZoom,
           image.cropOffsetX,
           image.cropOffsetY,
         );
+        ctx.drawImage(getGLCanvas(), 0, 0, boxW, boxH, drawX, drawY, image.displayWidth, image.displayHeight);
       } else {
         const src = computeCropSourceRect(
           img.naturalWidth,
@@ -222,6 +263,7 @@ export async function renderProjectToCanvas(project: ProjectState): Promise<HTML
         );
         ctx.drawImage(img, src.x, src.y, src.width, src.height, drawX, drawY, image.displayWidth, image.displayHeight);
       }
+
       ctx.restore();
     } else {
       const text = entry.el;

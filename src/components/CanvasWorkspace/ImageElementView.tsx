@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
@@ -6,9 +6,14 @@ import { useDrag } from "@/hooks/useDrag";
 import { useLoadedImage } from "@/hooks/useLoadedImage";
 import { snapToNearestNode, snapToAlignmentGuides } from "@/utils/grid";
 import { resolveRadialContext } from "@/utils/radialContext";
-import { drawHalftone, resolveInkColor } from "@/canvas/halftone";
+import { renderEffectStack } from "@/canvas/gl/glRenderer";
+import { getGLCanvas } from "@/canvas/gl/glContext";
 import { getEdgeAverageColor, getEdgeGlowBoxShadow } from "@/canvas/edgeBlend";
+import { renderAsciiOverlay } from "@/canvas/asciiOverlay";
+import { drawBlobTrackerOverlay } from "@/canvas/blobTrackerOverlay";
 import { edgeColorCache } from "@/canvas/analysisCaches";
+import { computeCropSourceRect } from "@/utils/coverFit";
+import { getEnabledContentLayers, getEnabledEdgeBlendLayers, getEnabledAsciiLayers, getEnabledBlobTrackerLayers } from "@/store/imageEffects";
 import {
   DISPLAY_SIZE_MAX,
   DISPLAY_SIZE_MIN,
@@ -36,7 +41,6 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const height = useProjectStore((s) => s.project.height);
   const cols = useProjectStore((s) => s.project.cols);
   const rows = useProjectStore((s) => s.project.rows);
-  const backgroundColor = useProjectStore((s) => s.project.backgroundColor);
   const updateImage = useProjectStore((s) => s.updateImage);
   const moveElementsBy = useProjectStore((s) => s.moveElementsBy);
   const allImages = useProjectStore((s) => s.project.images);
@@ -74,10 +78,24 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const isGroupDragging = isSelected && selectedElementIds.length > 1;
   const isCropping = croppingImageId === image.id;
 
-  // Only decoded when actually needed (halftone canvas, or an edge-blend color
-  // that was never eagerly cached at upload time e.g. images restored from a
-  // saved design).
-  const needsDecodedImage = image.circleMask || (image.edgeBlend && !edgeColorCache.get(image.dataUrl));
+  // Edge Blend paints a halo outside the image's own box (not a transform of its
+  // content), so enabled instances of it render via their own CSS box-shadow / canvas
+  // pre-pass below instead of the shared GPU content pipeline. Both memoized (not a
+  // new array every render) so the redraw effect below can safely depend on them
+  // without firing on every unrelated re-render.
+  const contentLayers = useMemo(() => getEnabledContentLayers(image.layers), [image.layers]);
+  const edgeBlendLayers = useMemo(() => getEnabledEdgeBlendLayers(image.layers), [image.layers]);
+  const asciiLayers = useMemo(() => getEnabledAsciiLayers(image.layers), [image.layers]);
+  const blobTrackerLayers = useMemo(() => getEnabledBlobTrackerLayers(image.layers), [image.layers]);
+  const hasContentEffectEnabled = contentLayers.length > 0;
+  // ASCII Art and Blob Tracker both need a canvas too (ASCII samples/replaces whatever
+  // content would otherwise be drawn; Blob Tracker draws its reticle overlay on top),
+  // even on their own with no GL content effect enabled.
+  const needsCanvas = hasContentEffectEnabled || asciiLayers.length > 0 || blobTrackerLayers.length > 0;
+
+  // Only decoded when actually needed (GL/ASCII canvas, or an edge-blend color that
+  // was never eagerly cached at upload time e.g. images restored from a saved design).
+  const needsDecodedImage = needsCanvas || (edgeBlendLayers.length > 0 && !edgeColorCache.get(image.dataUrl));
   const loadedImg = useLoadedImage(needsDecodedImage ? image.dataUrl : null);
 
   const setDragPreviewNode = useUIStore((s) => s.setDragPreviewNode);
@@ -87,10 +105,18 @@ export function ImageElementView({ image }: { image: ImageElement }) {
 
   // Free-form-move (anchors off) target resolution: Shift constrains the move to
   // whichever axis has moved further from the committed position (Illustrator-
-  // style controlled drag), then the result is smart-guide-snapped to the
-  // nearest row/column line or canvas mid-line — same idea as anchors-on
-  // node-snapping, but to line *alignment* instead of a lattice point, and only
+  // style controlled drag), then the result is smart-guide-snapped to the nearest
+  // row/column line, canvas mid-line, OR another element's own edge/center — same
+  // idea as anchors-on node-snapping, but to line *alignment* (against the grid AND
+  // every other image/text on the canvas) instead of a lattice point, and only
   // engaging within a small pixel threshold instead of always-on.
+  const otherElementBoxes = useMemo(
+    () => [
+      ...allImages.filter((i) => i.id !== image.id).map((i) => ({ x: i.x, y: i.y, w: i.displayWidth, h: i.displayHeight })),
+      ...allTexts.map((t) => ({ x: t.x, y: t.y, w: t.boxWidth, h: t.boxHeight })),
+    ],
+    [allImages, allTexts, image.id],
+  );
   const resolveFreeformTarget = useCallback(
     (x: number, y: number, shiftKey: boolean) => {
       let nx = x;
@@ -100,9 +126,9 @@ export function ImageElementView({ image }: { image: ImageElement }) {
         else nx = image.x;
       }
       const thresholdPx = ALIGN_GUIDE_SNAP_THRESHOLD_SCREEN_PX / zoom;
-      return snapToAlignmentGuides(nx, ny, width, height, cols, rows, thresholdPx);
+      return snapToAlignmentGuides(nx, ny, image.displayWidth, image.displayHeight, width, height, cols, rows, thresholdPx, otherElementBoxes);
     },
-    [image.x, image.y, width, height, cols, rows, zoom],
+    [image.x, image.y, image.displayWidth, image.displayHeight, width, height, cols, rows, zoom, otherElementBoxes],
   );
 
   const onPreview = useCallback(
@@ -345,17 +371,27 @@ export function ImageElementView({ image }: { image: ImageElement }) {
       if (!state) return;
       const deltaX = (e.clientX - state.startScreenX) / zoom;
       const deltaY = (e.clientY - state.startScreenY) / zoom;
+      // Use the LIVE crop zoom, not the value captured at pointer-down: a wheel
+      // (or pinch) zoom can land mid-drag, and the pan boundary must always be
+      // computed against the frame's *current* overflow, not a stale snapshot —
+      // otherwise the clamp below either lets the image drag past its true edge
+      // (stale zoom smaller than live) or locks up short of it (stale zoom
+      // bigger than live). Re-deriving from cropLiveRef.current also means this
+      // handler must set `zoom` to the live value below, not state.start.zoom —
+      // overwriting it with the stale start value would silently undo whatever
+      // the wheel handler had just set.
+      const { cropZoom: liveZoom } = cropLiveRef.current;
       // abs, not a >0-only magnitude: below zoom 1 the image renders smaller than
       // its frame (see CROP_ZOOM_MIN's doc comment), and panning there is still
       // meaningful — it slides the smaller image around within the frame instead
       // of leaving it pinned to center, e.g. tucking it into a corner. Only at
       // zoom exactly 1 (image exactly fills the frame either way) is there truly
       // nothing to pan.
-      const maxPanX = (image.displayWidth * Math.abs(state.start.zoom - 1)) / 2;
-      const maxPanY = (image.displayHeight * Math.abs(state.start.zoom - 1)) / 2;
+      const maxPanX = (image.displayWidth * Math.abs(liveZoom - 1)) / 2;
+      const maxPanY = (image.displayHeight * Math.abs(liveZoom - 1)) / 2;
       const nextOffsetX = maxPanX > 0 ? clamp(state.start.offsetX + deltaX / maxPanX, -1, 1) : 0;
       const nextOffsetY = maxPanY > 0 ? clamp(state.start.offsetY + deltaY / maxPanY, -1, 1) : 0;
-      setCropPreview({ zoom: state.start.zoom, offsetX: nextOffsetX, offsetY: nextOffsetY });
+      setCropPreview({ zoom: liveZoom, offsetX: nextOffsetX, offsetY: nextOffsetY });
     },
     [zoom, image.displayWidth, image.displayHeight],
   );
@@ -365,38 +401,59 @@ export function ImageElementView({ image }: { image: ImageElement }) {
     commitCrop();
   }, [commitCrop]);
 
-  // Redraws only when the halftone-relevant inputs change — deliberately excludes
-  // x/y, which are handled entirely by this wrapper's CSS transform below.
+  // Redraws only when the effect-relevant inputs change — deliberately excludes
+  // x/y, which are handled entirely by this wrapper's CSS transform below. Sizes
+  // off the *committed* displayWidth/Height (not a live resize-drag preview
+  // value), so an active drag just cheaply CSS-stretches this canvas's existing
+  // bitmap via the wrapper's own width/height style below, redrawing crisply
+  // only once the drag commits — same perf discipline the old halftone-only
+  // effect this replaces already relied on.
   useEffect(() => {
-    if (!image.circleMask || !loadedImg || !canvasRef.current) return;
+    if (!needsCanvas || !loadedImg || !canvasRef.current) return;
     const canvas = canvasRef.current;
-    canvas.width = Math.ceil(image.displayWidth);
-    canvas.height = Math.ceil(image.displayHeight);
+    const w = Math.ceil(image.displayWidth);
+    const h = Math.ceil(image.displayHeight);
+    canvas.width = w;
+    canvas.height = h;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
-    const inkColor = resolveInkColor(backgroundColor);
-    drawHalftone(
-      ctx,
-      loadedImg,
-      0,
-      0,
-      image.displayWidth,
-      image.displayHeight,
-      image.halftoneMode,
-      inkColor,
-      image.halftoneDotPitch,
-      cropZoom,
-      cropOffsetX,
-      cropOffsetY,
-    );
+
+    if (hasContentEffectEnabled) {
+      renderEffectStack(loadedImg, image.displayWidth, image.displayHeight, contentLayers, cropZoom, cropOffsetX, cropOffsetY);
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(getGLCanvas(), 0, 0, w, h);
+    } else {
+      // No GL content effect, but ASCII/Blob Tracker (below) still need some pixels of
+      // their own to sample from or draw over — draw the plain cropped image first.
+      const src = computeCropSourceRect(loadedImg.naturalWidth, loadedImg.naturalHeight, cropZoom, cropOffsetX, cropOffsetY);
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(loadedImg, src.x, src.y, src.width, src.height, 0, 0, w, h);
+    }
+
+    if (asciiLayers.length > 0) {
+      // Always applied last, over whatever content was just drawn — see AsciiEffect's
+      // doc comment for why this is a structural fixed position, not stack-order-driven.
+      const asciiCanvas = renderAsciiOverlay(canvas, w, h, asciiLayers[asciiLayers.length - 1]);
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(asciiCanvas, 0, 0, w, h);
+    }
+
+    // Blob Tracker samples whatever's already on `canvas` (content + ASCII, if any) to
+    // place its reticles, then draws straight onto this same identity-transformed 2D
+    // context — no rotation-safe detour needed, unlike ASCII, since this per-image
+    // canvas is never itself rotated (rotation lives on the wrapping DOM element).
+    for (const layer of blobTrackerLayers) {
+      drawBlobTrackerOverlay(ctx, canvas, 0, 0, w, h, layer, layer.id);
+    }
   }, [
     loadedImg,
     image.displayWidth,
     image.displayHeight,
-    image.circleMask,
-    image.halftoneMode,
-    image.halftoneDotPitch,
-    backgroundColor,
+    needsCanvas,
+    hasContentEffectEnabled,
+    contentLayers,
+    asciiLayers,
+    blobTrackerLayers,
     cropZoom,
     cropOffsetX,
     cropOffsetY,
@@ -437,12 +494,11 @@ export function ImageElementView({ image }: { image: ImageElement }) {
   const panX = cropOffsetX * Math.abs((box.w * cropZoom - box.w) / 2);
   const panY = cropOffsetY * Math.abs((box.h * cropZoom - box.h) / 2);
 
-  const [edgeColor, setEdgeColor] = useState<RGB | null>(() =>
-    image.edgeBlend ? (edgeColorCache.get(image.dataUrl) ?? null) : null,
-  );
+  const hasEdgeBlend = edgeBlendLayers.length > 0;
+  const [edgeColor, setEdgeColor] = useState<RGB | null>(() => (hasEdgeBlend ? (edgeColorCache.get(image.dataUrl) ?? null) : null));
 
   useEffect(() => {
-    if (!image.edgeBlend) {
+    if (!hasEdgeBlend) {
       setEdgeColor(null);
       return;
     }
@@ -456,7 +512,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
       edgeColorCache.set(image.dataUrl, computed);
       setEdgeColor(computed);
     }
-  }, [image.edgeBlend, image.dataUrl, loadedImg]);
+  }, [hasEdgeBlend, image.dataUrl, loadedImg]);
 
   return (
     <div
@@ -504,7 +560,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
         boxShadow: isCropping
           ? "0 0 0 1px rgb(0 0 0 / 0.4), 0 0 14px 2px rgb(var(--color-accent-glow) / 0.5)"
           : edgeColor
-            ? getEdgeGlowBoxShadow(edgeColor, image.edgeBlendMargin)
+            ? edgeBlendLayers.map((layer) => getEdgeGlowBoxShadow(edgeColor, layer.margin)).join(", ")
             : undefined,
       }}
     >
@@ -517,7 +573,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
         style={{ opacity: image.opacity }}
         {...cropHandlers}
       >
-        {image.circleMask ? (
+        {needsCanvas ? (
           <canvas ref={canvasRef} className="h-full w-full" />
         ) : (
           <img

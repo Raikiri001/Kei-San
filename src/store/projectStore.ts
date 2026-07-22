@@ -2,8 +2,10 @@ import { create } from "zustand";
 import { useUIStore } from "@/store/uiStore";
 import { createId } from "@/utils/id";
 import { DEFAULT_FONT_ID, DEFAULT_FONT_SIZE } from "@/constants/fonts";
-import { DOT_PITCH } from "@/canvas/halftone";
-import { resolveDefaultMargin } from "@/canvas/edgeBlend";
+import { createEffectLayer, createMixLayer } from "@/canvas/gl/effectDefaults";
+import { addToBranch, mapEffectLayer, mapGroupLayer, mapMixLayer, removeLayerById, setBranchOrder } from "@/store/imageEffects";
+import { BUILT_IN_PRESETS } from "@/presets/builtInPresets";
+import { instantiatePresetGroup } from "@/presets/instantiatePreset";
 import { computeAutoLayout } from "@/utils/autoLayout";
 import {
   DEFAULT_BACKGROUND,
@@ -16,7 +18,7 @@ import {
   DEFAULT_TEXT_BOX_WIDTH,
   DEFAULT_WIDTH,
 } from "@/constants/defaults";
-import type { ImageElement, ProjectState, TextElement } from "@/store/types";
+import type { EffectLayer, ImageElement, Layer, MixLayer, ProjectState, StackableEffect, StackableEffectType, TextElement } from "@/store/types";
 
 function createBaselineProject(): ProjectState {
   return {
@@ -36,40 +38,9 @@ function createBaselineProject(): ProjectState {
 
 type NewImageInput = Omit<
   ImageElement,
-  | "id"
-  | "x"
-  | "y"
-  | "circleMask"
-  | "halftoneMode"
-  | "halftoneDotPitch"
-  | "edgeBlend"
-  | "edgeBlendMargin"
-  | "rotation"
-  | "zIndex"
-  | "cropZoom"
-  | "cropOffsetX"
-  | "cropOffsetY"
-  | "opacity"
-  | "locked"
+  "id" | "x" | "y" | "layers" | "rotation" | "zIndex" | "cropZoom" | "cropOffsetX" | "cropOffsetY" | "opacity" | "locked"
 > &
-  Partial<
-    Pick<
-      ImageElement,
-      | "x"
-      | "y"
-      | "circleMask"
-      | "halftoneMode"
-      | "halftoneDotPitch"
-      | "edgeBlend"
-      | "edgeBlendMargin"
-      | "rotation"
-      | "cropZoom"
-      | "cropOffsetX"
-      | "cropOffsetY"
-      | "opacity"
-      | "locked"
-    >
-  >;
+  Partial<Pick<ImageElement, "x" | "y" | "layers" | "rotation" | "cropZoom" | "cropOffsetX" | "cropOffsetY" | "opacity" | "locked">>;
 
 interface ProjectStore {
   project: ProjectState;
@@ -81,6 +52,47 @@ interface ProjectStore {
   addImage: (image: NewImageInput) => string;
   updateImage: (id: string, patch: Partial<ImageElement>) => void;
   updateManyImages: (ids: string[], patch: Partial<ImageElement>) => void;
+  /** Appends a fresh, default-param instance of `type` to each listed image's layer
+   * stack — clicking an Effects gallery card always ADDS, never toggles/replaces, so
+   * the same effect type can be stacked more than once. */
+  addEffectLayer: (ids: string[], type: StackableEffectType) => void;
+  /** Appends a fresh, independently-editable group layer (see instantiatePresetGroup)
+   * for the given built-in preset — same "always adds" semantics as addEffectLayer,
+   * so presets and individual effects (and repeat applications of the same preset)
+   * freely stack rather than one replacing another. */
+  addPresetGroupLayer: (ids: string[], presetId: string) => void;
+  /** Shallow-merges `patch` into one effect layer (top-level or nested inside a preset
+   * group) by its own id — covers `enabled` toggles, param edits (type-checked against
+   * that effect's own param shape), and the universal `blend`/`mask` fields every
+   * layer carries regardless of effect type. `blend`/`mask` patches must include the
+   * whole object (not a deep-partial) since this is a shallow merge at the layer level. */
+  updateEffectLayer: <T extends StackableEffectType>(
+    ids: string[],
+    layerId: string,
+    patch: Partial<Omit<Extract<StackableEffect, { type: T }>, "type">> & Partial<Pick<EffectLayer, "blend" | "mask">>,
+  ) => void;
+  /** Shallow-merges `patch` into one top-level preset-group layer by id — `enabled`
+   * (the group's own master toggle) and/or `expanded` (UI-only). */
+  updateGroupLayer: (ids: string[], groupId: string, patch: { enabled?: boolean; expanded?: boolean }) => void;
+  /** Removes one layer by id — a top-level effect/group layer, or a child nested
+   * inside a group — from each listed image's stack. */
+  deleteLayer: (ids: string[], layerId: string) => void;
+  /** Applies a drag-reordered top-level layer stack (as shown in the Active Stack
+   * panel) — children within a group keep the fixed order they were created with. */
+  setLayerOrder: (ids: string[], newOrder: string[]) => void;
+  /** Appends a fresh Layer Mix node (both branches empty) — same "always adds"
+   * semantics as addEffectLayer/addPresetGroupLayer. */
+  addMixLayer: (ids: string[]) => void;
+  /** Shallow-merges `patch` into one top-level Layer Mix's own fields — `enabled`,
+   * `expanded` (UI-only), or its universal `blend`/`mask` (not its branch children —
+   * those go through updateEffectLayer/deleteLayer by the child's own id, same as any
+   * other effect layer, since mapEffectLayer/removeLayerById already search inside
+   * both branches). */
+  updateMixLayer: (ids: string[], mixLayerId: string, patch: Partial<Pick<MixLayer, "enabled" | "expanded" | "blend" | "mask">>) => void;
+  /** Appends a fresh, default-param effect layer to one branch of a Layer Mix. */
+  addBranchEffectLayer: (ids: string[], mixLayerId: string, branch: "a" | "b", type: StackableEffectType) => void;
+  /** Applies a drag-reordered branch (as shown in a MixLayerRow's own two mini stacks). */
+  setBranchLayerOrder: (ids: string[], mixLayerId: string, branch: "a" | "b", newOrder: string[]) => void;
   deleteImage: (id: string) => void;
   addText: (partial?: Partial<TextElement>) => string;
   updateText: (id: string, patch: Partial<TextElement>) => void;
@@ -175,11 +187,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     const cascade = project.images.length % 6;
     const image: ImageElement = {
       id,
-      circleMask: false,
-      halftoneMode: "color",
-      halftoneDotPitch: DOT_PITCH,
-      edgeBlend: false,
-      edgeBlendMargin: resolveDefaultMargin(partial.displayWidth, partial.displayHeight),
+      layers: [],
       rotation: 0,
       cropZoom: 1,
       cropOffsetX: 0,
@@ -215,6 +223,147 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
       project: {
         ...s.project,
         images: s.project.images.map((i) => (idSet.has(i.id) ? { ...i, ...patch } : i)),
+        updatedAt: Date.now(),
+      },
+    }));
+    touchDirty();
+  },
+
+  addEffectLayer: (ids, type) => {
+    const idSet = new Set(ids);
+    set((s) => ({
+      project: {
+        ...s.project,
+        images: s.project.images.map((img) =>
+          idSet.has(img.id) ? { ...img, layers: [...img.layers, createEffectLayer(type)] } : img,
+        ),
+        updatedAt: Date.now(),
+      },
+    }));
+    touchDirty();
+  },
+
+  addPresetGroupLayer: (ids, presetId) => {
+    const preset = BUILT_IN_PRESETS.find((p) => p.id === presetId);
+    if (!preset) return;
+    const idSet = new Set(ids);
+    set((s) => ({
+      project: {
+        ...s.project,
+        images: s.project.images.map((img) =>
+          idSet.has(img.id) ? { ...img, layers: [...img.layers, instantiatePresetGroup(preset)] } : img,
+        ),
+        updatedAt: Date.now(),
+      },
+    }));
+    touchDirty();
+  },
+
+  updateEffectLayer: (ids, layerId, patch) => {
+    const idSet = new Set(ids);
+    set((s) => ({
+      project: {
+        ...s.project,
+        images: s.project.images.map((img) =>
+          idSet.has(img.id) ? { ...img, layers: mapEffectLayer(img.layers, layerId, (layer) => ({ ...layer, ...patch })) } : img,
+        ),
+        updatedAt: Date.now(),
+      },
+    }));
+    touchDirty();
+  },
+
+  updateGroupLayer: (ids, groupId, patch) => {
+    const idSet = new Set(ids);
+    set((s) => ({
+      project: {
+        ...s.project,
+        images: s.project.images.map((img) =>
+          idSet.has(img.id) ? { ...img, layers: mapGroupLayer(img.layers, groupId, (group) => ({ ...group, ...patch })) } : img,
+        ),
+        updatedAt: Date.now(),
+      },
+    }));
+    touchDirty();
+  },
+
+  deleteLayer: (ids, layerId) => {
+    const idSet = new Set(ids);
+    set((s) => ({
+      project: {
+        ...s.project,
+        images: s.project.images.map((img) => (idSet.has(img.id) ? { ...img, layers: removeLayerById(img.layers, layerId) } : img)),
+        updatedAt: Date.now(),
+      },
+    }));
+    touchDirty();
+  },
+
+  setLayerOrder: (ids, newOrder) => {
+    const idSet = new Set(ids);
+    set((s) => ({
+      project: {
+        ...s.project,
+        images: s.project.images.map((img) => {
+          if (!idSet.has(img.id)) return img;
+          const byId = new Map(img.layers.map((l) => [l.id, l]));
+          const reordered = newOrder.map((id) => byId.get(id)).filter((l): l is Layer => !!l);
+          return { ...img, layers: reordered };
+        }),
+        updatedAt: Date.now(),
+      },
+    }));
+    touchDirty();
+  },
+
+  addMixLayer: (ids) => {
+    const idSet = new Set(ids);
+    set((s) => ({
+      project: {
+        ...s.project,
+        images: s.project.images.map((img) => (idSet.has(img.id) ? { ...img, layers: [...img.layers, createMixLayer()] } : img)),
+        updatedAt: Date.now(),
+      },
+    }));
+    touchDirty();
+  },
+
+  updateMixLayer: (ids, mixLayerId, patch) => {
+    const idSet = new Set(ids);
+    set((s) => ({
+      project: {
+        ...s.project,
+        images: s.project.images.map((img) =>
+          idSet.has(img.id) ? { ...img, layers: mapMixLayer(img.layers, mixLayerId, (mix) => ({ ...mix, ...patch })) } : img,
+        ),
+        updatedAt: Date.now(),
+      },
+    }));
+    touchDirty();
+  },
+
+  addBranchEffectLayer: (ids, mixLayerId, branch, type) => {
+    const idSet = new Set(ids);
+    set((s) => ({
+      project: {
+        ...s.project,
+        images: s.project.images.map((img) =>
+          idSet.has(img.id) ? { ...img, layers: addToBranch(img.layers, mixLayerId, branch, createEffectLayer(type)) } : img,
+        ),
+        updatedAt: Date.now(),
+      },
+    }));
+    touchDirty();
+  },
+
+  setBranchLayerOrder: (ids, mixLayerId, branch, newOrder) => {
+    const idSet = new Set(ids);
+    set((s) => ({
+      project: {
+        ...s.project,
+        images: s.project.images.map((img) =>
+          idSet.has(img.id) ? { ...img, layers: setBranchOrder(img.layers, mixLayerId, branch, newOrder) } : img,
+        ),
         updatedAt: Date.now(),
       },
     }));

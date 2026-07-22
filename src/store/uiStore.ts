@@ -33,6 +33,10 @@ interface UIStore {
   radialMenu: RadialMenuState | null;
   designsDrawerOpen: boolean;
   uploadDialogOpen: boolean;
+  /** The Image Effects gallery drawer — opened for a specific set of target image ids,
+   * mirroring radialMenu's own targetIds convention (see openEffectsDrawer below). */
+  effectsDrawerOpen: boolean;
+  effectsDrawerTargetIds: string[];
   isDirty: boolean;
   /** The grid node an in-progress drag would snap to on release — drives the live anchor highlight. */
   dragPreviewNode: GridNode | null;
@@ -76,6 +80,8 @@ interface UIStore {
   moveRadialMenu: (x: number, y: number) => void;
   setDesignsDrawerOpen: (open: boolean) => void;
   setUploadDialogOpen: (open: boolean) => void;
+  openEffectsDrawer: (targetIds: string[]) => void;
+  setEffectsDrawerOpen: (open: boolean) => void;
   setDragPreviewNode: (node: GridNode | null) => void;
   setAlignmentGuide: (x: number | null, y: number | null) => void;
   setEditingTextId: (id: string | null) => void;
@@ -99,13 +105,15 @@ export const useUIStore = create<UIStore>((set, get) => ({
   panToolActive: false,
   isSpacePanning: false,
   aspectLocked: false,
-  showAnchors: true,
+  showAnchors: false,
   theme: "dark",
   selectedElementIds: [],
   groupDragOffset: null,
   radialMenu: null,
   designsDrawerOpen: false,
   uploadDialogOpen: false,
+  effectsDrawerOpen: false,
+  effectsDrawerTargetIds: [],
   isDirty: false,
   dragPreviewNode: null,
   alignmentGuideX: null,
@@ -152,6 +160,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   setDesignsDrawerOpen: (designsDrawerOpen) => set({ designsDrawerOpen }),
   setUploadDialogOpen: (uploadDialogOpen) => set({ uploadDialogOpen }),
+  openEffectsDrawer: (targetIds) => set({ effectsDrawerOpen: true, effectsDrawerTargetIds: targetIds }),
+  setEffectsDrawerOpen: (effectsDrawerOpen) => set({ effectsDrawerOpen }),
   setDragPreviewNode: (dragPreviewNode) => set({ dragPreviewNode }),
   setAlignmentGuide: (alignmentGuideX, alignmentGuideY) => set({ alignmentGuideX, alignmentGuideY }),
   setEditingTextId: (editingTextId) => set({ editingTextId }),

@@ -21,6 +21,14 @@ export function HalftoneIcon() {
   );
 }
 
+export function ImageEffectsIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M10 3.5 12 8l4.5 0.7-3.3 3.1.8 4.4L10 14l-4 2.2.8-4.4-3.3-3.1L8 8Z" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function EdgeGlowIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">

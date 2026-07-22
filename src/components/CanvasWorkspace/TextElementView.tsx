@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import clsx from "clsx";
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
@@ -64,7 +64,15 @@ export function TextElementView({ text }: { text: TextElement }) {
 
   // See ImageElementView's identical helper for the full rationale: Shift
   // constrains free-form (anchors-off) moves to one axis, then the result is
-  // smart-guide-snapped to the nearest row/column line or canvas mid-line.
+  // smart-guide-snapped to the nearest row/column line, canvas mid-line, or
+  // another element's own edge/center.
+  const otherElementBoxes = useMemo(
+    () => [
+      ...allImages.map((i) => ({ x: i.x, y: i.y, w: i.displayWidth, h: i.displayHeight })),
+      ...allTexts.filter((t) => t.id !== text.id).map((t) => ({ x: t.x, y: t.y, w: t.boxWidth, h: t.boxHeight })),
+    ],
+    [allImages, allTexts, text.id],
+  );
   const resolveFreeformTarget = useCallback(
     (x: number, y: number, shiftKey: boolean) => {
       let nx = x;
@@ -74,9 +82,9 @@ export function TextElementView({ text }: { text: TextElement }) {
         else nx = text.x;
       }
       const thresholdPx = ALIGN_GUIDE_SNAP_THRESHOLD_SCREEN_PX / zoom;
-      return snapToAlignmentGuides(nx, ny, width, height, cols, rows, thresholdPx);
+      return snapToAlignmentGuides(nx, ny, text.boxWidth, text.boxHeight, width, height, cols, rows, thresholdPx, otherElementBoxes);
     },
-    [text.x, text.y, width, height, cols, rows, zoom],
+    [text.x, text.y, text.boxWidth, text.boxHeight, width, height, cols, rows, zoom, otherElementBoxes],
   );
 
   const onPreview = useCallback(

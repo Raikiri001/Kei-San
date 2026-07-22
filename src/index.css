@@ -178,6 +178,61 @@ body {
   border-radius: 4px;
 }
 
+/* Every numeric field in this app pairs with its own explicit Stepper +/-
+   buttons, so the browser's native up/down spinner on <input type="number">
+   is a redundant, visually clashing second set of increment controls —
+   hidden globally rather than per call site. */
+input[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* HUD slider: a thin flat track with a small vertical tick thumb — deliberately
+   not a filled/gradient progress bar, matching this app's flat-signal-light
+   aesthetic rather than a typical rounded-knob slider. */
+.hud-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 16px;
+  background: transparent;
+  cursor: pointer;
+}
+.hud-slider::-webkit-slider-runnable-track {
+  height: 1px;
+  background: rgb(var(--chrome-border) / 0.35);
+}
+.hud-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 2px;
+  height: 14px;
+  margin-top: -6.5px;
+  background: rgb(var(--color-accent-glow));
+  box-shadow: 0 0 6px rgb(var(--color-accent-glow) / 0.7);
+  border-radius: 1px;
+}
+.hud-slider::-moz-range-track {
+  height: 1px;
+  background: rgb(var(--chrome-border) / 0.35);
+}
+.hud-slider::-moz-range-thumb {
+  width: 2px;
+  height: 14px;
+  background: rgb(var(--color-accent-glow));
+  box-shadow: 0 0 6px rgb(var(--color-accent-glow) / 0.7);
+  border: none;
+  border-radius: 1px;
+}
+.hud-slider:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* --- HUD accent utilities --------------------------------------------------- */
 
 /* Bolder neon glow than the flat corner-frame border, for hover/press/active

@@ -4,6 +4,7 @@ import { CanvasWorkspace } from "@/components/CanvasWorkspace/CanvasWorkspace";
 import { ControlDock } from "@/components/ControlDock/ControlDock";
 import { RadialMenu } from "@/components/RadialMenu/RadialMenu";
 import { DesignsDrawer } from "@/components/DesignsDrawer/DesignsDrawer";
+import { EffectsDrawer } from "@/components/EffectsDrawer/EffectsDrawer";
 import { UploadDialog } from "@/components/UploadDialog/UploadDialog";
 import { DiscardConfirmBar } from "@/components/DiscardConfirmBar";
 import { LoadingScreen } from "@/components/LoadingScreen";
@@ -28,6 +29,7 @@ function App() {
 
       <RadialMenu />
       <DesignsDrawer />
+      <EffectsDrawer />
       <UploadDialog />
       <DiscardConfirmBar />
       <AnimatePresence>{fontProgress < 1 && <LoadingScreen key="loading" progress={fontProgress} />}</AnimatePresence>

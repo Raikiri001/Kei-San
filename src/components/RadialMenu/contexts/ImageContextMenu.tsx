@@ -1,6 +1,7 @@
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
 import { useDraftNumber } from "@/hooks/useDraftNumber";
+import { flattenEnabledEffectLayers } from "@/store/imageEffects";
 import { NumberStepperField } from "@/components/RadialMenu/NumberStepperField";
 import { fieldLabelClass } from "@/components/RadialMenu/inputStyles";
 import { DISPLAY_SIZE_MAX, DISPLAY_SIZE_MIN, RESCALE_STEP_PX } from "@/constants/defaults";
@@ -10,8 +11,7 @@ import {
   CropIcon,
   DeleteIcon,
   DimensionsIcon,
-  EdgeGlowIcon,
-  HalftoneIcon,
+  ImageEffectsIcon,
   LayersIcon,
   LockIcon,
   OpacityIcon,
@@ -21,14 +21,6 @@ import {
   UnlockIcon,
 } from "@/components/RadialMenu/icons";
 import type { RingItem } from "@/components/RadialMenu/RadialMenu";
-
-const DOT_PITCH_MIN = 4;
-const DOT_PITCH_MAX = 40;
-const DOT_PITCH_STEP = 2;
-
-const BLEND_MARGIN_MIN = 8;
-const BLEND_MARGIN_MAX = 400;
-const BLEND_MARGIN_STEP = 10;
 
 const OPACITY_PERCENT_MIN = 0;
 const OPACITY_PERCENT_MAX = 100;
@@ -54,6 +46,7 @@ export function useImageContextItems(targetIds: string[]): RingItem[] {
   const sendBackwardMany = useProjectStore((s) => s.sendBackwardMany);
   const sendToBackMany = useProjectStore((s) => s.sendToBackMany);
   const closeRadialMenu = useUIStore((s) => s.closeRadialMenu);
+  const openEffectsDrawer = useUIStore((s) => s.openEffectsDrawer);
   const setCroppingImageId = useUIStore((s) => s.setCroppingImageId);
   const setSelectedElementId = useUIStore((s) => s.setSelectedElementId);
   const aspectLocked = useUIStore((s) => s.aspectLocked);
@@ -80,18 +73,6 @@ export function useImageContextItems(targetIds: string[]): RingItem[] {
     onCommit: (displayHeight) => updateManyImages(ids, { displayHeight }),
   });
 
-  const dotPitchDraft = useDraftNumber(image ? image.halftoneDotPitch : 0, {
-    min: DOT_PITCH_MIN,
-    max: DOT_PITCH_MAX,
-    onCommit: (halftoneDotPitch) => updateManyImages(ids, { halftoneDotPitch }),
-  });
-
-  const blendMarginDraft = useDraftNumber(image ? Math.round(image.edgeBlendMargin) : 0, {
-    min: BLEND_MARGIN_MIN,
-    max: BLEND_MARGIN_MAX,
-    onCommit: (edgeBlendMargin) => updateManyImages(ids, { edgeBlendMargin }),
-  });
-
   const opacityDraft = useDraftNumber(image ? Math.round(image.opacity * 100) : 100, {
     min: OPACITY_PERCENT_MIN,
     max: OPACITY_PERCENT_MAX,
@@ -100,75 +81,6 @@ export function useImageContextItems(targetIds: string[]): RingItem[] {
 
   if (!image) return [];
   const id = image.id;
-
-  // Mode/intensity sub-items are always present (never conditionally added or
-  // removed) so the ring's item count — and therefore every pill's angular
-  // position, including the toggle itself — never shifts when the toggle is
-  // flipped. They're just visually disabled while their toggle is off.
-  const halftoneSubItems: RingItem[] = [
-    {
-      key: "halftone-toggle",
-      icon: <HalftoneIcon />,
-      label: image.circleMask ? "Halftone: On" : "Halftone: Off",
-      status: image.circleMask ? "on" : "off",
-      onClick: () => updateManyImages(ids, { circleMask: !image.circleMask }),
-    },
-    {
-      key: "halftone-mode",
-      icon: <HalftoneIcon />,
-      label: image.halftoneMode === "color" ? "Mode: Photo" : "Mode: Ink",
-      disabled: !image.circleMask,
-      onClick: () => updateManyImages(ids, { halftoneMode: image.halftoneMode === "color" ? "ink" : "color" }),
-    },
-    {
-      key: "halftone-intensity",
-      icon: <HalftoneIcon />,
-      label: "Dot Size",
-      wide: true,
-      disabled: !image.circleMask,
-      expandedContent: (
-        <NumberStepperField
-          draft={dotPitchDraft}
-          onDec={() => updateManyImages(ids, { halftoneDotPitch: clamp(image.halftoneDotPitch - DOT_PITCH_STEP, DOT_PITCH_MIN, DOT_PITCH_MAX) })}
-          onInc={() => updateManyImages(ids, { halftoneDotPitch: clamp(image.halftoneDotPitch + DOT_PITCH_STEP, DOT_PITCH_MIN, DOT_PITCH_MAX) })}
-          min={DOT_PITCH_MIN}
-          max={DOT_PITCH_MAX}
-          ariaLabel="Halftone dot size in pixels"
-        />
-      ),
-    },
-  ];
-
-  const edgeBlendSubItems: RingItem[] = [
-    {
-      key: "edge-blend-toggle",
-      icon: <EdgeGlowIcon />,
-      label: image.edgeBlend ? "Edge Blend: On" : "Edge Blend: Off",
-      status: image.edgeBlend ? "on" : "off",
-      onClick: () => updateManyImages(ids, { edgeBlend: !image.edgeBlend }),
-    },
-    {
-      key: "edge-blend-size",
-      icon: <EdgeGlowIcon />,
-      label: "Blend Size",
-      wide: true,
-      disabled: !image.edgeBlend,
-      expandedContent: (
-        <NumberStepperField
-          draft={blendMarginDraft}
-          onDec={() =>
-            updateManyImages(ids, { edgeBlendMargin: clamp(image.edgeBlendMargin - BLEND_MARGIN_STEP, BLEND_MARGIN_MIN, BLEND_MARGIN_MAX) })
-          }
-          onInc={() =>
-            updateManyImages(ids, { edgeBlendMargin: clamp(image.edgeBlendMargin + BLEND_MARGIN_STEP, BLEND_MARGIN_MIN, BLEND_MARGIN_MAX) })
-          }
-          min={BLEND_MARGIN_MIN}
-          max={BLEND_MARGIN_MAX}
-          ariaLabel="Edge blend size in pixels"
-        />
-      ),
-    },
-  ];
 
   // Width and Height used to be two separate drill-down pills, each expanding
   // into its own long horizontal bar (and sharing the same generic SizeIcon as
@@ -262,18 +174,14 @@ export function useImageContextItems(targetIds: string[]): RingItem[] {
 
   const items: RingItem[] = [
     {
-      key: "halftone",
-      icon: <HalftoneIcon />,
-      label: "Halftone",
-      active: image.circleMask,
-      subItems: halftoneSubItems,
-    },
-    {
-      key: "edge-blend",
-      icon: <EdgeGlowIcon />,
-      label: "Edge Blend",
-      active: image.edgeBlend,
-      subItems: edgeBlendSubItems,
+      key: "image-effects",
+      icon: <ImageEffectsIcon />,
+      label: "Image Effects",
+      active: flattenEnabledEffectLayers(image.layers).length > 0,
+      onClick: () => {
+        openEffectsDrawer(ids);
+        closeRadialMenu();
+      },
     },
     {
       key: "opacity",
