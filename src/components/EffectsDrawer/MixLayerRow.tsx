@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { DeleteIcon } from "@/components/RadialMenu/icons";
 import { LayerRow } from "@/components/EffectsDrawer/LayerRow";
 import { BRANCH_EFFECT_TYPES, EFFECT_LABELS } from "@/components/EffectsDrawer/effectLabels";
+import { InfoTooltip } from "@/components/InfoTooltip";
 import type { EffectLayer, MixLayer, StackableEffectType } from "@/store/types";
 
 function ChevronIcon({ expanded }: { expanded: boolean }) {
@@ -73,7 +74,7 @@ function BranchList({ label, layers, onReorder, onToggle, onDelete, onSelect, se
     <div className="flex flex-col gap-2">
       <span className="text-[10px] uppercase tracking-wide opacity-45">{label}</span>
       {layers.length === 0 ? (
-        <p className="text-[10px] opacity-40">Empty — {label === "Branch B" ? "passes the pre-mix image through unchanged." : "add an effect below."}</p>
+        <p className="text-[10px] opacity-40">Empty. {label === "Branch B" ? "Passes the pre-mix image through unchanged." : "Add an effect below."}</p>
       ) : (
         <Reorder.Group axis="y" values={localOrder} onReorder={setLocalOrder} className="flex flex-col gap-2">
           {localOrder.map((id) => {
@@ -136,12 +137,25 @@ export function MixLayerRow({
 }: MixLayerRowProps) {
   return (
     <div className="flex flex-col gap-2">
-      <div className={clsx("group glass-panel flex items-center gap-2 p-3 transition-colors", mix.id === selectedLayerId && "border-accent/60")}>
+      <div
+        className={clsx(
+          "group glass-panel flex items-center gap-2 rounded-xl p-3 transition-colors",
+          mix.id === selectedLayerId &&
+            "border-accent bg-[rgb(var(--color-accent-glow)/0.16)] shadow-[0_0_0_1px_var(--color-accent),0_0_20px_rgb(var(--color-accent-glow)/0.35)]",
+        )}
+      >
         {dragHandle}
         <button type="button" onClick={onToggleExpanded} aria-label={mix.expanded ? "Collapse" : "Expand"} className="press-scale flex h-5 w-5 items-center justify-center">
           <ChevronIcon expanded={mix.expanded} />
         </button>
-        <button type="button" onClick={() => onSelect(mix.id)} className="flex-1 truncate text-left text-[12px] uppercase tracking-wide">
+        <button
+          type="button"
+          onClick={() => onSelect(mix.id)}
+          className={clsx(
+            "flex-1 truncate text-left text-[12px] uppercase tracking-wide",
+            mix.id === selectedLayerId && "font-semibold text-accent",
+          )}
+        >
           Layer Mix
         </button>
         <button
@@ -171,7 +185,11 @@ export function MixLayerRow({
       </div>
 
       {mix.expanded && (
-        <div className="glass-panel ml-5 flex flex-col gap-4 border-l-2 border-l-accent/30 p-3">
+        <div className="glass-panel ml-5 flex flex-col gap-4 rounded-2xl border-l-2 border-l-accent/30 p-3">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] uppercase tracking-wide opacity-45">Branches</span>
+            <InfoTooltip text='Select "Layer Mix" above to set how Branch A combines over Branch B.' label="About Branches" />
+          </div>
           <div className="grid grid-cols-2 gap-4">
             <BranchList
               label="Branch A"
@@ -194,7 +212,6 @@ export function MixLayerRow({
               onAdd={(type) => onAddToBranch("b", type)}
             />
           </div>
-          <p className="text-[10px] uppercase tracking-wide opacity-45">Select "Layer Mix" above to set how Branch A combines over Branch B.</p>
         </div>
       )}
     </div>

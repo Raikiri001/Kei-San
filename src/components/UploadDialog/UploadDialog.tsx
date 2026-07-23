@@ -60,12 +60,9 @@ export function UploadDialog() {
         {/* Fixed neutral scrim (not a --chrome-* token) is intentional: its job is
             universal page-dimming behind the dialog regardless of theme — tokenizing it
             to the light theme's near-white --chrome-bg would make it disappear. */}
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] data-[state=open]:animate-[fade-in_150ms_ease-out]" />
-        <Dialog.Content className="glass-panel corner-frame fixed left-1/2 top-1/2 z-50 w-[380px] -translate-x-1/2 -translate-y-1/2 p-5 outline-none data-[state=open]:animate-[fade-in_150ms_ease-out]">
-          <span className="corner-tl" />
-          <span className="corner-bl" />
-          <span className="corner-br" />
-          <Dialog.Title className="mb-4 text-[12px] uppercase tracking-wide">Upload Image</Dialog.Title>
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] data-[state=open]:animate-[fade-in_150ms_ease-out] data-[state=closed]:animate-[fade-out_120ms_ease-in]" />
+        <Dialog.Content className="glass-panel fixed left-1/2 top-1/2 z-50 w-[420px] -translate-x-1/2 -translate-y-1/2 rounded-3xl p-7 outline-none data-[state=open]:animate-[glass-in_260ms_cubic-bezier(0.22,1,0.36,1)] data-[state=closed]:animate-[glass-out_170ms_cubic-bezier(0.22,1,0.36,1)]">
+          <Dialog.Title className="mb-5 text-[13px] font-bold uppercase tracking-wide">Upload Image</Dialog.Title>
 
           <button
             type="button"
@@ -76,8 +73,8 @@ export function UploadDialog() {
             }}
             onDragLeave={() => setIsDraggingOver(false)}
             onDrop={handleDrop}
-            className={`flex w-full flex-col items-center justify-center gap-3 rounded border-2 border-dashed px-6 py-10 text-center transition-colors ${
-              isDraggingOver ? "border-accent/70 text-accent" : "border-[rgb(var(--chrome-border)/0.2)] opacity-80"
+            className={`flex w-full flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed px-6 py-12 text-center transition-colors ${
+              isDraggingOver ? "border-accent/70 text-accent" : "border-[rgb(var(--chrome-border)/0.3)] opacity-80"
             }`}
           >
             <span className="flex h-7 w-7 items-center justify-center">

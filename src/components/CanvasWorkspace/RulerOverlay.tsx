@@ -11,8 +11,13 @@ interface RulerOverlayProps {
   hoverPos: { x: number; y: number } | null;
 }
 
-const RULER_THICKNESS = 22;
+const RULER_THICKNESS = 40;
 const TICK_LENGTH = 6;
+// Both the plain tick labels and the accent readout pill anchor at this same
+// distance from the bar's canvas-facing edge, so the live coordinate reads as
+// sitting "on the same line" as the ordinary tick numbers instead of floating
+// at its own height.
+const LABEL_INSET = 9;
 
 // "Nice" canvas-px intervals to choose between — picked so the on-screen spacing
 // between labeled ticks stays legible at any zoom level, instead of always drawing
@@ -39,6 +44,11 @@ function buildTicks(sizeCanvasPx: number, interval: number): number[] {
  * regardless of zoom — only each tick's position moves via `originX/Y + value * zoom`.
  * Tick interval is chosen per-zoom from a "nice number" set so labels never crowd
  * together at low zoom or thin out uselessly at high zoom.
+ *
+ * Deliberately no `overflow-hidden` on either bar: the accent readout pill below
+ * needs room to render its full rounded pill shape without getting clipped by the
+ * bar's own edge, and off-screen ticks are already culled in JS (the `left`/`top`
+ * bounds checks below), not by CSS clipping.
  */
 export function RulerOverlay({ width, height, zoom, originX, originY, hoverPos }: RulerOverlayProps) {
   const interval = pickTickInterval(zoom);
@@ -50,18 +60,15 @@ export function RulerOverlay({ width, height, zoom, originX, originY, hoverPos }
 
   return (
     <>
-      <div
-        className="glass-panel pointer-events-none absolute inset-x-0 top-0 z-10 overflow-hidden"
-        style={{ height: RULER_THICKNESS }}
-      >
+      <div className="glass-panel pointer-events-none absolute inset-x-0 top-0 z-10" style={{ height: RULER_THICKNESS }}>
         {colTicks.map((x) => {
           const left = originX + x * zoom;
           if (left < -40 || left > 100000) return null;
           return (
             <div key={x} className="absolute bottom-0" style={{ left }}>
               <span
-                className="absolute bottom-0 left-0.5 whitespace-nowrap text-[9px] tabular-nums opacity-60"
-                style={{ color: "rgb(var(--chrome-text-dim))" }}
+                className="font-mono absolute left-1 whitespace-nowrap text-[9px] tabular-nums opacity-60"
+                style={{ bottom: LABEL_INSET, color: "rgb(var(--chrome-text-dim))" }}
               >
                 {x}
               </span>
@@ -79,11 +86,12 @@ export function RulerOverlay({ width, height, zoom, originX, originY, hoverPos }
               style={{ left: originX + hoverPos.x * zoom, width: 1, background: "var(--color-accent)" }}
             />
             <div
-              className="absolute top-0.5 -translate-x-1/2 whitespace-nowrap rounded px-1 text-[9px] tabular-nums"
+              className="font-mono absolute -translate-x-1/2 whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-medium leading-none tabular-nums shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
               style={{
                 left: originX + hoverPos.x * zoom,
-                color: "var(--color-accent)",
-                background: "rgb(var(--chrome-bg) / 0.9)",
+                bottom: LABEL_INSET - 2,
+                color: "rgb(var(--chrome-text))",
+                background: "var(--color-accent)",
               }}
             >
               {Math.round(hoverPos.x)}
@@ -92,22 +100,17 @@ export function RulerOverlay({ width, height, zoom, originX, originY, hoverPos }
         )}
       </div>
 
-      <div
-        className="glass-panel pointer-events-none absolute inset-y-0 left-0 z-10 overflow-hidden"
-        style={{ width: RULER_THICKNESS }}
-      >
+      <div className="glass-panel pointer-events-none absolute inset-y-0 left-0 z-10" style={{ width: RULER_THICKNESS }}>
         {rowTicks.map((y) => {
           const top = originY + y * zoom;
           if (top < -40 || top > 100000) return null;
           return (
             <div key={y} className="absolute right-0" style={{ top }}>
+              {/* Upright, not rotated — a sideways-reading ruler label is
+                  harder to scan than just letting the number sit normally. */}
               <span
-                className="absolute right-1 top-0 whitespace-nowrap text-[9px] tabular-nums opacity-60"
-                style={{
-                  color: "rgb(var(--chrome-text-dim))",
-                  transform: "translateY(-100%) rotate(-90deg)",
-                  transformOrigin: "right bottom",
-                }}
+                className="font-mono absolute top-1 whitespace-nowrap text-[9px] tabular-nums opacity-60"
+                style={{ right: LABEL_INSET, color: "rgb(var(--chrome-text-dim))" }}
               >
                 {y}
               </span>
@@ -125,11 +128,11 @@ export function RulerOverlay({ width, height, zoom, originX, originY, hoverPos }
               style={{ top: originY + hoverPos.y * zoom, height: 1, background: "var(--color-accent)" }}
             />
             <div
-              className="absolute left-0.5 -translate-y-1/2 whitespace-nowrap rounded px-1 text-[9px] tabular-nums"
+              className="font-mono absolute left-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-medium leading-none tabular-nums shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
               style={{
                 top: originY + hoverPos.y * zoom,
-                color: "var(--color-accent)",
-                background: "rgb(var(--chrome-bg) / 0.9)",
+                color: "rgb(var(--chrome-text))",
+                background: "var(--color-accent)",
               }}
             >
               {Math.round(hoverPos.y)}

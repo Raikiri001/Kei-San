@@ -1,5 +1,6 @@
 import { useCallback, useId, useRef } from "react";
 import { EffectPreviewStage } from "@/components/EffectsDrawer/EffectPreviewStage";
+import { InfoTooltip } from "@/components/InfoTooltip";
 import type { EffectLayer } from "@/store/types";
 
 const STAGE_W = 280;
@@ -133,7 +134,13 @@ export function CircleRegionEditor({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[11px] uppercase tracking-wide opacity-70">{label}</span>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] uppercase tracking-wide opacity-70">{label}</span>
+        <InfoTooltip
+          text={`Drag the center to move, the white handles to resize${showRotation ? ", the green handle to rotate" : ""}.`}
+          label={`About ${label}`}
+        />
+      </div>
       <div ref={stageRef}>
         <EffectPreviewStage loadedImg={loadedImg} layers={previewLayers} width={STAGE_W} height={STAGE_H}>
           {dimOutside && (
@@ -210,7 +217,6 @@ export function CircleRegionEditor({
           )}
         </EffectPreviewStage>
       </div>
-      <p className="text-[10px] opacity-40">Drag the center to move, the white handles to resize{showRotation ? ", the green handle to rotate" : ""}.</p>
     </div>
   );
 }

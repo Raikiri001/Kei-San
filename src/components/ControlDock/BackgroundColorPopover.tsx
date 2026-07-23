@@ -70,10 +70,7 @@ export function BackgroundColorPopover() {
       />
 
       {open && (
-        <div className="glass-panel corner-frame radial-appear absolute left-0 top-full z-40 mt-2 p-2">
-          <span className="corner-tl" />
-          <span className="corner-bl" />
-          <span className="corner-br" />
+        <div className="glass-panel radial-appear absolute left-0 top-full z-40 mt-3 rounded-3xl p-3">
           <ColorPickerPanel
             suggestionGroups={suggestionGroups}
             value={backgroundColor}

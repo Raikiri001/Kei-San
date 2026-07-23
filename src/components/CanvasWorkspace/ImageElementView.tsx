@@ -592,7 +592,7 @@ export function ImageElementView({ image }: { image: ImageElement }) {
 
       {isCropping && (
         <div
-          className="glass-panel absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap px-2.5 py-1 text-[10px] uppercase tracking-wide opacity-80"
+          className="glass-panel absolute left-1/2 top-full mt-2 -translate-x-1/2 whitespace-nowrap rounded-full px-3 py-1 text-[10px] uppercase tracking-wide opacity-80"
           style={{ transform: `translate(-50%, 0) rotate(${-rotation}deg)` }}
         >
           Scroll to zoom · Drag to pan · Esc to finish

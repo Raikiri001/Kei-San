@@ -7,12 +7,13 @@ import { saveCurrentProject } from "@/store/persistence";
 import { GRID_PRESETS, RESOLUTION_PRESETS } from "@/constants/defaults";
 import { CanvasSettingsIcon } from "@/components/RadialMenu/icons";
 import { ToolbarIconButton } from "@/components/ControlDock/ToolbarIconButton";
+import { InfoTooltip } from "@/components/InfoTooltip";
 
-const inputClass = "glass-panel h-8 w-16 shrink-0 rounded px-2 text-[12px] tabular-nums outline-none focus:border-accent/60";
+const inputClass = "glass-panel h-8 w-16 shrink-0 rounded-full px-2.5 text-[12px] tabular-nums outline-none focus:border-accent/60";
 // w-full + min-w-0 stop the <select> from sizing itself to its widest <option>
 // text (e.g. "Mobile Portrait (1080×1920)") and blowing out past the popover's
 // own fixed width; truncate ellipsizes the closed-state label instead.
-const selectClass = "glass-panel h-8 w-full min-w-0 truncate rounded px-2 text-[11px] outline-none focus:border-accent/60";
+const selectClass = "glass-panel h-8 w-full min-w-0 truncate rounded-xl px-2 text-[11px] outline-none focus:border-accent/60";
 
 function Field({ label, className, children }: { label: string; className?: string; children: React.ReactNode }) {
   return (
@@ -108,11 +109,8 @@ export function CanvasSettingsPopover() {
       />
 
       {open && (
-        <div className="glass-panel corner-frame radial-appear absolute left-0 top-full z-40 mt-2 w-80 p-4">
-          <span className="corner-tl" />
-          <span className="corner-bl" />
-          <span className="corner-br" />
-          <div className="flex flex-col gap-4">
+        <div className="glass-panel radial-appear absolute left-0 top-full z-40 mt-3 w-80 rounded-3xl p-6">
+          <div className="flex flex-col gap-5">
             <div>
               <div className="mb-2 text-[10px] uppercase tracking-wide opacity-60">Canvas Size</div>
               <div className="flex items-end gap-3">
@@ -203,16 +201,18 @@ export function CanvasSettingsPopover() {
                   </select>
                 </Field>
               </div>
-              <label className="mt-3 flex items-center gap-2 text-[11px]">
-                <input
-                  type="checkbox"
-                  checked={showAnchors}
-                  onChange={toggleShowAnchors}
-                  className="h-3.5 w-3.5 accent-[var(--color-accent)]"
-                />
-                Anchor Toggle
-                <span className="opacity-60">(off: free move, resize still snaps to rows/cols/edges)</span>
-              </label>
+              <div className="mt-3 flex items-center gap-2 text-[11px]">
+                <label className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={showAnchors}
+                    onChange={toggleShowAnchors}
+                    className="h-3.5 w-3.5 accent-[var(--color-accent)]"
+                  />
+                  Anchor Toggle
+                </label>
+                <InfoTooltip text="Off: free move, resize still snaps to rows/cols/edges." label="About Anchor Toggle" />
+              </div>
             </div>
           </div>
         </div>

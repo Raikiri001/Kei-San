@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import { createId } from "@/utils/id";
+import { InfoTooltip } from "@/components/InfoTooltip";
 
 export interface GradientStop {
   id: string;
@@ -114,7 +115,10 @@ export function GradientStopEditor({ label, stops, onChange }: GradientStopEdito
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[11px] uppercase tracking-wide opacity-70">{label}</span>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] uppercase tracking-wide opacity-70">{label}</span>
+        <InfoTooltip text="Click the bar to add a stop, drag a marker to move it, double-click to remove." label={`About ${label}`} />
+      </div>
       <div
         ref={barRef}
         onClick={handleBarClick}
@@ -145,7 +149,6 @@ export function GradientStopEditor({ label, stops, onChange }: GradientStopEdito
           />
         ))}
       </div>
-      <p className="text-[10px] opacity-40">Click the bar to add a stop, drag a marker to move it, double-click to remove.</p>
     </div>
   );
 }

@@ -28,10 +28,7 @@ export function DesignCard({
     // all compress to fit whatever space is left instead of the list actually
     // scrolling — the list would rather squash every card's aspect-video
     // thumbnail down to a sliver than let its own height exceed the drawer.
-    <div className="corner-frame glass-panel group relative shrink-0 overflow-hidden">
-      <span className="corner-tl" />
-      <span className="corner-bl" />
-      <span className="corner-br" />
+    <div className="glass-panel group relative shrink-0 overflow-hidden rounded-2xl">
       <button type="button" onClick={onSelect} className="block w-full text-left">
         <img src={design.thumbnailDataUrl} alt={design.name || "Untitled design"} className="aspect-video w-full object-cover" />
         <div className="px-3 py-2">
@@ -48,7 +45,7 @@ export function DesignCard({
         // Fixed neutral backdrop (not a --chrome-* token) is intentional: it sits over an
         // arbitrary user thumbnail image, not chrome, so it needs to stay legible against any
         // image content regardless of theme.
-        className="press-scale absolute right-2 top-2 flex h-6 w-6 items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
+        className="press-scale absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
       >
         <DeleteIcon />
       </button>

@@ -17,6 +17,7 @@ import {
   DEFAULT_TEXT_BOX_HEIGHT,
   DEFAULT_TEXT_BOX_WIDTH,
   DEFAULT_WIDTH,
+  MAX_UNDO_ENTRIES,
 } from "@/constants/defaults";
 import type { EffectLayer, ImageElement, Layer, MixLayer, ProjectState, StackableEffect, StackableEffectType, TextElement } from "@/store/types";
 
@@ -44,6 +45,17 @@ type NewImageInput = Omit<
 
 interface ProjectStore {
   project: ProjectState;
+  /** Snapshots of `project` from before each committed mutation, most-recent-last —
+   * see the `set` wrapper below for how these get pushed. Cleared (not pushed to) by
+   * loadProject/resetToNewDesign, since switching documents isn't something undo
+   * should reach across. */
+  past: ProjectState[];
+  /** Snapshots popped off `past` by undo, most-recently-undone-first — replayed by
+   * redo, cleared by any new committed mutation (the normal "redo dies on a fresh
+   * edit" rule). */
+  future: ProjectState[];
+  undo: () => void;
+  redo: () => void;
   setName: (name: string) => void;
   setDimensions: (width: number, height: number) => void;
   setGrid: (cols: number, rows: number) => void;
@@ -150,8 +162,44 @@ function applyOrder(project: ProjectState, ordered: OrderedElement[]): ProjectSt
   return { ...project, images, texts, updatedAt: Date.now() };
 }
 
-export const useProjectStore = create<ProjectStore>((set, get) => ({
+export const useProjectStore = create<ProjectStore>((rawSet, get) => {
+  // Every ordinary mutator below calls `set`, which (unlike zustand's raw setState)
+  // first pushes the project as it was *before* this change onto `past` and clears
+  // `future` — one undo step per committed store update. This app already separates
+  // in-progress drag/resize/crop previews (kept in local component state or uiStore)
+  // from the single projectStore commit at the end of a gesture, so this naturally
+  // lands one undo step per user action, not one per pointermove frame.
+  // loadProject/resetToNewDesign intentionally bypass this (via rawSet) and reset
+  // past/future instead — switching documents isn't something undo should reach
+  // across. undo/redo themselves also use rawSet, since they're consuming
+  // past/future, not adding to them.
+  type Updater = ProjectStore | Partial<ProjectStore> | ((state: ProjectStore) => ProjectStore | Partial<ProjectStore>);
+  function set(partial: Updater) {
+    const prevProject = get().project;
+    rawSet((s) => ({ past: [...s.past, prevProject].slice(-MAX_UNDO_ENTRIES), future: [] }));
+    rawSet(partial);
+  }
+
+  return {
   project: createBaselineProject(),
+  past: [],
+  future: [],
+
+  undo: () => {
+    const { past, project, future } = get();
+    const previous = past[past.length - 1];
+    if (!previous) return;
+    rawSet({ project: previous, past: past.slice(0, -1), future: [project, ...future] });
+    touchDirty();
+  },
+
+  redo: () => {
+    const { past, project, future } = get();
+    const next = future[0];
+    if (!next) return;
+    rawSet({ project: next, past: [...past, project], future: future.slice(1) });
+    touchDirty();
+  },
 
   setName: (name) => {
     set((s) => ({ project: { ...s.project, name, updatedAt: Date.now() } }));
@@ -590,14 +638,15 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
   },
 
   loadProject: (project) => {
-    set({ project });
+    rawSet({ project, past: [], future: [] });
     useUIStore.getState().markClean();
     useUIStore.getState().resetPan();
   },
 
   resetToNewDesign: () => {
-    set({ project: createBaselineProject() });
+    rawSet({ project: createBaselineProject(), past: [], future: [] });
     useUIStore.getState().markClean();
     useUIStore.getState().resetPan();
   },
-}));
+  };
+});

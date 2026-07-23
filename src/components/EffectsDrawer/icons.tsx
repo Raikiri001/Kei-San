@@ -22,3 +22,23 @@ export function ResetIcon() {
     </svg>
   );
 }
+
+/** Shared close glyph for both drawer panels (stack + inspector) — same icon,
+ * same circular button treatment, so the two panels' headers read as one
+ * consistent system rather than two independently designed ones. */
+export function CloseIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.6">
+      <path d="M5 5l10 10M15 5L5 15" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+export function SearchIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <circle cx="8.5" cy="8.5" r="5.5" />
+      <path d="M16 16l-3.8-3.8" strokeLinecap="round" />
+    </svg>
+  );
+}

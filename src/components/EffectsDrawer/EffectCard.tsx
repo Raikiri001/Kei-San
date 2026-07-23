@@ -27,10 +27,7 @@ export function EffectCard({ type, loadedImg, onAdd }: EffectCardProps) {
   );
 
   return (
-    <button type="button" onClick={onAdd} className="corner-frame glass-panel press-scale group relative block overflow-hidden text-left">
-      <span className="corner-tl" />
-      <span className="corner-bl" />
-      <span className="corner-br" />
+    <button type="button" onClick={onAdd} className="glass-panel press-scale group relative block overflow-hidden rounded-2xl text-left">
       {loadedImg ? (
         <canvas ref={canvasRef} className="block aspect-[4/3] w-full object-cover" />
       ) : (
@@ -41,9 +38,14 @@ export function EffectCard({ type, loadedImg, onAdd }: EffectCardProps) {
       <span className="accent-glow-hover glass-panel absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-[14px] opacity-0 transition-opacity group-hover:opacity-100">
         +
       </span>
-      <div className="px-3 py-2.5">
+      <div className="px-3.5 py-3">
         <div className="text-[12px] uppercase tracking-wide">{EFFECT_LABELS[type]}</div>
-        <div className="mt-0.5 text-[10px] opacity-60">{EFFECT_DESCRIPTIONS[type]}</div>
+        {/* Description stays out of the way until the card is actually being
+            considered — revealed on hover/focus alongside the "+" badge above,
+            same minimalism-by-default treatment as the rest of the app. */}
+        <div className="mt-0.5 line-clamp-1 text-[10px] opacity-0 transition-opacity group-hover:opacity-60 group-focus-visible:opacity-60">
+          {EFFECT_DESCRIPTIONS[type]}
+        </div>
       </div>
     </button>
   );

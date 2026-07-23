@@ -2,43 +2,60 @@
 
 @theme {
   --font-mono: "JetBrains Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
-  --font-display: "Chakra Petch", "JetBrains Mono", sans-serif;
-  --color-accent: #0ea5ff;
-  --color-accent-dim: #0a6fb0;
+  --font-sans: "Space Grotesk", "Noto Sans JP", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --color-accent: #0a84ff;
+  --color-accent-dim: #0064d6;
 }
 
-/* Gundam signal-light system: one shared blue/yellow/green/red accent quartet
-   used identically in both themes (no more per-theme accent hue swap) — blue
-   is the primary interactive/focus accent, green/yellow/red are reserved for
-   genuine semantic moments (success, caution/high-emphasis, destructive) so
-   they read as panel signal lights rather than a full repaint. */
+/* Liquid Glass token system. Every floating glass surface in the app (dock,
+   radial menu, drawers, dialogs, popovers) uses one constant dark-tinted
+   glass with near-white text in BOTH themes: they either float directly over
+   arbitrary, unpredictable canvas/wallpaper imagery (where true theme-
+   adaptive translucency would make contrast unpredictable depending on
+   what's under the pointer), or — for the couple of scrimmed dialogs — dark
+   glass with white text simply stays legible and consistent regardless of
+   theme, which reads as more deliberate than flipping to light glass with
+   dark text for those two alone. Only the page backdrop behind the canvas
+   (--page-bg) actually changes between themes, so switching themes still
+   reads as a real light/dark switch. */
 :root {
   color-scheme: dark;
-  --chrome-bg: 20 22 26;
-  --chrome-border: 140 170 210;
-  --chrome-text: 226 232 236;
-  --chrome-text-dim: 138 148 156;
-  --status-active: #3ddc84;
-  --status-moderate: #f4c430;
-  --status-inactive: #e8384a;
-  --color-accent-glow: 56 189 248;
-  /* Raw rgb triplets (not hex) for the two signal colors above, so on/off pill
-     states can composite translucent glow/border variants the same way
-     --color-accent-glow and --chrome-border already do. */
-  --status-active-rgb: 61 220 132;
-  --status-inactive-rgb: 232 56 74;
-  /* Shared "HUD snap" easing: a slight overshoot-then-settle used across every
-     hover/press/pop-in transition so the whole app moves with one consistent,
-     energetic rhythm instead of each component picking its own curve. */
-  --ease-snap: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  --chrome-bg: 40 41 46;
+  --chrome-border: 255 255 255;
+  --chrome-text: 255 255 255;
+  --chrome-text-dim: 210 212 218;
+
+  --page-bg: 18 18 20;
+
+  --color-accent-glow: 10 132 255;
+  --status-active: #30d158;
+  --status-moderate: #ff9f0a;
+  --status-inactive: #ff453a;
+  --status-active-rgb: 48 209 88;
+  --status-moderate-rgb: 255 159 10;
+  --status-inactive-rgb: 255 69 58;
+
+  /* Single smooth, no-overshoot curve used app-wide for tweens — motion here
+     reads precise and "futuristic-clean," never bouncy. Springs (Motion
+     components) are tuned per-component but always critically damped for the
+     same reason: fast-settling, zero overshoot. */
+  --ease-liquid: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --chrome-bg: 250 250 252;
-  --chrome-border: 40 70 120;
-  --chrome-text: 20 22 26;
-  --chrome-text-dim: 90 98 106;
+  --page-bg: 246 246 248;
+
+  --color-accent: #007aff;
+  --color-accent-dim: #0059b8;
+  --color-accent-glow: 0 122 255;
+  --status-active: #34c759;
+  --status-moderate: #ff9500;
+  --status-inactive: #ff3b30;
+  --status-active-rgb: 52 199 89;
+  --status-moderate-rgb: 255 149 0;
+  --status-inactive-rgb: 255 59 48;
 }
 
 html,
@@ -49,71 +66,60 @@ body,
 }
 
 body {
-  background: rgb(var(--chrome-bg));
+  background: rgb(var(--page-bg));
   color: rgb(var(--chrome-text));
-  font-family: var(--font-mono);
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
   overflow: hidden;
 }
 
-/* HUD armor panel: solid, near-opaque cockpit-plating surface used by dock /
-   radial menu / drawer. No blur, no translucency — text and controls must stay
-   fully legible regardless of what's behind them (canvas imagery, other
-   panels), which glassmorphism's read-through can't guarantee. */
+/* Liquid glass surface, "ink" tier: a dark-tinted, blurred, saturated glass
+   with a soft top rim-light and layered depth shadow — the base look for
+   every floating control surface in the app (toolbar, radial menu, rulers,
+   Effects Drawer, popovers). Deliberately does NOT set border-radius: each
+   call site picks its own Tailwind rounded-* utility (rounded-xl/2xl/3xl
+   depending on the surface's scale), same as before. */
 .glass-panel {
-  background: rgb(var(--chrome-bg) / 0.97);
-  border: 1px solid rgb(var(--chrome-border) / 0.45);
+  background:
+    linear-gradient(180deg, rgb(255 255 255 / 0.1), transparent 42%), rgb(var(--chrome-bg) / 0.68);
+  backdrop-filter: blur(28px) saturate(200%);
+  -webkit-backdrop-filter: blur(28px) saturate(200%);
+  border: 1px solid rgb(var(--chrome-border) / 0.22);
   box-shadow:
-    inset 0 1px 0 rgb(var(--chrome-text) / 0.06),
-    0 8px 24px rgb(0 0 0 / 0.4),
-    0 1px 2px rgb(0 0 0 / 0.5);
+    0 0 0 1px rgb(255 255 255 / 0.05),
+    inset 0 1px 0 rgb(255 255 255 / 0.14),
+    inset 0 0 0 1px rgb(255 255 255 / 0.04),
+    0 20px 40px -12px rgb(0 0 0 / 0.55),
+    0 2px 8px rgb(0 0 0 / 0.35);
 }
 
-/* Corner-bracket frame: four tick marks instead of a full border rectangle.
-   Top-left uses a real .corner-tl child span rather than ::before: elements
-   that combine .corner-frame with .press-sweep (which also defines a ::before
-   for its diagonal flash) would otherwise have that rule clobber this one —
-   only one ::before can exist per element, and CSS applies whichever rule is
-   later in the cascade, silently eating the top-left bracket. ::after is safe
-   (press-sweep never touches it), so only the top-left corner needs the extra
-   DOM node; top-right stays on ::after. */
-/* NOTE: intentionally no `position` here. This file's rules sit outside Tailwind's
-   cascade layers, so an unlayered `position` would always beat Tailwind's layered
-   .relative/.absolute/.fixed utilities regardless of class order. Callers must pair
-   .corner-frame with an explicit Tailwind position class (usually `relative`). */
-.corner-frame::after,
-.corner-frame > .corner-tl,
-.corner-frame > .corner-bl,
-.corner-frame > .corner-br {
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  pointer-events: none;
+/* Brief "materialize" glow pulse on a glass surface — reuses the data-pulse
+   attribute contract already set by ToolbarIconButton/IconPill/RadialMenu's
+   popover on interaction start; previously drove the now-removed corner-frame
+   brackets, now brightens the panel's own rim/glow instead. */
+@keyframes glass-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.05),
+      inset 0 1px 0 rgb(255 255 255 / 0.14),
+      inset 0 0 0 1px rgb(255 255 255 / 0.04),
+      0 20px 40px -12px rgb(0 0 0 / 0.55),
+      0 2px 8px rgb(0 0 0 / 0.35),
+      0 0 0 rgb(var(--color-accent-glow) / 0);
+  }
+  40% {
+    box-shadow:
+      0 0 0 1px rgb(255 255 255 / 0.08),
+      inset 0 1px 0 rgb(255 255 255 / 0.2),
+      inset 0 0 0 1px rgb(var(--color-accent-glow) / 0.3),
+      0 20px 40px -12px rgb(0 0 0 / 0.55),
+      0 2px 8px rgb(0 0 0 / 0.35),
+      0 0 22px rgb(var(--color-accent-glow) / 0.4);
+  }
 }
-.corner-frame > .corner-tl {
-  top: -1px;
-  left: -1px;
-  border-top: 2px solid rgb(var(--chrome-border) / 0.75);
-  border-left: 2px solid rgb(var(--chrome-border) / 0.75);
-}
-.corner-frame::after {
-  content: "";
-  top: -1px;
-  right: -1px;
-  border-top: 2px solid rgb(var(--chrome-border) / 0.75);
-  border-right: 2px solid rgb(var(--chrome-border) / 0.75);
-}
-.corner-frame > .corner-bl {
-  bottom: -1px;
-  left: -1px;
-  border-bottom: 2px solid rgb(var(--chrome-border) / 0.75);
-  border-left: 2px solid rgb(var(--chrome-border) / 0.75);
-}
-.corner-frame > .corner-br {
-  bottom: -1px;
-  right: -1px;
-  border-bottom: 2px solid rgb(var(--chrome-border) / 0.75);
-  border-right: 2px solid rgb(var(--chrome-border) / 0.75);
+.glass-panel[data-pulse="true"] {
+  animation: glass-pulse 420ms var(--ease-liquid);
 }
 
 ::selection {
@@ -148,7 +154,7 @@ body {
   }
 }
 .radial-appear {
-  animation: radial-appear 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: radial-appear 200ms var(--ease-liquid);
 }
 
 @keyframes fade-in {
@@ -159,14 +165,90 @@ body {
     opacity: 1;
   }
 }
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
 
 @keyframes slide-in-right {
   from {
     transform: translateX(100%);
+    opacity: 0;
   }
   to {
     transform: translateX(0);
+    opacity: 1;
   }
+}
+@keyframes slide-out-right {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes slide-out-left {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
+/* Sheet-style entrance/exit for adaptive-tier dialogs (Phase 7: replaces the
+   fade-in/slide-in-right pair above on UploadDialog/DesignsDrawer) — a soft
+   scale + blur resolve rather than a slide, matching the glass material.
+   Exit runs at ~65% of the enter duration (exit-faster-than-enter). */
+@keyframes glass-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+    filter: blur(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+}
+@keyframes glass-out {
+  from {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.97);
+    filter: blur(6px);
+  }
+}
+.glass-in {
+  animation: glass-in 260ms var(--ease-liquid);
+}
+.glass-out {
+  animation: glass-out 170ms var(--ease-liquid);
 }
 
 /* thin custom scrollbar for the designs drawer */
@@ -179,9 +261,9 @@ body {
 }
 
 /* Every numeric field in this app pairs with its own explicit Stepper +/-
-   buttons, so the browser's native up/down spinner on <input type="number">
-   is a redundant, visually clashing second set of increment controls —
-   hidden globally rather than per call site. */
+ * buttons, so the browser's native up/down spinner on <input type="number">
+ * is a redundant, visually clashing second set of increment controls —
+ * hidden globally rather than per call site. */
 input[type="number"] {
   appearance: textfield;
   -moz-appearance: textfield;
@@ -192,144 +274,113 @@ input[type="number"]::-webkit-inner-spin-button {
   margin: 0;
 }
 
-/* HUD slider: a thin flat track with a small vertical tick thumb — deliberately
-   not a filled/gradient progress bar, matching this app's flat-signal-light
-   aesthetic rather than a typical rounded-knob slider. */
+/* Glass slider: a rounded pill track with a small glowing round thumb —
+   Apple-native shape, replacing the old flat HUD tick-thumb look. */
 .hud-slider {
   appearance: none;
   -webkit-appearance: none;
   width: 100%;
-  height: 16px;
+  height: 20px;
   background: transparent;
   cursor: pointer;
 }
 .hud-slider::-webkit-slider-runnable-track {
-  height: 1px;
-  background: rgb(var(--chrome-border) / 0.35);
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(var(--chrome-text) / 0.16);
 }
 .hud-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 2px;
+  width: 14px;
   height: 14px;
-  margin-top: -6.5px;
-  background: rgb(var(--color-accent-glow));
-  box-shadow: 0 0 6px rgb(var(--color-accent-glow) / 0.7);
-  border-radius: 1px;
+  margin-top: -5px;
+  border-radius: 999px;
+  background: rgb(var(--chrome-text));
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.3),
+    0 1px 3px rgb(0 0 0 / 0.4),
+    0 0 10px rgb(var(--color-accent-glow) / 0.5);
+  transition:
+    transform 140ms var(--ease-liquid),
+    box-shadow 140ms var(--ease-liquid);
+}
+.hud-slider:active::-webkit-slider-thumb {
+  transform: scale(1.15);
 }
 .hud-slider::-moz-range-track {
-  height: 1px;
-  background: rgb(var(--chrome-border) / 0.35);
+  height: 4px;
+  border-radius: 999px;
+  background: rgb(var(--chrome-text) / 0.16);
 }
 .hud-slider::-moz-range-thumb {
-  width: 2px;
+  width: 14px;
   height: 14px;
-  background: rgb(var(--color-accent-glow));
-  box-shadow: 0 0 6px rgb(var(--color-accent-glow) / 0.7);
+  border-radius: 999px;
+  background: rgb(var(--chrome-text));
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.3),
+    0 1px 3px rgb(0 0 0 / 0.4),
+    0 0 10px rgb(var(--color-accent-glow) / 0.5);
   border: none;
-  border-radius: 1px;
+  transition:
+    transform 140ms var(--ease-liquid),
+    box-shadow 140ms var(--ease-liquid);
+}
+.hud-slider:active::-moz-range-thumb {
+  transform: scale(1.15);
 }
 .hud-slider:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
-/* --- HUD accent utilities --------------------------------------------------- */
+/* --- Glass accent utilities --------------------------------------------- */
 
-/* Bolder neon glow than the flat corner-frame border, for hover/press/active
-   accent states — reuses --color-accent-glow so it stays on-theme in both modes. */
+/* Accent glow border on hover/active — reuses --color-accent-glow so it
+   stays on-theme in both modes. */
 .accent-glow-hover {
   transition:
-    box-shadow 240ms var(--ease-snap),
-    border-color 240ms var(--ease-snap),
-    color 240ms var(--ease-snap);
+    box-shadow 220ms var(--ease-liquid),
+    border-color 220ms var(--ease-liquid),
+    color 220ms var(--ease-liquid);
 }
 .accent-glow-hover:hover,
 .accent-glow-hover[data-active="true"] {
-  border-color: rgb(var(--color-accent-glow) / 0.7);
+  border-color: rgb(var(--color-accent-glow) / 0.65);
   box-shadow:
-    0 0 20px rgb(var(--color-accent-glow) / 0.5),
-    0 0 40px rgb(var(--color-accent-glow) / 0.22);
+    0 0 18px rgb(var(--color-accent-glow) / 0.4),
+    0 0 36px rgb(var(--color-accent-glow) / 0.18);
 }
 
-/* Diagonal color-sweep flash on press — pure CSS (:active-driven), so a press
-   anywhere among many simultaneous pills costs nothing beyond a single
-   transform transition, no JS wiring needed for a state this transient. */
-.press-sweep {
-  position: relative;
-  overflow: hidden;
-}
-.press-sweep::before {
-  content: "";
-  position: absolute;
-  inset: -60% -30%;
-  background: linear-gradient(100deg, transparent 35%, rgb(var(--color-accent-glow) / 0.4) 50%, transparent 65%);
-  transform: translateX(-130%);
-  transition: transform 220ms ease-out;
-  pointer-events: none;
-}
-.press-sweep:active::before {
-  transform: translateX(130%);
-  transition: transform 320ms ease-in;
-}
-
-/* Diagonal "energize" sweep on hover-enter — same visual language as
-   press-sweep but triggered by :hover instead of :active, for controls that
-   don't run through IconPill/ToolbarIconButton's Framer-driven hover variants
-   (bottom-right theme/pan/zoom cluster, steppers, swatches). Uses a real child
-   span (.hover-sweep-fx) rather than ::before/::after: corner-frame already
-   claims ::after for its top-right tick, and press-sweep already claims
-   ::before for its own flash — a real DOM node sidesteps both collisions
-   instead of fighting over the two pseudo-element slots. */
-.hover-sweep {
-  position: relative;
-  overflow: hidden;
-}
-.hover-sweep > .hover-sweep-fx {
-  position: absolute;
-  inset: -60% -30%;
-  background: linear-gradient(100deg, transparent 35%, rgb(var(--color-accent-glow) / 0.45) 50%, transparent 65%);
-  transform: translateX(-130%);
-  transition: transform 380ms var(--ease-snap);
-  pointer-events: none;
-}
-.hover-sweep:hover > .hover-sweep-fx {
-  transform: translateX(130%);
-  transition-duration: 480ms;
-}
-
-/* Tactile press feedback shared by every button/pill in the app — a quick
-   inward snap on press, released with the same overshoot curve everything
-   else uses, so pressing anything (toolbar, radial menu, steppers) reads as
-   one consistent physical control system instead of flat color swaps. */
+/* Tactile press feedback shared by every button/pill in the app — a quick,
+   precise inward scale on press (no overshoot on release), so pressing
+   anything reads as one consistent, calm physical control system. */
 .press-scale {
-  transition: transform 150ms var(--ease-snap);
+  transition: transform 140ms var(--ease-liquid);
 }
 .press-scale:active {
-  transform: scale(0.94);
-  transition-duration: 80ms;
+  transform: scale(0.96);
+  transition-duration: 90ms;
 }
 
-/* Staggered corner-dot pop-in for resize handles — animation-delay is set inline
-   per corner by the component, so 4 dots snap into place in quick sequence
-   instead of all at once. */
+/* Staggered corner-dot pop-in for resize handles — animation-delay is set
+   inline per corner by the component. */
 @keyframes handle-pop {
   from {
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0.2);
+    transform: translate(-50%, -50%) scale(0.4);
   }
   to {
     opacity: 1;
   }
 }
 .handle-pop {
-  animation: handle-pop 180ms cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+  animation: handle-pop 180ms var(--ease-liquid) backwards;
 }
 
-/* Resize/rotate handle dot: a solid bright fill (not glass-panel's near-opaque
-   *dark* background) plus a light ring and dark outline, so the dot stays
-   legible sitting directly on top of arbitrary canvas imagery — a thin
-   accent-tinted border on a dark fill (the old look) reads as almost nothing
-   against a dark photo, which is exactly the case this most needs to work. */
+/* Resize/rotate handle dot: a solid bright fill plus a light ring and dark
+   outline, so the dot stays legible sitting directly on top of arbitrary
+   canvas imagery. */
 .handle-dot {
   background: rgb(var(--color-accent-glow));
   border: 1.5px solid rgb(255 255 255 / 0.95);
@@ -339,67 +390,23 @@ input[type="number"]::-webkit-inner-spin-button {
     0 0 14px rgb(var(--color-accent-glow) / 0.5);
 }
 
-/* Corner-frame "materializing" pulse: on collapse->expand transition, each
-   bracket nudges outward a few px then eases back to its resting offset,
-   flashing brighter at the peak — a confirmation cue distinct from
-   handle-pop's pop-in (this fires on every expand, not just first mount).
-   The color/glow flash matters as much as the nudge: a lone few-px offset on
-   a 2px border reads as noise next to the pill's own much larger width/icon/
-   label animations running at the same instant, so this also brightens the
-   bracket's border color and adds a glow at the peak frame to make the cue
-   legible on its own. Direction is per-corner so the four ticks visibly
-   "breathe outward" as a group. Works on .corner-frame::after (the top-right
-   tick) too — CSS keyframes apply fine to pseudo-elements, so this needs no
-   JSX changes at any of its call sites, just the data-pulse attribute. */
-@keyframes corner-pulse-tl {
-  0% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
-  35% { transform: translate(-6px, -6px); border-color: rgb(var(--color-accent-glow)); filter: drop-shadow(0 0 4px rgb(var(--color-accent-glow) / 0.9)); }
-  100% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
-}
-@keyframes corner-pulse-tr {
-  0% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
-  35% { transform: translate(6px, -6px); border-color: rgb(var(--color-accent-glow)); filter: drop-shadow(0 0 4px rgb(var(--color-accent-glow) / 0.9)); }
-  100% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
-}
-@keyframes corner-pulse-bl {
-  0% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
-  35% { transform: translate(-6px, 6px); border-color: rgb(var(--color-accent-glow)); filter: drop-shadow(0 0 4px rgb(var(--color-accent-glow) / 0.9)); }
-  100% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
-}
-@keyframes corner-pulse-br {
-  0% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
-  35% { transform: translate(6px, 6px); border-color: rgb(var(--color-accent-glow)); filter: drop-shadow(0 0 4px rgb(var(--color-accent-glow) / 0.9)); }
-  100% { transform: translate(0, 0); border-color: rgb(var(--chrome-border) / 0.75); filter: none; }
-}
-.corner-frame[data-pulse="true"] > .corner-tl {
-  animation: corner-pulse-tl 360ms var(--ease-snap);
-}
-.corner-frame[data-pulse="true"]::after {
-  animation: corner-pulse-tr 360ms var(--ease-snap);
-}
-.corner-frame[data-pulse="true"] > .corner-bl {
-  animation: corner-pulse-bl 360ms var(--ease-snap);
-}
-.corner-frame[data-pulse="true"] > .corner-br {
-  animation: corner-pulse-br 360ms var(--ease-snap);
+/* Theme-toggle circular reveal (CanvasWorkspace's runThemeTransition): the
+   View Transitions API cross-fades ::view-transition-old/new(root) by
+   default — disabled here so the only thing animating is the clip-path
+   circle driven from JS, expanding from the toggle button. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .radial-appear,
   .handle-pop,
-  .corner-frame[data-pulse="true"] > .corner-tl,
-  .corner-frame[data-pulse="true"]::after,
-  .corner-frame[data-pulse="true"] > .corner-bl,
-  .corner-frame[data-pulse="true"] > .corner-br {
+  .glass-in,
+  .glass-out,
+  .glass-panel[data-pulse="true"] {
     animation: none !important;
-  }
-  .press-sweep::before {
-    transition: none !important;
-    display: none;
-  }
-  .hover-sweep > .hover-sweep-fx {
-    transition: none !important;
-    display: none;
   }
   .press-scale:active {
     transform: none;

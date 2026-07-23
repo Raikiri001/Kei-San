@@ -2,16 +2,17 @@ import { LayerSettingsFields } from "@/components/EffectsDrawer/LayerSettingsFie
 import { LayerBlendFields } from "@/components/EffectsDrawer/LayerBlendFields";
 import { MaskFields } from "@/components/EffectsDrawer/MaskFields";
 import { EFFECT_LABELS } from "@/components/EffectsDrawer/effectLabels";
-import { ResetIcon, ShuffleIcon } from "@/components/EffectsDrawer/icons";
+import { CloseIcon, ResetIcon, ShuffleIcon } from "@/components/EffectsDrawer/icons";
+import { InfoTooltip } from "@/components/InfoTooltip";
 import { createDefaultEffectParams, hasRandomizer, randomizeEffectParams } from "@/canvas/gl/effectDefaults";
 import type { EffectLayer, LayerBlend, LayerMask, MixLayer } from "@/store/types";
 
 function InspectorSection({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
   return (
-    <div className="glass-panel flex flex-col gap-3 p-3">
-      <div>
+    <div className="glass-panel flex flex-col gap-4 rounded-2xl p-4">
+      <div className="flex items-center gap-2">
         <h4 className="text-[11px] uppercase tracking-wide opacity-70">{title}</h4>
-        <p className="mt-0.5 text-[10px] opacity-45">{hint}</p>
+        <InfoTooltip text={hint} label={`About ${title}`} />
       </div>
       {children}
     </div>
@@ -39,19 +40,31 @@ export function LayerInspectorPanel({ layer, width, loadedImg, onClose, onUpdate
   const title = layer.kind === "mix" ? "Layer Mix" : EFFECT_LABELS[layer.type];
 
   return (
-    <div className="thin-scroll glass-panel corner-frame flex h-full flex-col gap-4 overflow-y-auto border-r border-[rgb(var(--chrome-border)/0.2)] p-4" style={{ width }}>
-      <div className="flex items-center justify-between">
-        <h3 className="text-[13px] uppercase tracking-wide">{title}</h3>
-        <div className="flex items-center gap-1.5">
+    // A fully separate floating panel (see EffectsDrawer.tsx — this is its
+    // own independent Dialog, docked to the screen's right edge, not
+    // adjacent to the stack panel), so both its left and right corners are
+    // genuine floating outer edges.
+    <div className="thin-scroll glass-panel flex h-full flex-col gap-5 overflow-y-auto rounded-3xl p-6" style={{ width }}>
+      <div className="flex items-center justify-between gap-3">
+        {/* The name of the effect being customized — same bold treatment as
+            the stack panel's own section headings, so both panels' headers
+            read as one consistent system. */}
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="h-4 w-1 shrink-0 rounded-full" style={{ background: "var(--color-accent)" }} />
+          <h3 className="truncate text-[16px] font-bold tracking-wide">{title}</h3>
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
           {layer.kind === "effect" && hasRandomizer(layer.type) && (
             <button
               type="button"
               onClick={() => onUpdate(randomizeEffectParams(layer))}
               aria-label="Randomize settings"
               title="Randomize"
-              className="press-scale flex h-7 w-7 items-center justify-center rounded border border-[rgb(var(--chrome-border)/0.3)] opacity-70 hover:opacity-100"
+              className="press-scale flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--chrome-border)/0.3)] opacity-70 hover:opacity-100"
             >
-              <ShuffleIcon />
+              <span className="flex h-3.5 w-3.5 items-center justify-center">
+                <ShuffleIcon />
+              </span>
             </button>
           )}
           {layer.kind === "effect" && (
@@ -65,23 +78,39 @@ export function LayerInspectorPanel({ layer, width, loadedImg, onClose, onUpdate
               }}
               aria-label="Reset to defaults"
               title="Reset to defaults"
-              className="press-scale flex h-7 w-7 items-center justify-center rounded border border-[rgb(var(--chrome-border)/0.3)] opacity-70 hover:opacity-100"
+              className="press-scale flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--chrome-border)/0.3)] opacity-70 hover:opacity-100"
             >
-              <ResetIcon />
+              <span className="flex h-3.5 w-3.5 items-center justify-center">
+                <ResetIcon />
+              </span>
             </button>
           )}
-          <button type="button" onClick={onClose} aria-label="Close settings" className="press-scale flex h-7 w-7 items-center justify-center rounded border border-[rgb(var(--chrome-border)/0.3)] text-[13px]">
-            ×
+          {/* Same circular close control as the stack panel's header (see
+              PanelCloseButton in EffectsDrawer.tsx) for visual consistency
+              between the two panels. */}
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close settings"
+            className="press-scale flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--chrome-border)/0.3)] opacity-70 hover:opacity-100"
+          >
+            <span className="flex h-3.5 w-3.5 items-center justify-center">
+              <CloseIcon />
+            </span>
           </button>
         </div>
       </div>
 
       {layer.kind === "mix" ? (
-        <p className="text-[11px] leading-relaxed opacity-60">
-          Layer Mix runs Branch A and Branch B as two independent effect chains, both starting from the same image, then blends their two results together below —
-          not a preset, and not a fixed order of effects. Select an effect inside a branch (in the Active Stack) to edit it; the controls here decide how the two
-          branches combine.
-        </p>
+        <div className="flex items-start gap-2">
+          <p className="text-[11px] leading-relaxed opacity-60">
+            Runs Branch A and Branch B as two independent effect chains, then blends the results below.
+          </p>
+          <InfoTooltip
+            text="Both branches start from the same image, not a preset or fixed order of effects. Select an effect inside a branch (in the Active Stack) to edit it; the controls here decide how the two branches combine."
+            label="About Layer Mix"
+          />
+        </div>
       ) : (
         <InspectorSection title="Settings" hint="This effect's own adjustable parameters.">
           <LayerSettingsFields layer={layer} loadedImg={loadedImg} onUpdate={onUpdate} />

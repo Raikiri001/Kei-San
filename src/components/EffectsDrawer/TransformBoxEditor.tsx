@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import { EffectPreviewStage } from "@/components/EffectsDrawer/EffectPreviewStage";
+import { InfoTooltip } from "@/components/InfoTooltip";
 import type { EffectLayer } from "@/store/types";
 
 const STAGE_W = 280;
@@ -192,7 +193,10 @@ export function TransformBoxEditor({ label, loadedImg, previewLayers, translateX
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between">
-        <span className="text-[11px] uppercase tracking-wide opacity-70">{label}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] uppercase tracking-wide opacity-70">{label}</span>
+          <InfoTooltip text="Drag a corner/edge to scale, the green handle to rotate (Shift snaps 15°), the box body to move." label={`About ${label}`} />
+        </div>
         <button type="button" onClick={handleReset} className="press-scale rounded border border-[rgb(var(--chrome-border)/0.3)] px-2 py-0.5 text-[10px] uppercase tracking-wide opacity-70 hover:opacity-100">
           Reset
         </button>
@@ -248,7 +252,6 @@ export function TransformBoxEditor({ label, loadedImg, previewLayers, translateX
           </g>
         </EffectPreviewStage>
       </div>
-      <p className="text-[10px] opacity-40">Drag a corner/edge to scale, the green handle to rotate (Shift snaps 15°), the box body to move.</p>
     </div>
   );
 }

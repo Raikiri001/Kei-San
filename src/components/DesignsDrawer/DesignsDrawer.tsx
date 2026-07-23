@@ -36,16 +36,9 @@ export function DesignsDrawer() {
         {/* Fixed neutral scrim (not a --chrome-* token) is intentional: its job is
             universal page-dimming behind the drawer regardless of theme — tokenizing it
             to the light theme's near-white --chrome-bg would make it disappear. */}
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] data-[state=open]:animate-[fade-in_150ms_ease-out]" />
-        <Dialog.Content
-          className="glass-panel corner-frame fixed right-0 top-0 z-50 flex h-full w-[320px] flex-col p-4 shadow-2xl outline-none data-[state=open]:animate-[slide-in-right_200ms_ease-out]"
-        >
-          {/* Corner brackets live on this outer, non-scrolling panel — only the list
-              below scrolls, so the brackets stay pinned to the panel's actual corners
-              instead of drifting off with the scrolled content. */}
-          <span className="corner-tl" />
-          <span className="corner-bl" />
-          <Dialog.Title className="mb-4 shrink-0 text-[12px] uppercase tracking-wide">My Designs</Dialog.Title>
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] data-[state=open]:animate-[fade-in_150ms_ease-out] data-[state=closed]:animate-[fade-out_120ms_ease-in]" />
+        <Dialog.Content className="glass-panel fixed right-0 top-0 z-50 flex h-full w-[340px] flex-col rounded-l-3xl p-6 shadow-2xl outline-none data-[state=open]:animate-[slide-in-right_240ms_cubic-bezier(0.22,1,0.36,1)] data-[state=closed]:animate-[slide-out-right_160ms_cubic-bezier(0.22,1,0.36,1)]">
+          <Dialog.Title className="mb-5 shrink-0 text-[13px] font-bold uppercase tracking-wide">My Designs</Dialog.Title>
 
           {designs.length === 0 ? (
             <p className="mt-8 text-center text-[12px] opacity-50">No saved designs yet.</p>

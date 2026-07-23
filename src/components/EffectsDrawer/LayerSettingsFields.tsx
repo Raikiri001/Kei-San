@@ -13,6 +13,7 @@ import { MeshWarpEditor } from "@/components/EffectsDrawer/MeshWarpEditor";
 import { TransformBoxEditor } from "@/components/EffectsDrawer/TransformBoxEditor";
 import { ChannelSignalRow } from "@/components/EffectsDrawer/ChannelSignalRow";
 import { ShuffleIcon } from "@/components/EffectsDrawer/icons";
+import { InfoTooltip } from "@/components/InfoTooltip";
 import type { ColorBalanceEffect, ColorGradingEffect, CurvesEffect, EffectLayer, HueCurvesEffect } from "@/store/types";
 
 const DOT_PITCH_MIN = 4;
@@ -529,10 +530,10 @@ function HueCurvesFields({ layer, onUpdate }: { layer: HueCurvesEffect; onUpdate
           { value: "saturation", label: "Saturation" },
           { value: "lightness", label: "Lightness" },
         ]}
+        hint="Horizontal axis is the pixel's own hue (red, yellow, green, cyan, blue, magenta); vertical is how much to shift it."
         onChange={setTab}
       />
       <CurveField label="Vs. Hue" points={layer[field]} onChange={(points) => onUpdate({ [field]: points })} />
-      <p className="text-[10px] opacity-40">Horizontal axis is the pixel's own hue (red, yellow, green, cyan, blue, magenta); vertical is how much to shift it.</p>
     </div>
   );
 }
@@ -594,7 +595,10 @@ function CenterPointEditor({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[11px] uppercase tracking-wide opacity-70">{label}</span>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] uppercase tracking-wide opacity-70">{label}</span>
+        <InfoTooltip text="Drag to reposition the center." label={`About ${label}`} />
+      </div>
       <div ref={stageRef}>
         <EffectPreviewStage loadedImg={loadedImg} layers={previewLayers} width={POINT_STAGE_W} height={POINT_STAGE_H}>
           <circle
@@ -611,7 +615,6 @@ function CenterPointEditor({
           />
         </EffectPreviewStage>
       </div>
-      <p className="text-[10px] opacity-40">Drag to reposition the center.</p>
     </div>
   );
 }
@@ -1505,7 +1508,10 @@ export function LayerSettingsFields({
     case "colorMatrix":
       return (
         <div className="flex flex-col gap-3">
-          <p className="text-[10px] opacity-40">Each output channel = its row's weighted mix of input Red/Green/Blue, plus its offset.</p>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] uppercase tracking-wide opacity-45">Matrix</span>
+            <InfoTooltip text="Each output channel = its row's weighted mix of input Red/Green/Blue, plus its offset." label="About Matrix" />
+          </div>
           {(["m00", "m01", "m02"] as const).map((key) => (
             <SliderField key={key} label={key.toUpperCase()} value={layer[key]} min={MATRIX_CELL_MIN} max={MATRIX_CELL_MAX} step={0.01} decimals={2} onChange={(v) => onUpdate({ [key]: v })} />
           ))}
@@ -1592,9 +1598,9 @@ export function LayerSettingsFields({
             max={BLUR_SHARP_AMOUNT_MAX}
             step={1}
             decimals={0}
+            hint="Negative sharpens (unsharp mask), positive blurs (gaussian)."
             onChange={(amount) => onUpdate({ amount })}
           />
-          <p className="text-[10px] opacity-40">Negative sharpens (unsharp mask), positive blurs (gaussian).</p>
         </div>
       );
     case "depthOfField":
@@ -1725,9 +1731,9 @@ export function LayerSettingsFields({
             max={PINCH_STRENGTH_MAX}
             step={1}
             decimals={0}
+            hint="Positive pinches inward, negative bulges outward."
             onChange={(strength) => onUpdate({ strength })}
           />
-          <p className="text-[10px] opacity-40">Positive pinches inward, negative bulges outward.</p>
         </div>
       );
     case "perspective":

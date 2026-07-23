@@ -44,7 +44,7 @@ export function LayerStackList({ image, selectedLayerId, onSelect }: LayerStackL
   }, [image.layers]);
 
   if (image.layers.length === 0) {
-    return <p className="text-[11px] opacity-50">No effects added yet — click one below to add it here.</p>;
+    return <p className="text-[11px] opacity-50">No effects added yet. Click one below to add it here.</p>;
   }
 
   const byId = new Map(image.layers.map((l) => [l.id, l]));

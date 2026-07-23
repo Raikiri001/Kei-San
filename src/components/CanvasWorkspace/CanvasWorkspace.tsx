@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useReducedMotion } from "motion/react";
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
 import { MAX_ZOOM, MIN_ZOOM } from "@/constants/defaults";
@@ -11,6 +12,37 @@ import { HandIcon, MoonIcon, ResetViewIcon, SunIcon } from "@/components/RadialM
 import { useElementShortcuts } from "@/hooks/useElementShortcuts";
 import type { ImageElement, TextElement } from "@/store/types";
 import clsx from "clsx";
+
+// Not yet in TS's DOM lib — feature-detected and cast locally rather than
+// widening the global Document type.
+type DocumentWithViewTransitions = Document & {
+  startViewTransition?: (callback: () => void) => { ready: Promise<void> };
+};
+
+/** Runs the theme flip through the View Transitions API for a circular
+ * "wipe" expanding from the toggle button, when the browser supports it and
+ * motion isn't reduced; otherwise just flips the theme instantly. The actual
+ * clip-path animation targets `::view-transition-new(root)` (see index.css,
+ * which disables the API's default cross-fade on both pseudo-elements so
+ * this circle is the only thing animating). */
+function runThemeTransition(originX: number, originY: number, prefersReducedMotion: boolean | null, flip: () => void) {
+  const doc = document as DocumentWithViewTransitions;
+  if (prefersReducedMotion || !doc.startViewTransition) {
+    flip();
+    return;
+  }
+  const maxRadius = Math.hypot(
+    Math.max(originX, window.innerWidth - originX),
+    Math.max(originY, window.innerHeight - originY),
+  );
+  const transition = doc.startViewTransition(flip);
+  transition.ready.then(() => {
+    document.documentElement.animate(
+      { clipPath: [`circle(0px at ${originX}px ${originY}px)`, `circle(${maxRadius}px at ${originX}px ${originY}px)`] },
+      { duration: 500, easing: "cubic-bezier(0.22, 1, 0.36, 1)", pseudoElement: "::view-transition-new(root)" },
+    );
+  });
+}
 
 const TAP_THRESHOLD_PX = 4;
 /** How long to wait after the last zoom change before snapping an open radial
@@ -70,8 +102,13 @@ export function CanvasWorkspace() {
 
   const theme = useUIStore((s) => s.theme);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
+  const prefersReducedMotion = useReducedMotion();
 
   useElementShortcuts();
+
+  function handleToggleTheme(e: React.MouseEvent<HTMLButtonElement>) {
+    runThemeTransition(e.clientX, e.clientY, prefersReducedMotion, toggleTheme);
+  }
 
   const panActive = panToolActive || isSpacePanning;
 
@@ -365,26 +402,25 @@ export function CanvasWorkspace() {
         </div>
       </div>
 
-      <div className="glass-panel corner-frame absolute bottom-5 right-5 flex items-center gap-1 px-2 py-1.5">
-        <span className="corner-tl" />
-        <span className="corner-bl" />
-        <span className="corner-br" />
+      <div className="glass-panel absolute bottom-5 right-5 flex items-center gap-1 rounded-full px-2 py-1.5">
         <button
           type="button"
-          onClick={toggleTheme}
+          onClick={handleToggleTheme}
           title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          className="press-scale flex h-7 w-7 items-center justify-center rounded opacity-70 transition-[color,opacity] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:text-accent hover:opacity-100"
+          aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          className="press-scale flex h-7 w-7 items-center justify-center rounded-full opacity-70 transition-[color,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-accent hover:opacity-100"
         >
           <span className="flex h-4 w-4 items-center justify-center">{theme === "dark" ? <MoonIcon /> : <SunIcon />}</span>
         </button>
-        <div className="mx-0.5 h-5 w-px" style={{ background: "rgb(var(--chrome-border) / 0.2)" }} />
+        <div className="mx-0.5 h-5 w-px" style={{ background: "rgb(var(--chrome-border) / 0.16)" }} />
         <button
           type="button"
           onClick={togglePanTool}
           title="Pan tool (hold Space)"
+          aria-label="Pan tool"
           aria-pressed={panToolActive}
           className={clsx(
-            "press-scale flex h-7 w-7 items-center justify-center rounded transition-[color,opacity,background-color,border-color] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)]",
+            "press-scale flex h-7 w-7 items-center justify-center rounded-full transition-[color,opacity,background-color,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
             panToolActive ? "border-accent/70 text-accent bg-[rgb(var(--color-accent-glow)/0.12)]" : "opacity-70 hover:opacity-100",
           )}
         >
@@ -392,23 +428,25 @@ export function CanvasWorkspace() {
             <HandIcon />
           </span>
         </button>
-        <div className="mx-0.5 h-5 w-px" style={{ background: "rgb(var(--chrome-border) / 0.2)" }} />
+        <div className="mx-0.5 h-5 w-px" style={{ background: "rgb(var(--chrome-border) / 0.16)" }} />
         <button
           type="button"
           onClick={handleResetView}
           title="Reset view (fit to screen)"
-          className="press-scale flex h-7 w-7 items-center justify-center rounded opacity-70 transition-[color,opacity] duration-200 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:text-accent hover:opacity-100"
+          aria-label="Reset view to fit screen"
+          className="press-scale flex h-7 w-7 items-center justify-center rounded-full opacity-70 transition-[color,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-accent hover:opacity-100"
         >
           <span className="flex h-4 w-4 items-center justify-center">
             <ResetViewIcon />
           </span>
         </button>
-        <div className="mx-0.5 h-5 w-px" style={{ background: "rgb(var(--chrome-border) / 0.2)" }} />
+        <div className="mx-0.5 h-5 w-px" style={{ background: "rgb(var(--chrome-border) / 0.16)" }} />
         <button
           type="button"
           onClick={() => zoomBy(-0.1)}
           disabled={zoom <= MIN_ZOOM}
-          className="press-scale flex h-7 w-7 items-center justify-center text-sm transition-opacity duration-150 disabled:pointer-events-none disabled:opacity-30"
+          aria-label="Zoom out"
+          className="press-scale flex h-7 w-7 items-center justify-center rounded-full text-sm transition-opacity duration-150 disabled:pointer-events-none disabled:opacity-30"
         >
           −
         </button>
@@ -417,7 +455,8 @@ export function CanvasWorkspace() {
           type="button"
           onClick={() => zoomBy(0.1)}
           disabled={zoom >= MAX_ZOOM}
-          className="press-scale flex h-7 w-7 items-center justify-center text-sm transition-opacity duration-150 disabled:pointer-events-none disabled:opacity-30"
+          aria-label="Zoom in"
+          className="press-scale flex h-7 w-7 items-center justify-center rounded-full text-sm transition-opacity duration-150 disabled:pointer-events-none disabled:opacity-30"
         >
           +
         </button>

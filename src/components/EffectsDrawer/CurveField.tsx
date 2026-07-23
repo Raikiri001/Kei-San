@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { curveToLUT, type CurvePoint } from "@/components/EffectsDrawer/curveMath";
+import { InfoTooltip } from "@/components/InfoTooltip";
 
 const PAD = 180;
 const POINT_RADIUS = 5;
@@ -92,7 +93,10 @@ export function CurveField({ label, points, onChange, color = "rgb(var(--color-a
 
   return (
     <div className="flex flex-col gap-1.5">
-      <span className="text-[11px] uppercase tracking-wide opacity-70">{label}</span>
+      <div className="flex items-center gap-1.5">
+        <span className="text-[11px] uppercase tracking-wide opacity-70">{label}</span>
+        <InfoTooltip text="Click to add a point, drag to shape, double-click to remove." label={`About ${label}`} />
+      </div>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${PAD} ${PAD}`}
@@ -128,7 +132,6 @@ export function CurveField({ label, points, onChange, color = "rgb(var(--color-a
           );
         })}
       </svg>
-      <p className="text-[10px] opacity-40">Click to add a point, drag to shape, double-click to remove.</p>
     </div>
   );
 }

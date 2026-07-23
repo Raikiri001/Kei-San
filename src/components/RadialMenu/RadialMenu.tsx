@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { motion, useReducedMotion } from "motion/react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useUIStore } from "@/store/uiStore";
 import { useClickOutside } from "@/hooks/useClickOutside";
 import { getRingPositions } from "@/components/RadialMenu/ring-layout";
@@ -120,55 +120,60 @@ export function RadialMenu() {
         {/* Purely decorative — pointer-events-none so it doesn't leave a small
             dead zone right at the anchor point (e.g. blocking a second click of
             a double-click on the element the menu was opened from). */}
-        <div className="glass-panel pointer-events-none absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45" />
-        {/* Keyed by drill depth so drilling into/out of a group pill's submenu replays the pop-in. */}
-        <div key={ringPath.length} className="radial-appear absolute inset-0">
-          {items.map((item, idx) => (
-            <IconPill
-              key={item.key}
-              icon={item.icon}
-              label={item.label}
-              active={item.active || openPopoverKey === item.key || (!!item.subItems && item.subItems.some((si) => si.active))}
-              status={item.status}
-              disabled={item.disabled}
-              onClick={
-                item.disabled
-                  ? undefined
-                  : item.subItems
-                    ? () => setRingPath((p) => [...p, item.key])
-                    : item.popoverContent
-                      ? () => setOpenPopoverKey((k) => (k === item.key ? null : item.key))
-                      : item.onClick
-              }
-              expandedContent={item.expandedContent}
-              wide={item.wide}
-              stack={item.stack}
-              x={positions[idx].x}
-              y={positions[idx].y}
-              popDelay={idx * 0.035}
-            />
-          ))}
+        <div className="glass-panel pointer-events-none absolute left-1/2 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full" />
+        {/* Not remounted on drill (no key={ringPath.length} here) — items are
+            individually keyed by item.key, and AnimatePresence gives outgoing
+            pills their own shrink-out exit (IconPill's popVariants) instead of
+            the whole ring vanishing and instantly replaying, so drilling in/out
+            of a group pill reads as the ring reconfiguring rather than a hard
+            cut to a fresh menu. */}
+        <div className="absolute inset-0">
+          <AnimatePresence>
+            {items.map((item, idx) => (
+              <IconPill
+                key={item.key}
+                icon={item.icon}
+                label={item.label}
+                active={item.active || openPopoverKey === item.key || (!!item.subItems && item.subItems.some((si) => si.active))}
+                status={item.status}
+                disabled={item.disabled}
+                onClick={
+                  item.disabled
+                    ? undefined
+                    : item.subItems
+                      ? () => setRingPath((p) => [...p, item.key])
+                      : item.popoverContent
+                        ? () => setOpenPopoverKey((k) => (k === item.key ? null : item.key))
+                        : item.onClick
+                }
+                expandedContent={item.expandedContent}
+                wide={item.wide}
+                stack={item.stack}
+                x={positions[idx].x}
+                y={positions[idx].y}
+                popDelay={idx * 0.035}
+              />
+            ))}
+          </AnimatePresence>
         </div>
-        {openPopoverItem && (
-          <motion.div
-            initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.9, y: -6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            transition={
-              prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 32 }
-            }
-            data-pulse="true"
-            className="glass-panel corner-frame pointer-events-auto fixed z-10 flex max-h-[min(70vh,520px)] -translate-x-1/2 flex-col"
-            style={{ left: radialMenu.x, top: popoverTop }}
-          >
-            {/* Corner brackets live on this outer, non-scrolling panel — only the
-                inner content div below scrolls, so the brackets stay pinned to the
-                panel's corners instead of drifting off with the scrolled content. */}
-            <span className="corner-tl" />
-            <span className="corner-bl" />
-            <span className="corner-br" />
-            <div className="min-h-0 overflow-y-auto p-3">{openPopoverItem.popoverContent}</div>
-          </motion.div>
-        )}
+        <AnimatePresence>
+          {openPopoverItem && (
+            <motion.div
+              key={openPopoverItem.key}
+              initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.92, y: -6 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={prefersReducedMotion ? undefined : { opacity: 0, scale: 0.94, y: -4 }}
+              transition={
+                prefersReducedMotion ? { duration: 0 } : { type: "spring", stiffness: 300, damping: 34, mass: 1 }
+              }
+              data-pulse="true"
+              className="glass-panel pointer-events-auto fixed z-10 flex max-h-[min(70vh,520px)] -translate-x-1/2 flex-col rounded-3xl"
+              style={{ left: radialMenu.x, top: popoverTop }}
+            >
+              <div className="min-h-0 overflow-y-auto p-3">{openPopoverItem.popoverContent}</div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   );

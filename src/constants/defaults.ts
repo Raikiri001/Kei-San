@@ -71,6 +71,11 @@ export const WARP_STEP_PERCENT = 10;
 export const MAX_HISTORY_ENTRIES = 20;
 export const HISTORY_STORAGE_KEY = "wallpaper-designs-history";
 
+/** In-memory undo/redo stack depth (projectStore's past/future) — distinct from
+ * MAX_HISTORY_ENTRIES above, which caps the persisted saved-designs list, not
+ * live edit history. */
+export const MAX_UNDO_ENTRIES = 60;
+
 /** User-saved custom color swatches — a standalone preference, not tied to any one project. */
 export const CUSTOM_SWATCHES_STORAGE_KEY = "wallpaper-custom-swatches";
 export const MAX_CUSTOM_SWATCHES = 24;
