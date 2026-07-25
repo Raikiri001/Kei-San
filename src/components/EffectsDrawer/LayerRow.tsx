@@ -26,12 +26,12 @@ export function LayerRow({ layer, onToggleEnabled, onDelete, onSelect, selected,
   return (
     <div
       className={clsx(
-        "group glass-panel flex items-center gap-2 rounded-xl p-3 transition-colors",
+        "group list-row flex items-center gap-2 rounded-xl p-3 transition-colors",
         nested && "ml-5 border-l-2 border-l-accent/30",
         // A clearly "being customized" state, not just a subtle border tint —
         // matches the accent ring used elsewhere (toolbar/rail buttons) so
         // "selected for editing" reads the same way everywhere in the app.
-        selected && "border-accent bg-[rgb(var(--color-accent-glow)/0.12)] shadow-[0_0_0_1px_var(--color-accent)]",
+        selected && "border-accent bg-[rgb(var(--color-accent-glow)/0.1)] shadow-[0_0_0_1px_var(--color-accent)]",
       )}
     >
       {dragHandle}

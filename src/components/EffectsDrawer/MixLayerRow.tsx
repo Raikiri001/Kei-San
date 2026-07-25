@@ -139,9 +139,9 @@ export function MixLayerRow({
     <div className="flex flex-col gap-2">
       <div
         className={clsx(
-          "group glass-panel flex items-center gap-2 rounded-xl p-3 transition-colors",
+          "group list-row flex items-center gap-2 rounded-xl p-3 transition-colors",
           mix.id === selectedLayerId &&
-            "border-accent bg-[rgb(var(--color-accent-glow)/0.12)] shadow-[0_0_0_1px_var(--color-accent)]",
+            "border-accent bg-[rgb(var(--color-accent-glow)/0.1)] shadow-[0_0_0_1px_var(--color-accent)]",
         )}
       >
         {dragHandle}
@@ -185,7 +185,7 @@ export function MixLayerRow({
       </div>
 
       {mix.expanded && (
-        <div className="glass-panel ml-5 flex flex-col gap-4 rounded-2xl border-l-2 border-l-accent/30 p-3">
+        <div className="list-row ml-5 flex flex-col gap-4 rounded-2xl border-l-2 border-l-accent/30 p-3">
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] uppercase tracking-wide opacity-45">Branches</span>
             <InfoTooltip text='Select "Layer Mix" above to set how Branch A combines over Branch B.' label="About Branches" />

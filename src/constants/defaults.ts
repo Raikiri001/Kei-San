@@ -1,7 +1,7 @@
 export const DEFAULT_WIDTH = 1920;
 export const DEFAULT_HEIGHT = 1080;
-export const DEFAULT_ROWS = 4;
-export const DEFAULT_COLS = 4;
+export const DEFAULT_ROWS = 1;
+export const DEFAULT_COLS = 1;
 export const DEFAULT_BACKGROUND = "#121212";
 
 export const MIN_ZOOM = 0.1;
@@ -27,6 +27,24 @@ export const RAIL_WIDTH = 84;
  * covering the top ruler's lane for their own width — only the *left* ruler
  * (which sits inside the rail's own gap, not the canvas's) stays clear. */
 export const RULER_THICKNESS = 32;
+
+/** Image Effects' left-docked "Active Stack" panel — user-resizable via its
+ * own right-edge drag handle (see EffectsDrawer.tsx), stored in uiStore
+ * (rather than local component state) so App.tsx's layout wrapper can read
+ * it to push the canvas/ruler over by the same amount. */
+export const EFFECTS_PANEL_MIN_WIDTH = 380;
+export const EFFECTS_PANEL_MAX_WIDTH = 760;
+export const EFFECTS_PANEL_DEFAULT_WIDTH = 420;
+/** Text Effects' left-docked panel — fixed width, no resize handle (empty
+ * placeholder content for now). */
+export const TEXT_EFFECTS_PANEL_WIDTH = 320;
+/** The right-docked "customize this layer" panel opened from the Active Stack. */
+export const LAYER_INSPECTOR_WIDTH = 340;
+/** Shared duration/easing for every panel-push transition (the docked
+ * drawers sliding in/out AND the canvas/ruler being shifted over to make
+ * room for them) — kept identical across both so they visibly move as one
+ * synchronized motion rather than two independently-timed animations. */
+export const PANEL_PUSH_TRANSITION = "320ms cubic-bezier(0.22, 1, 0.36, 1)";
 
 export const DISPLAY_SIZE_MIN = 20;
 export const DISPLAY_SIZE_MAX = 4000;
@@ -121,6 +139,7 @@ export interface GridPreset {
 }
 
 export const GRID_PRESETS: GridPreset[] = [
+  { label: "1 × 1", cols: 1, rows: 1 },
   { label: "2 × 2", cols: 2, rows: 2 },
   { label: "3 × 3", cols: 3, rows: 3 },
   { label: "4 × 4", cols: 4, rows: 4 },

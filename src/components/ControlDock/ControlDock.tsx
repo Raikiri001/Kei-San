@@ -1,6 +1,6 @@
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
-import { HEADER_HEIGHT } from "@/constants/defaults";
+import { HEADER_HEIGHT, RAIL_WIDTH } from "@/constants/defaults";
 import { downloadCanvas, renderProjectToCanvas } from "@/canvas/exportEngine";
 import { saveCurrentProject } from "@/store/persistence";
 import { ToolbarIconButton } from "@/components/ControlDock/ToolbarIconButton";
@@ -9,7 +9,7 @@ import { DownloadIcon, NewDesignIcon, RedoIcon, SaveIcon, UndoIcon } from "@/com
 /** Vertical rule between control groups — fixed at the row's own h-6 so it never
  * makes the header taller than its shortest control. */
 function DockDivider() {
-  return <div className="mx-1 h-6 w-px shrink-0" style={{ background: "rgb(var(--chrome-border) / 0.14)" }} />;
+  return <div className="mx-1 h-6 w-px shrink-0" style={{ background: "rgb(var(--bar-border) / 0.14)" }} />;
 }
 
 /**
@@ -48,29 +48,39 @@ export function ControlDock() {
   }
 
   return (
-    <header className="glass-panel header-bar fixed inset-x-0 top-0 z-40 flex items-center" style={{ height: HEADER_HEIGHT }}>
-      <div className="mx-auto flex w-full max-w-[1600px] items-center gap-5 px-8">
-        <div className="flex shrink-0 items-center gap-2">
-          <span
-            className="text-[20px] font-black leading-none"
-            style={{
-              fontFamily: '"Noto Sans JP", sans-serif',
-              color: "var(--color-accent)",
-              textShadow: "0 0 16px rgb(var(--color-accent-glow) / 0.5)",
-            }}
-          >
-            景さん
-          </span>
-        </div>
+    // z-[45]: same reasoning as ToolRail — above the push-docked Image/Text
+    // Effects panels (z-40) so a closed panel's translated position never
+    // paints over the header, below true floating overlays (z-50).
+    <header className="chrome-bar header-bar fixed inset-x-0 top-0 z-[45] flex items-center" style={{ height: HEADER_HEIGHT }}>
+      {/* Logo column: exactly RAIL_WIDTH wide and centered within it, so it
+          sits directly above the rail — same column, same alignment — rather
+          than floating with the rest of the header's own padding. */}
+      <div className="flex h-full shrink-0 items-center justify-center" style={{ width: RAIL_WIDTH }}>
+        {/* Logo stays white regardless of theme (brand mark, not chrome
+            text) — the dark outline is what keeps it legible once the bar
+            itself goes light, instead of white-on-light-gray disappearing. */}
+        <span
+          className="text-[20px] font-black leading-none"
+          style={{
+            fontFamily: '"Noto Sans JP", sans-serif',
+            color: "#ffffff",
+            textShadow:
+              "-1px -1px 0 rgb(0 0 0 / 0.55), 1px -1px 0 rgb(0 0 0 / 0.55), -1px 1px 0 rgb(0 0 0 / 0.55), 1px 1px 0 rgb(0 0 0 / 0.55), 0 2px 6px rgb(0 0 0 / 0.35)",
+          }}
+        >
+          景さん
+        </span>
+      </div>
 
-        <DockDivider />
+      <DockDivider />
 
+      <div className="flex min-w-0 flex-1 items-center gap-5 px-6">
         <input
           value={project.name}
           onChange={(e) => setName(e.target.value)}
           onBlur={() => saveCurrentProject(project)}
           placeholder="Untitled Project"
-          className="glass-panel h-10 w-48 shrink-0 rounded-full px-4 text-[12px] outline-none transition-colors duration-150 focus:border-accent/60"
+          className="h-9 w-48 shrink-0 rounded-lg border border-[rgb(var(--bar-border)/0.14)] bg-[rgb(var(--bar-fg)/0.05)] px-3 text-[12px] text-[rgb(var(--bar-fg))] outline-none transition-colors duration-150 placeholder:text-[rgb(var(--bar-fg-dim))] focus:border-[rgb(var(--bar-border)/0.3)]"
         />
 
         {/* Edit history — undo/redo are frequent, glance-and-click actions in
@@ -83,7 +93,7 @@ export function ControlDock() {
             disabled={!canUndo}
             title="Undo"
             aria-label="Undo"
-            className="accent-glow-hover press-scale flex h-9 w-9 items-center justify-center rounded-full border border-transparent opacity-80 transition-opacity duration-150 hover:opacity-100 disabled:pointer-events-none disabled:opacity-30"
+            className="bar-icon-btn press-scale flex h-9 w-9 items-center justify-center rounded-full disabled:pointer-events-none disabled:opacity-30"
           >
             <span className="flex h-4 w-4 items-center justify-center">
               <UndoIcon />
@@ -95,7 +105,7 @@ export function ControlDock() {
             disabled={!canRedo}
             title="Redo"
             aria-label="Redo"
-            className="accent-glow-hover press-scale flex h-9 w-9 items-center justify-center rounded-full border border-transparent opacity-80 transition-opacity duration-150 hover:opacity-100 disabled:pointer-events-none disabled:opacity-30"
+            className="bar-icon-btn press-scale flex h-9 w-9 items-center justify-center rounded-full disabled:pointer-events-none disabled:opacity-30"
           >
             <span className="flex h-4 w-4 items-center justify-center">
               <RedoIcon />
@@ -105,22 +115,15 @@ export function ControlDock() {
 
         <div className="min-w-0 flex-1" />
 
-        {/* File lifecycle group, right-aligned: New/Save stay in the calm
-            outline style, Export is the one filled accent button — same role
-            as Canva's purple Share button, the single loud action in the bar. */}
+        {/* File lifecycle group, pushed fully to the header's own right edge.
+            All three — New, Save, Export — now share the exact same calm
+            outline toolbar-btn style: Export used to be the one filled,
+            glowing pill in the bar, which read as a leftover neon accent
+            rather than matching the rest of the (now much quieter) chrome. */}
         <div className="flex shrink-0 items-center gap-3">
           <ToolbarIconButton onClick={handleNewDesign} icon={<NewDesignIcon />} label="New" />
           <ToolbarIconButton onClick={handleSave} icon={<SaveIcon />} label="Save" />
-          <button
-            type="button"
-            onClick={handleExport}
-            className="accent-btn press-scale flex h-10 items-center gap-2 rounded-full px-5"
-          >
-            <span className="flex h-4 w-4 shrink-0 items-center justify-center">
-              <DownloadIcon />
-            </span>
-            <span className="shrink-0 whitespace-nowrap text-[12px] font-semibold">Export</span>
-          </button>
+          <ToolbarIconButton onClick={handleExport} icon={<DownloadIcon />} label="Export" />
         </div>
       </div>
     </header>

@@ -1,5 +1,6 @@
 import { useCallback, useRef } from "react";
 import { createId } from "@/utils/id";
+import { ColorPickerButton } from "@/components/ColorPickerButton";
 import { InfoTooltip } from "@/components/InfoTooltip";
 
 export interface GradientStop {
@@ -140,12 +141,12 @@ export function GradientStopEditor({ label, stops, onChange }: GradientStopEdito
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
         {sorted.map((s) => (
-          <input
+          <ColorPickerButton
             key={s.id}
-            type="color"
             value={s.color}
-            onChange={(e) => onChange(stops.map((st) => (st.id === s.id ? { ...st, color: e.target.value } : st)))}
-            className="h-6 w-8 cursor-pointer rounded border border-[rgb(var(--chrome-border)/0.3)] bg-transparent"
+            onChange={(hex) => onChange(stops.map((st) => (st.id === s.id ? { ...st, color: hex } : st)))}
+            label="Gradient stop color"
+            className="h-6 w-8 shrink-0 cursor-pointer rounded border border-[rgb(var(--chrome-border)/0.3)]"
           />
         ))}
       </div>

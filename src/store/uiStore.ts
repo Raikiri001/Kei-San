@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { DEFAULT_ZOOM, MAX_ZOOM, MIN_ZOOM } from "@/constants/defaults";
+import { DEFAULT_ZOOM, EFFECTS_PANEL_DEFAULT_WIDTH, EFFECTS_PANEL_MAX_WIDTH, EFFECTS_PANEL_MIN_WIDTH, MAX_ZOOM, MIN_ZOOM } from "@/constants/defaults";
 import type { RadialMenuContext, RadialMenuState } from "@/store/types";
 import type { GridNode } from "@/utils/grid";
 
@@ -37,6 +37,18 @@ interface UIStore {
    * mirroring radialMenu's own targetIds convention (see openEffectsDrawer below). */
   effectsDrawerOpen: boolean;
   effectsDrawerTargetIds: string[];
+  /** Current width of the Active Stack panel — user-resizable, lifted up from
+   * local component state (rather than kept inside EffectsDrawer) so the
+   * App-level layout wrapper can read it and push the canvas/ruler over by
+   * the same amount while it's open. */
+  effectsPanelWidth: number;
+  /** Which layer (if any) the Active Stack has open in the right-docked
+   * Inspector panel — also lifted up for the same reason: App.tsx needs to
+   * know whether that panel is open to push the canvas's right edge in. */
+  effectsSelectedLayerId: string | null;
+  /** The (currently empty-content) Text Effects panel — mutually exclusive
+   * with the Image Effects drawer, since both dock to the same left edge. */
+  textEffectsDrawerOpen: boolean;
   isDirty: boolean;
   /** The grid node an in-progress drag would snap to on release — drives the live anchor highlight. */
   dragPreviewNode: GridNode | null;
@@ -82,6 +94,9 @@ interface UIStore {
   setUploadDialogOpen: (open: boolean) => void;
   openEffectsDrawer: (targetIds: string[]) => void;
   setEffectsDrawerOpen: (open: boolean) => void;
+  setEffectsPanelWidth: (width: number) => void;
+  setEffectsSelectedLayerId: (id: string | null) => void;
+  setTextEffectsDrawerOpen: (open: boolean) => void;
   setDragPreviewNode: (node: GridNode | null) => void;
   setAlignmentGuide: (x: number | null, y: number | null) => void;
   setEditingTextId: (id: string | null) => void;
@@ -114,6 +129,9 @@ export const useUIStore = create<UIStore>((set, get) => ({
   uploadDialogOpen: false,
   effectsDrawerOpen: false,
   effectsDrawerTargetIds: [],
+  effectsPanelWidth: EFFECTS_PANEL_DEFAULT_WIDTH,
+  effectsSelectedLayerId: null,
+  textEffectsDrawerOpen: false,
   isDirty: false,
   dragPreviewNode: null,
   alignmentGuideX: null,
@@ -160,8 +178,15 @@ export const useUIStore = create<UIStore>((set, get) => ({
 
   setDesignsDrawerOpen: (designsDrawerOpen) => set({ designsDrawerOpen }),
   setUploadDialogOpen: (uploadDialogOpen) => set({ uploadDialogOpen }),
-  openEffectsDrawer: (targetIds) => set({ effectsDrawerOpen: true, effectsDrawerTargetIds: targetIds }),
-  setEffectsDrawerOpen: (effectsDrawerOpen) => set({ effectsDrawerOpen }),
+  openEffectsDrawer: (targetIds) =>
+    set({ effectsDrawerOpen: true, effectsDrawerTargetIds: targetIds, textEffectsDrawerOpen: false, effectsSelectedLayerId: null }),
+  setEffectsDrawerOpen: (effectsDrawerOpen) =>
+    set({ effectsDrawerOpen, ...(effectsDrawerOpen ? {} : { effectsSelectedLayerId: null }) }),
+  setEffectsPanelWidth: (width) =>
+    set({ effectsPanelWidth: Math.min(EFFECTS_PANEL_MAX_WIDTH, Math.max(EFFECTS_PANEL_MIN_WIDTH, width)) }),
+  setEffectsSelectedLayerId: (effectsSelectedLayerId) => set({ effectsSelectedLayerId }),
+  setTextEffectsDrawerOpen: (textEffectsDrawerOpen) =>
+    set({ textEffectsDrawerOpen, ...(textEffectsDrawerOpen ? { effectsDrawerOpen: false, effectsSelectedLayerId: null } : {}) }),
   setDragPreviewNode: (dragPreviewNode) => set({ dragPreviewNode }),
   setAlignmentGuide: (alignmentGuideX, alignmentGuideY) => set({ alignmentGuideX, alignmentGuideY }),
   setEditingTextId: (editingTextId) => set({ editingTextId }),

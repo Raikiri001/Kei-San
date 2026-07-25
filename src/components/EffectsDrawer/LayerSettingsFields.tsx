@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { ColorPickerButton } from "@/components/ColorPickerButton";
 import { SliderField } from "@/components/EffectsDrawer/SliderField";
 import { SegmentedField } from "@/components/EffectsDrawer/SegmentedField";
 import { DirectionPad } from "@/components/EffectsDrawer/DirectionPad";
@@ -667,12 +668,7 @@ export function LayerSettingsFields({
           {layer.style !== "hatch" && layer.mode === "ink" && (
             <label className="flex items-center justify-between text-[11px] uppercase tracking-wide opacity-70">
               <span>Ink Color</span>
-              <input
-                type="color"
-                value={layer.inkColor}
-                onChange={(e) => onUpdate({ inkColor: e.target.value })}
-                className="h-6 w-10 cursor-pointer rounded border border-[rgb(var(--chrome-border)/0.3)] bg-transparent"
-              />
+              <ColorPickerButton value={layer.inkColor} onChange={(hex) => onUpdate({ inkColor: hex })} label="Ink Color" />
             </label>
           )}
         </div>
@@ -1209,12 +1205,7 @@ export function LayerSettingsFields({
           {layer.colorMode === "single" && (
             <label className="flex items-center justify-between text-[11px] uppercase tracking-wide opacity-70">
               <span>Color</span>
-              <input
-                type="color"
-                value={layer.color}
-                onChange={(e) => onUpdate({ color: e.target.value })}
-                className="h-6 w-10 cursor-pointer rounded border border-[rgb(var(--chrome-border)/0.3)] bg-transparent"
-              />
+              <ColorPickerButton value={layer.color} onChange={(hex) => onUpdate({ color: hex })} label="Color" />
             </label>
           )}
         </div>
@@ -1423,21 +1414,11 @@ export function LayerSettingsFields({
         <div className="flex flex-col gap-3">
           <label className="flex items-center justify-between text-[11px] uppercase tracking-wide opacity-70">
             <span>Shadow Color</span>
-            <input
-              type="color"
-              value={layer.shadowColor}
-              onChange={(e) => onUpdate({ shadowColor: e.target.value })}
-              className="h-6 w-10 cursor-pointer rounded border border-[rgb(var(--chrome-border)/0.3)] bg-transparent"
-            />
+            <ColorPickerButton value={layer.shadowColor} onChange={(hex) => onUpdate({ shadowColor: hex })} label="Shadow Color" />
           </label>
           <label className="flex items-center justify-between text-[11px] uppercase tracking-wide opacity-70">
             <span>Highlight Color</span>
-            <input
-              type="color"
-              value={layer.highlightColor}
-              onChange={(e) => onUpdate({ highlightColor: e.target.value })}
-              className="h-6 w-10 cursor-pointer rounded border border-[rgb(var(--chrome-border)/0.3)] bg-transparent"
-            />
+            <ColorPickerButton value={layer.highlightColor} onChange={(hex) => onUpdate({ highlightColor: hex })} label="Highlight Color" />
           </label>
         </div>
       );
@@ -1473,12 +1454,7 @@ export function LayerSettingsFields({
           />
           <label className="flex items-center justify-between text-[11px] uppercase tracking-wide opacity-70">
             <span>Tint</span>
-            <input
-              type="color"
-              value={layer.tint}
-              onChange={(e) => onUpdate({ tint: e.target.value })}
-              className="h-6 w-10 cursor-pointer rounded border border-[rgb(var(--chrome-border)/0.3)] bg-transparent"
-            />
+            <ColorPickerButton value={layer.tint} onChange={(hex) => onUpdate({ tint: hex })} label="Tint" />
           </label>
         </div>
       );
@@ -1953,21 +1929,11 @@ export function LayerSettingsFields({
         <div className="flex flex-col gap-3">
           <label className="flex items-center justify-between text-[11px] uppercase tracking-wide opacity-70">
             <span>Ink Color A</span>
-            <input
-              type="color"
-              value={layer.inkColorA}
-              onChange={(e) => onUpdate({ inkColorA: e.target.value })}
-              className="h-6 w-10 cursor-pointer rounded border border-[rgb(var(--chrome-border)/0.3)] bg-transparent"
-            />
+            <ColorPickerButton value={layer.inkColorA} onChange={(hex) => onUpdate({ inkColorA: hex })} label="Ink Color A" />
           </label>
           <label className="flex items-center justify-between text-[11px] uppercase tracking-wide opacity-70">
             <span>Ink Color B</span>
-            <input
-              type="color"
-              value={layer.inkColorB}
-              onChange={(e) => onUpdate({ inkColorB: e.target.value })}
-              className="h-6 w-10 cursor-pointer rounded border border-[rgb(var(--chrome-border)/0.3)] bg-transparent"
-            />
+            <ColorPickerButton value={layer.inkColorB} onChange={(hex) => onUpdate({ inkColorB: hex })} label="Ink Color B" />
           </label>
           <SliderField
             label="Split Point"
@@ -2233,12 +2199,7 @@ export function LayerSettingsFields({
           />
           <label className="flex items-center justify-between text-[11px] uppercase tracking-wide opacity-70">
             <span>Tint Color</span>
-            <input
-              type="color"
-              value={layer.tintColor}
-              onChange={(e) => onUpdate({ tintColor: e.target.value })}
-              className="h-6 w-10 cursor-pointer rounded border border-[rgb(var(--chrome-border)/0.3)] bg-transparent"
-            />
+            <ColorPickerButton value={layer.tintColor} onChange={(hex) => onUpdate({ tintColor: hex })} label="Tint Color" />
           </label>
           <SliderField
             label="Intensity"

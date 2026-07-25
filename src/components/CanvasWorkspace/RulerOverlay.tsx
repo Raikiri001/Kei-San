@@ -61,7 +61,7 @@ export function RulerOverlay({ width, height, zoom, originX, originY, hoverPos }
 
   return (
     <>
-      <div className="glass-panel pointer-events-none absolute inset-x-0 top-0 z-10" style={{ height: RULER_THICKNESS }}>
+      <div className="ruler-bar ruler-bar-top pointer-events-none absolute inset-x-0 top-0 z-10" style={{ height: RULER_THICKNESS }}>
         {colTicks.map((x) => {
           const left = originX + x * zoom;
           if (left < -40 || left > 100000) return null;
@@ -69,13 +69,13 @@ export function RulerOverlay({ width, height, zoom, originX, originY, hoverPos }
             <div key={x} className="absolute bottom-0" style={{ left }}>
               <span
                 className="font-mono absolute left-1 whitespace-nowrap text-[9px] tabular-nums opacity-60"
-                style={{ bottom: LABEL_INSET, color: "rgb(var(--chrome-text-dim))" }}
+                style={{ bottom: LABEL_INSET, color: "rgb(var(--bar-fg-dim))" }}
               >
                 {x}
               </span>
               <span
                 className="absolute bottom-0 left-0"
-                style={{ height: TICK_LENGTH, width: 1, background: "rgb(var(--chrome-border) / 0.4)" }}
+                style={{ height: TICK_LENGTH, width: 1, background: "rgb(var(--bar-border) / 0.4)" }}
               />
             </div>
           );
@@ -84,15 +84,15 @@ export function RulerOverlay({ width, height, zoom, originX, originY, hoverPos }
           <>
             <div
               className="absolute top-0 h-full"
-              style={{ left: originX + hoverPos.x * zoom, width: 1, background: "var(--color-accent)" }}
+              style={{ left: originX + hoverPos.x * zoom, width: 1, background: "rgb(var(--bar-fg))" }}
             />
             <div
               className="font-mono absolute -translate-x-1/2 whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-medium leading-none tabular-nums shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
               style={{
                 left: originX + hoverPos.x * zoom,
                 bottom: LABEL_INSET - 2,
-                color: "rgb(var(--chrome-text))",
-                background: "var(--color-accent)",
+                color: "rgb(var(--bar-bg))",
+                background: "rgb(var(--bar-fg))",
               }}
             >
               {Math.round(hoverPos.x)}
@@ -101,23 +101,25 @@ export function RulerOverlay({ width, height, zoom, originX, originY, hoverPos }
         )}
       </div>
 
-      <div className="glass-panel pointer-events-none absolute inset-y-0 left-0 z-10" style={{ width: RULER_THICKNESS }}>
+      <div className="ruler-bar ruler-bar-left pointer-events-none absolute inset-y-0 left-0 z-10" style={{ width: RULER_THICKNESS }}>
         {rowTicks.map((y) => {
           const top = originY + y * zoom;
           if (top < -40 || top > 100000) return null;
           return (
             <div key={y} className="absolute right-0" style={{ top }}>
-              {/* Upright, not rotated — a sideways-reading ruler label is
-                  harder to scan than just letting the number sit normally. */}
+              {/* Rotated to run bottom-to-top, matching the ruler's own
+                  vertical orientation — vertically centered on the tick
+                  (top-1/2 -translate-y-1/2) before the rotate so it spins in
+                  place around the tick's own y-coordinate instead of drifting. */}
               <span
-                className="font-mono absolute top-1 whitespace-nowrap text-[9px] tabular-nums opacity-60"
-                style={{ right: LABEL_INSET, color: "rgb(var(--chrome-text-dim))" }}
+                className="font-mono absolute top-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap text-[9px] tabular-nums opacity-60"
+                style={{ right: LABEL_INSET, color: "rgb(var(--bar-fg-dim))" }}
               >
                 {y}
               </span>
               <span
                 className="absolute right-0 top-0"
-                style={{ width: TICK_LENGTH, height: 1, background: "rgb(var(--chrome-border) / 0.4)" }}
+                style={{ width: TICK_LENGTH, height: 1, background: "rgb(var(--bar-border) / 0.4)" }}
               />
             </div>
           );
@@ -126,14 +128,18 @@ export function RulerOverlay({ width, height, zoom, originX, originY, hoverPos }
           <>
             <div
               className="absolute left-0 w-full"
-              style={{ top: originY + hoverPos.y * zoom, height: 1, background: "var(--color-accent)" }}
+              style={{ top: originY + hoverPos.y * zoom, height: 1, background: "rgb(var(--bar-fg))" }}
             />
+            {/* Same rotation as the plain tick labels above — a vertical
+                ruler's own readout pill should read top-to-bottom like the
+                ruler itself, not sit sideways spilling out past its narrow
+                32px lane the way a plain horizontal pill would. */}
             <div
-              className="font-mono absolute left-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-medium leading-none tabular-nums shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
+              className="font-mono absolute left-1/2 -translate-x-1/2 -translate-y-1/2 -rotate-90 whitespace-nowrap rounded-full px-2 py-0.5 text-[9px] font-medium leading-none tabular-nums shadow-[0_2px_8px_rgb(0_0_0/0.35)]"
               style={{
                 top: originY + hoverPos.y * zoom,
-                color: "rgb(var(--chrome-text))",
-                background: "var(--color-accent)",
+                color: "rgb(var(--bar-bg))",
+                background: "rgb(var(--bar-fg))",
               }}
             >
               {Math.round(hoverPos.y)}
@@ -143,10 +149,7 @@ export function RulerOverlay({ width, height, zoom, originX, originY, hoverPos }
       </div>
 
       {/* Corner patch where the two full-span bars overlap. */}
-      <div
-        className="glass-panel pointer-events-none absolute left-0 top-0 z-10"
-        style={{ width: RULER_THICKNESS, height: RULER_THICKNESS }}
-      />
+      <div className="ruler-bar pointer-events-none absolute left-0 top-0 z-10" style={{ width: RULER_THICKNESS, height: RULER_THICKNESS }} />
     </>
   );
 }

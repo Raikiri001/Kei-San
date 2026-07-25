@@ -357,7 +357,7 @@ export function CanvasWorkspace() {
           onPointerUp={handleBgPointerUp}
           onPointerMove={handleCanvasPointerMove}
           onPointerLeave={() => setHoverPos(null)}
-          className="relative touch-none shadow-[0_0_0_1px_rgb(255_255_255/0.14),0_0_60px_-10px_rgb(var(--color-accent-glow)/0.25),0_40px_120px_-20px_rgb(0_0_0/0.6)]"
+          className="relative touch-none shadow-[0_0_0_1px_rgb(var(--canvas-ring)/0.16),0_0_60px_-10px_rgb(var(--color-accent-glow)/0.25),0_40px_120px_-20px_rgb(0_0_0/0.6)]"
           style={{ width, height, isolation: "isolate" }}
         >
           {/* Two separate stacked layers, not one element's background-image

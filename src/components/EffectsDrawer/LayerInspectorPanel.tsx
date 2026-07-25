@@ -40,11 +40,12 @@ export function LayerInspectorPanel({ layer, width, loadedImg, onClose, onUpdate
   const title = layer.kind === "mix" ? "Layer Mix" : EFFECT_LABELS[layer.type];
 
   return (
-    // A fully separate floating panel (see EffectsDrawer.tsx — this is its
-    // own independent Dialog, docked to the screen's right edge, not
-    // adjacent to the stack panel), so both its left and right corners are
-    // genuine floating outer edges.
-    <div className="thin-scroll glass-panel flex h-full flex-col gap-5 overflow-y-auto rounded-3xl p-6" style={{ width }}>
+    // A fully separate docked panel (see EffectsDrawer.tsx — its own
+    // independent open state, docked flush to the screen's own right edge,
+    // not adjacent to the stack panel) — flush-right like the stack panel is
+    // flush-left, so it drops the all-around border/radius for a single
+    // left-edge hairline via .inspector-panel-bar.
+    <div className="thin-scroll glass-panel inspector-panel-bar flex h-full flex-col gap-5 overflow-y-auto p-6" style={{ width }}>
       <div className="flex items-center justify-between gap-3">
         {/* The name of the effect being customized — same bold treatment as
             the stack panel's own section headings, so both panels' headers

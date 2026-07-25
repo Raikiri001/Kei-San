@@ -50,7 +50,7 @@ export function GroupLayerRow({
 }: GroupLayerRowProps) {
   return (
     <div className="flex flex-col gap-2">
-      <div className="group glass-panel flex items-center gap-2 rounded-xl p-3">
+      <div className="group list-row flex items-center gap-2 rounded-xl p-3">
         {dragHandle}
         <button type="button" onClick={onToggleExpanded} aria-label={group.expanded ? "Collapse" : "Expand"} className="press-scale flex h-5 w-5 items-center justify-center">
           <ChevronIcon expanded={group.expanded} />

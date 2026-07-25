@@ -1,5 +1,4 @@
-import * as Dialog from "@radix-ui/react-dialog";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useUIStore } from "@/store/uiStore";
 import { useProjectStore } from "@/store/projectStore";
 import { useLoadedImage } from "@/hooks/useLoadedImage";
@@ -12,26 +11,19 @@ import { LayerInspectorPanel } from "@/components/EffectsDrawer/LayerInspectorPa
 import { CloseIcon, SearchIcon } from "@/components/EffectsDrawer/icons";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { ALL_EFFECT_TYPES, CATEGORY_ORDER, EFFECT_CATEGORIES, EFFECT_LABELS } from "@/components/EffectsDrawer/effectLabels";
-import { HEADER_HEIGHT, RAIL_WIDTH, RULER_THICKNESS } from "@/constants/defaults";
+import { HEADER_HEIGHT, LAYER_INSPECTOR_WIDTH, PANEL_PUSH_TRANSITION, RAIL_WIDTH } from "@/constants/defaults";
 import type { StackableEffectType } from "@/store/types";
 
-/** Both floating panels dock below the *entire* ruler lane, not just clear of
- * the rail — covering the top ruler read as the panel visually cutting into
- * a tool you're actively trying to read (its ticks now show up right beside
- * an in-progress edit), so every panel leaves the ruler alone regardless of
- * which edge it shares with it. */
-const PANEL_TOP = HEADER_HEIGHT + RULER_THICKNESS;
-/** The stack panel (left-docked) starts clear of *both* the tool rail and the
- * left ruler's own lane — unlike the top ruler, the left ruler stays visible
- * the entire time this panel is open, since it sits inside the rail's own
- * gap rather than the canvas's. */
-const STACK_PANEL_LEFT = RAIL_WIDTH + RULER_THICKNESS;
+/** Both docked panels sit flush against the header (no ruler-lane gap to
+ * leave clear anymore: opening either one now pushes the ruler/canvas over
+ * instead of floating on top of them — see App.tsx) and span the full
+ * remaining height, same as the left tool rail. */
+const PANEL_TOP = HEADER_HEIGHT;
+/** The stack panel docks immediately against the rail's own right edge. */
+const STACK_PANEL_LEFT = RAIL_WIDTH;
 
-const MIN_STACK_WIDTH = 380;
-const MAX_STACK_WIDTH = 760;
-const DEFAULT_STACK_WIDTH = 420;
 /** Below this width the Presets/Effects grids show 2 columns, at/above it 3 — driven
- * directly off the same JS width state the resize handle updates, so no separate
+ * directly off the same store width value the resize handle updates, so no separate
  * CSS container query is needed. */
 const THREE_COLUMN_THRESHOLD = 560;
 
@@ -81,10 +73,28 @@ function PanelCloseButton({ onClick, label }: { onClick: () => void; label: stri
   );
 }
 
+/** Escape closes an open docked panel — the one bit of the old Radix Dialog
+ * behavior worth keeping now that these are plain always-mounted divs
+ * (translated on/off screen) instead of actual Dialog.Content. */
+function useEscapeToClose(open: boolean, onClose: () => void) {
+  useEffect(() => {
+    if (!open) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, onClose]);
+}
+
 export function EffectsDrawer() {
   const open = useUIStore((s) => s.effectsDrawerOpen);
   const setOpen = useUIStore((s) => s.setEffectsDrawerOpen);
   const targetIds = useUIStore((s) => s.effectsDrawerTargetIds);
+  const stackWidth = useUIStore((s) => s.effectsPanelWidth);
+  const setStackWidth = useUIStore((s) => s.setEffectsPanelWidth);
+  const selectedLayerId = useUIStore((s) => s.effectsSelectedLayerId);
+  const setSelectedLayerId = useUIStore((s) => s.setEffectsSelectedLayerId);
   const allImages = useProjectStore((s) => s.project.images);
   const addEffectLayer = useProjectStore((s) => s.addEffectLayer);
   const addPresetGroupLayer = useProjectStore((s) => s.addPresetGroupLayer);
@@ -92,18 +102,18 @@ export function EffectsDrawer() {
   const updateEffectLayer = useProjectStore((s) => s.updateEffectLayer);
   const updateMixLayer = useProjectStore((s) => s.updateMixLayer);
 
+  useEscapeToClose(open, () => setOpen(false));
+
   // Anchor-element convention (same as the radial menu's own image context items):
   // "add" actions apply to every target id, but the gallery's own live previews read
   // from the first selected image.
   const image = allImages.find((i) => targetIds.includes(i.id));
   const loadedImg = useLoadedImage(image?.dataUrl ?? null);
 
-  // Drawer-internal navigation state — which layer's settings the Inspector shows,
-  // how wide the Stack panel is, and the live search query. None of this belongs in
-  // the global uiStore: all three reset naturally each time the drawer opens, and
-  // nothing outside this drawer ever needs to read them.
-  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
-  const [stackWidth, setStackWidth] = useState(DEFAULT_STACK_WIDTH);
+  // Drawer-internal navigation state — the live search query resets naturally each
+  // time the drawer opens and nothing outside this drawer ever needs to read it, so
+  // it stays local (unlike selectedLayerId/stackWidth above, which App.tsx's layout
+  // needs to read too — see uiStore).
   const [query, setQuery] = useState("");
   const resizeRef = useRef<{ startX: number; startWidth: number } | null>(null);
 
@@ -114,19 +124,23 @@ export function EffectsDrawer() {
     },
     [stackWidth],
   );
-  const handleResizePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (!resizeRef.current || e.buttons !== 1) return;
-    // Handle sits on the panel's own right edge (the panel docks to the
-    // screen's left edge), so dragging right grows it.
-    const dx = e.clientX - resizeRef.current.startX;
-    setStackWidth(Math.min(MAX_STACK_WIDTH, Math.max(MIN_STACK_WIDTH, resizeRef.current.startWidth + dx)));
-  }, []);
+  const handleResizePointerMove = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (!resizeRef.current || e.buttons !== 1) return;
+      // Handle sits on the panel's own right edge (the panel docks to the
+      // rail's right edge), so dragging right grows it.
+      const dx = e.clientX - resizeRef.current.startX;
+      setStackWidth(resizeRef.current.startWidth + dx);
+    },
+    [setStackWidth],
+  );
   const handleResizePointerUp = useCallback(() => {
     resizeRef.current = null;
   }, []);
 
   const selectedLayer = image && selectedLayerId ? findLayerById(image.layers, selectedLayerId) : null;
   const gridCols = stackWidth >= THREE_COLUMN_THRESHOLD ? "grid-cols-3" : "grid-cols-2";
+  const inspectorOpen = !!(image && selectedLayer);
 
   // One search box, scoped across both galleries — a simple case-insensitive
   // substring match on each item's display name. Presets and effect categories
@@ -154,165 +168,168 @@ export function EffectsDrawer() {
 
   return (
     <>
-      {/* Gallery/stack panel — docks to the screen's own left edge, slides in
-          left-to-right. Non-modal: matches a real editor's side panel, not a
-          dialog — the canvas behind it stays fully visible and interactive
-          (pan/zoom/select) while this is open, so there's no Dialog.Overlay
-          at all. onPointerDownOutside/onInteractOutside are suppressed so
-          clicking the canvas doesn't also auto-close it — the explicit close
-          button is the intended way to dismiss it. */}
-      <Dialog.Root open={open} onOpenChange={setOpen} modal={false}>
-        <Dialog.Portal>
-          <Dialog.Content
-            className="glass-panel fixed z-50 flex max-w-[95vw] flex-col rounded-r-3xl p-8 shadow-2xl outline-none data-[state=open]:animate-[slide-in-left_220ms_cubic-bezier(0.22,1,0.36,1)] data-[state=closed]:animate-[slide-out-left_160ms_cubic-bezier(0.22,1,0.36,1)]"
-            style={{ width: stackWidth, left: STACK_PANEL_LEFT, top: PANEL_TOP, height: `calc(100% - ${PANEL_TOP}px)` }}
-            onPointerMove={handleResizePointerMove}
-            onPointerUp={handleResizePointerUp}
-            onPointerDownOutside={(e) => e.preventDefault()}
-            onInteractOutside={(e) => e.preventDefault()}
-          >
-            <div
-              onPointerDown={handleResizePointerDown}
-              className="absolute -right-1 top-0 h-full w-2 cursor-ew-resize"
-              style={{ touchAction: "none" }}
-              aria-hidden="true"
-            />
-            <div className="mb-6 flex shrink-0 items-center justify-between">
-              <Dialog.Title className="text-[16px] font-semibold">Image Effects</Dialog.Title>
-              <Dialog.Close asChild>
-                <PanelCloseButton onClick={() => {}} label="Close Image Effects" />
-              </Dialog.Close>
-            </div>
-
-            {!image ? (
-              <p className="mt-8 text-center text-[12px] opacity-50">Select an image first.</p>
-            ) : (
-              <div className="thin-scroll -mx-8 flex min-h-0 flex-1 flex-col overflow-y-auto px-8 pb-6">
-                {/* Sticky: stays pinned at the top of the scroll area while
-                    Presets/Effects scroll underneath it — the one section
-                    you're always mid-editing, so it never scrolls out of
-                    reach. Its own background matches the panel's tint
-                    (rather than re-blurring) since it's already inside the
-                    blurred glass panel. */}
-                <section
-                  className="sticky top-0 z-10 shrink-0 pb-6"
-                  style={{ background: "rgb(var(--chrome-bg))" }}
-                >
-                  <div className="mb-4 flex items-start justify-between gap-3">
-                    <SectionHeading hint="Everything applied to this image, newest on top first, matching the order it's composited. Drag to reorder, toggle to hide, or click a name to edit its settings.">
-                      Active Stack
-                    </SectionHeading>
-                    <button
-                      type="button"
-                      onClick={() => addMixLayer(targetIds)}
-                      className="accent-glow-hover press-scale shrink-0 whitespace-nowrap rounded-full border border-[rgb(var(--chrome-border)/0.3)] px-3 py-1.5 text-[11px] font-medium opacity-80 hover:opacity-100"
-                    >
-                      + Layer Mix
-                    </button>
-                  </div>
-                  <LayerStackList image={image} selectedLayerId={selectedLayerId} onSelect={setSelectedLayerId} />
-                  <div className="mt-5 border-b border-[rgb(var(--chrome-border)/0.15)]" />
-                </section>
-
-                <div className="flex flex-col gap-12 pt-9">
-                  <label className="relative block">
-                    <span className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 opacity-50">
-                      <SearchIcon />
-                    </span>
-                    <input
-                      type="text"
-                      value={query}
-                      onChange={(e) => setQuery(e.target.value)}
-                      placeholder="Search presets and effects"
-                      aria-label="Search presets and effects"
-                      className="glass-panel h-10 w-full rounded-full py-2 pl-10 pr-4 text-[12px] outline-none focus:border-accent/60"
-                    />
-                  </label>
-
-                  {noResults ? (
-                    <p className="text-[12px] opacity-50">No presets or effects match "{query}".</p>
-                  ) : (
-                    <>
-                      {filteredPresets.length > 0 && (
-                        <section>
-                          <div className="mb-4">
-                            <SectionHeading hint="Click a preset to add its whole bundle as a new group. You can add the same preset more than once, and expand any group to tune its individual effects.">
-                              Presets
-                            </SectionHeading>
-                          </div>
-                          <div className={`grid ${gridCols} gap-4`}>
-                            {filteredPresets.map((preset) => (
-                              <PresetCard key={preset.id} preset={preset} loadedImg={loadedImg} onAdd={() => addPresetGroupLayer(targetIds, preset.id)} />
-                            ))}
-                          </div>
-                        </section>
-                      )}
-
-                      {filteredPresets.length > 0 && filteredEffectsByCategory.length > 0 && <SectionDivider />}
-
-                      {filteredEffectsByCategory.length > 0 && (
-                        <section>
-                          <div className="mb-4">
-                            <SectionHeading hint="Click an effect to add it to the stack above. Add the same one more than once for extra intensity.">
-                              Effects
-                            </SectionHeading>
-                          </div>
-                          <div className="flex flex-col gap-8">
-                            {filteredEffectsByCategory.map(({ category, types }) => (
-                              <div key={category}>
-                                <h4 className="mb-3 border-b border-[rgb(var(--chrome-border)/0.18)] pb-2 text-[13px] font-semibold opacity-90">
-                                  {category}
-                                </h4>
-                                <div className={`grid ${gridCols} gap-4`}>
-                                  {types.map((type) => (
-                                    <EffectCard key={type} type={type} loadedImg={loadedImg} onAdd={() => addEffectLayer(targetIds, type)} />
-                                  ))}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </section>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
-
-      {/* Customization panel — a fully separate floating panel docked to the
-          screen's own right edge, slides in right-to-left. Deliberately not
-          adjacent to the stack panel above: its own Dialog.Root/open state
-          (driven by "is a layer selected", not by the stack panel's own open
-          state) so it can appear/disappear independently. */}
-      <Dialog.Root
-        open={!!(image && selectedLayer)}
-        onOpenChange={(next) => {
-          if (!next) setSelectedLayerId(null);
+      {/* Gallery/stack panel — docks flush against the rail's right edge,
+          full height like the rail itself, and slides in left-to-right by a
+          plain transform. Permanently mounted (not conditionally rendered
+          like the old Dialog.Content) so it can push-animate in lockstep
+          with the canvas/ruler — see App.tsx, which reads this same
+          open/width state to shift the canvas's left edge over by exactly
+          this panel's width. */}
+      <div
+        role="dialog"
+        aria-label="Image Effects"
+        className="glass-panel stack-panel-bar fixed z-40 flex flex-col p-6"
+        style={{
+          width: stackWidth,
+          left: STACK_PANEL_LEFT,
+          top: PANEL_TOP,
+          bottom: 0,
+          transform: `translateX(${open ? "0" : "-100%"})`,
+          transition: `transform ${PANEL_PUSH_TRANSITION}`,
+          pointerEvents: open ? "auto" : "none",
         }}
-        modal={false}
       >
-        <Dialog.Portal>
-          <Dialog.Content
-            className="fixed right-0 z-50 flex outline-none data-[state=open]:animate-[slide-in-right_220ms_cubic-bezier(0.22,1,0.36,1)] data-[state=closed]:animate-[slide-out-right_160ms_cubic-bezier(0.22,1,0.36,1)]"
-            style={{ top: PANEL_TOP, height: `calc(100% - ${PANEL_TOP}px)` }}
-            onPointerDownOutside={(e) => e.preventDefault()}
-            onInteractOutside={(e) => e.preventDefault()}
-          >
-            {image && selectedLayer && (
-              <LayerInspectorPanel
-                layer={selectedLayer}
-                width={340}
-                loadedImg={loadedImg}
-                onClose={() => setSelectedLayerId(null)}
-                onUpdate={handleInspectorUpdate}
-              />
-            )}
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+        <div
+          onPointerDown={handleResizePointerDown}
+          onPointerMove={handleResizePointerMove}
+          onPointerUp={handleResizePointerUp}
+          className="group absolute -right-1 top-0 z-10 flex h-full w-2 cursor-ew-resize items-center justify-center"
+          style={{ touchAction: "none" }}
+          aria-hidden="true"
+        >
+          {/* A visible grip, not just an invisible hit-region — the old
+              purely-invisible strip had no affordance at all, which read as
+              "impossible to see where to grab," especially against a canvas
+              that can now be either light or dark theme right next to it.
+              Drawn on the panel's own always-dark surface, so it stays
+              equally visible regardless of what's on the other side. */}
+          <span className="h-10 w-[3px] rounded-full bg-[rgb(var(--chrome-text)/0.28)] transition-colors group-hover:bg-[rgb(var(--chrome-text)/0.6)]" />
+        </div>
+
+        <div className="mb-6 flex shrink-0 items-center justify-between">
+          <h2 className="text-[16px] font-semibold">Image Effects</h2>
+          <PanelCloseButton onClick={() => setOpen(false)} label="Close Image Effects" />
+        </div>
+
+        {!image ? (
+          <p className="mt-8 text-center text-[12px] opacity-50">Select an image first.</p>
+        ) : (
+          <div className="thin-scroll -mx-6 flex min-h-0 flex-1 flex-col overflow-y-auto px-6 pb-6">
+            {/* Sticky: stays pinned at the top of the scroll area while
+                Presets/Effects scroll underneath it — the one section
+                you're always mid-editing, so it never scrolls out of
+                reach. */}
+            <section className="stack-sticky sticky top-0 z-10 shrink-0 pb-6">
+              <div className="mb-4 flex items-start justify-between gap-3">
+                <SectionHeading hint="Everything applied to this image, newest on top first, matching the order it's composited. Drag to reorder, toggle to hide, or click a name to edit its settings.">
+                  Active Stack
+                </SectionHeading>
+                <button
+                  type="button"
+                  onClick={() => addMixLayer(targetIds)}
+                  className="accent-glow-hover press-scale shrink-0 whitespace-nowrap rounded-full border border-[rgb(var(--chrome-border)/0.3)] px-3 py-1.5 text-[11px] font-medium opacity-80 hover:opacity-100"
+                >
+                  + Layer Mix
+                </button>
+              </div>
+              <LayerStackList image={image} selectedLayerId={selectedLayerId} onSelect={setSelectedLayerId} />
+              <div className="mt-5 border-b border-[rgb(var(--chrome-border)/0.15)]" />
+            </section>
+
+            <div className="flex flex-col gap-12 pt-9">
+              <label className="relative block">
+                <span className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 opacity-50">
+                  <SearchIcon />
+                </span>
+                <input
+                  type="text"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search presets and effects"
+                  aria-label="Search presets and effects"
+                  className="glass-panel h-10 w-full rounded-full py-2 pl-10 pr-4 text-[12px] outline-none focus:border-accent/60"
+                />
+              </label>
+
+              {noResults ? (
+                <p className="text-[12px] opacity-50">No presets or effects match "{query}".</p>
+              ) : (
+                <>
+                  {filteredPresets.length > 0 && (
+                    <section>
+                      <div className="mb-4">
+                        <SectionHeading hint="Click a preset to add its whole bundle as a new group. You can add the same preset more than once, and expand any group to tune its individual effects.">
+                          Presets
+                        </SectionHeading>
+                      </div>
+                      <div className={`grid ${gridCols} gap-4`}>
+                        {filteredPresets.map((preset) => (
+                          <PresetCard key={preset.id} preset={preset} loadedImg={loadedImg} onAdd={() => addPresetGroupLayer(targetIds, preset.id)} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {filteredPresets.length > 0 && filteredEffectsByCategory.length > 0 && <SectionDivider />}
+
+                  {filteredEffectsByCategory.length > 0 && (
+                    <section>
+                      <div className="mb-4">
+                        <SectionHeading hint="Click an effect to add it to the stack above. Add the same one more than once for extra intensity.">
+                          Effects
+                        </SectionHeading>
+                      </div>
+                      <div className="flex flex-col gap-8">
+                        {filteredEffectsByCategory.map(({ category, types }) => (
+                          <div key={category}>
+                            <h4 className="mb-3 border-b border-[rgb(var(--chrome-border)/0.18)] pb-2 text-[13px] font-semibold opacity-90">
+                              {category}
+                            </h4>
+                            <div className={`grid ${gridCols} gap-4`}>
+                              {types.map((type) => (
+                                <EffectCard key={type} type={type} loadedImg={loadedImg} onAdd={() => addEffectLayer(targetIds, type)} />
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Customization panel — docks flush against the screen's own right
+          edge, full height like the rail, slides in right-to-left. Its own
+          open state (image + selectedLayer both set) is independent of the
+          stack panel's — App.tsx pushes the canvas's right edge in by
+          LAYER_INSPECTOR_WIDTH whenever this is open. */}
+      <div
+        role="dialog"
+        aria-label={selectedLayer ? `Customize ${selectedLayer.kind === "mix" ? "Layer Mix" : selectedLayer.type}` : "Layer settings"}
+        className="fixed right-0 z-40"
+        style={{
+          top: PANEL_TOP,
+          bottom: 0,
+          width: LAYER_INSPECTOR_WIDTH,
+          transform: `translateX(${inspectorOpen ? "0" : "100%"})`,
+          transition: `transform ${PANEL_PUSH_TRANSITION}`,
+          pointerEvents: inspectorOpen ? "auto" : "none",
+        }}
+      >
+        {image && selectedLayer && (
+          <LayerInspectorPanel
+            layer={selectedLayer}
+            width={LAYER_INSPECTOR_WIDTH}
+            loadedImg={loadedImg}
+            onClose={() => setSelectedLayerId(null)}
+            onUpdate={handleInspectorUpdate}
+          />
+        )}
+      </div>
     </>
   );
 }

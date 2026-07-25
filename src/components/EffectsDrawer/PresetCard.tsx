@@ -38,14 +38,13 @@ export function PresetCard({ preset, loadedImg, onAdd }: PresetCardProps) {
       ) : (
         <div className="flex aspect-[4/3] w-full items-center justify-center bg-black/20 text-[10px] opacity-40">No image yet</div>
       )}
-      <span className="accent-glow-hover glass-panel absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-[14px] opacity-0 transition-opacity group-hover:opacity-100">
-        +
-      </span>
+      {/* Static, always visible — no hover-triggered reveal. A fixed "+" badge
+          reads as calmer and more predictable than one that pops in on
+          hover/focus. */}
+      <span className="list-row absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full text-[14px] opacity-80">+</span>
       <div className="px-3.5 py-3">
         <div className="text-[12.5px] font-medium">{preset.name}</div>
-        <div className="mt-0.5 line-clamp-1 text-[10px] opacity-0 transition-opacity group-hover:opacity-60 group-focus-visible:opacity-60">
-          {bundleSummary}
-        </div>
+        <div className="mt-0.5 line-clamp-1 text-[10px] opacity-55">{bundleSummary}</div>
       </div>
     </button>
   );
