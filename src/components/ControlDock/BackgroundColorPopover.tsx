@@ -7,10 +7,11 @@ import { colorSuggestionsCache } from "@/canvas/analysisCaches";
 import { PaletteIcon } from "@/components/RadialMenu/icons";
 import { ColorPickerPanel } from "@/components/RadialMenu/contexts/ColorPickerPanel";
 import type { SuggestionGroup } from "@/components/RadialMenu/contexts/ColorSwatchPanel";
-import { ToolbarIconButton } from "@/components/ControlDock/ToolbarIconButton";
+import { RailIconButton } from "@/components/ToolRail/RailIconButton";
+import { RailPopover } from "@/components/ToolRail/RailPopover";
 
 /**
- * Toolbar home for the canvas background color picker — previously the sole
+ * Tool-rail home for the canvas background color picker — previously the sole
  * item behind a radial menu on background click, now a trigger next to Canvas
  * Settings since both configure canvas-level properties, not per-element ones.
  */
@@ -24,7 +25,8 @@ export function BackgroundColorPopover() {
   const [open, setOpen] = useState(false);
   const [, setWarmTick] = useState(0);
   const rootRef = useRef<HTMLDivElement>(null);
-  useClickOutside(rootRef, () => setOpen(false), open);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  useClickOutside([rootRef, popoverRef], () => setOpen(false), open);
 
   // Suggestions are normally already cached at upload time (UploadDialog). This
   // only covers images restored from an older saved design that predates the
@@ -60,17 +62,16 @@ export function BackgroundColorPopover() {
 
   return (
     <div ref={rootRef} className="relative">
-      <ToolbarIconButton
+      <RailIconButton
         onClick={() => setOpen((o) => !o)}
         icon={<PaletteIcon />}
-        label="Background Color"
+        label="Color"
         ariaExpanded={open}
         active={open}
-        forceExpanded={open}
       />
 
       {open && (
-        <div className="glass-panel radial-appear absolute left-0 top-full z-40 mt-3 rounded-3xl p-3">
+        <RailPopover ref={popoverRef} anchorRef={rootRef} className="glass-panel radial-appear z-50 rounded-3xl p-3">
           <ColorPickerPanel
             suggestionGroups={suggestionGroups}
             value={backgroundColor}
@@ -78,7 +79,7 @@ export function BackgroundColorPopover() {
             onChange={setBackgroundColor}
             onAlphaChange={setBackgroundAlpha}
           />
-        </div>
+        </RailPopover>
       )}
     </div>
   );

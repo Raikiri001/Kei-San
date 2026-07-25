@@ -141,7 +141,7 @@ export function MixLayerRow({
         className={clsx(
           "group glass-panel flex items-center gap-2 rounded-xl p-3 transition-colors",
           mix.id === selectedLayerId &&
-            "border-accent bg-[rgb(var(--color-accent-glow)/0.16)] shadow-[0_0_0_1px_var(--color-accent),0_0_20px_rgb(var(--color-accent-glow)/0.35)]",
+            "border-accent bg-[rgb(var(--color-accent-glow)/0.12)] shadow-[0_0_0_1px_var(--color-accent)]",
         )}
       >
         {dragHandle}
@@ -152,8 +152,8 @@ export function MixLayerRow({
           type="button"
           onClick={() => onSelect(mix.id)}
           className={clsx(
-            "flex-1 truncate text-left text-[12px] uppercase tracking-wide",
-            mix.id === selectedLayerId && "font-semibold text-accent",
+            "flex-1 truncate text-left text-[12.5px] font-medium",
+            mix.id === selectedLayerId && "text-accent",
           )}
         >
           Layer Mix

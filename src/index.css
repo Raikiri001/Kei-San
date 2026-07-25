@@ -93,6 +93,33 @@ body {
     0 2px 8px rgb(0 0 0 / 0.35);
 }
 
+/* Header-bar override: the fixed top toolbar reuses .glass-panel's material
+   but is a full-width flush bar, not a floating card — so it drops the
+   all-around border/radius for a single bottom hairline + a shadow that only
+   casts downward onto the canvas beneath it. Written after .glass-panel (and
+   likewise unlayered, so it wins on source order) rather than passed as
+   Tailwind border-* utilities: those live in Tailwind's own cascade layer,
+   which always loses to unlayered custom CSS regardless of class order. */
+.header-bar {
+  border: none;
+  border-bottom: 1px solid rgb(var(--chrome-border) / 0.14);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    0 12px 28px -16px rgb(0 0 0 / 0.55);
+}
+
+/* Rail-bar override: same reasoning as .header-bar above, but for the fixed
+   left tool rail — a flush vertical bar, so it drops the all-around border
+   for a single right-edge hairline + a shadow that only casts rightward onto
+   the canvas beside it. */
+.rail-bar {
+  border: none;
+  border-right: 1px solid rgb(var(--chrome-border) / 0.14);
+  box-shadow:
+    inset -1px 0 0 rgb(255 255 255 / 0.06),
+    12px 0 28px -16px rgb(0 0 0 / 0.55);
+}
+
 /* Brief "materialize" glow pulse on a glass surface — reuses the data-pulse
    attribute contract already set by ToolbarIconButton/IconPill/RadialMenu's
    popover on interaction start; previously drove the now-removed corner-frame
@@ -174,44 +201,48 @@ body {
   }
 }
 
+/* Panel slide + settle: still a full off-screen-to-docked traversal, but the
+   last bit now also resolves from a slight scale instead of stopping dead —
+   reads as the panel "arriving," not just sliding, without ever overshooting
+   (scale approaches 1 from below, never past it). */
 @keyframes slide-in-right {
   from {
-    transform: translateX(100%);
+    transform: translateX(100%) scale(0.98);
     opacity: 0;
   }
   to {
-    transform: translateX(0);
+    transform: translateX(0) scale(1);
     opacity: 1;
   }
 }
 @keyframes slide-out-right {
   from {
-    transform: translateX(0);
+    transform: translateX(0) scale(1);
     opacity: 1;
   }
   to {
-    transform: translateX(100%);
+    transform: translateX(100%) scale(0.98);
     opacity: 0;
   }
 }
 
 @keyframes slide-in-left {
   from {
-    transform: translateX(-100%);
+    transform: translateX(-100%) scale(0.98);
     opacity: 0;
   }
   to {
-    transform: translateX(0);
+    transform: translateX(0) scale(1);
     opacity: 1;
   }
 }
 @keyframes slide-out-left {
   from {
-    transform: translateX(0);
+    transform: translateX(0) scale(1);
     opacity: 1;
   }
   to {
-    transform: translateX(-100%);
+    transform: translateX(-100%) scale(0.98);
     opacity: 0;
   }
 }
@@ -336,20 +367,37 @@ input[type="number"]::-webkit-inner-spin-button {
 
 /* --- Glass accent utilities --------------------------------------------- */
 
-/* Accent glow border on hover/active — reuses --color-accent-glow so it
-   stays on-theme in both modes. */
+/* Accent glow + lift on hover/active — reuses --color-accent-glow so it stays
+   on-theme in both modes. The 1px lift (and the matching background wash) is
+   what makes hovering *anything* in the app read as clearly interactive
+   rather than a near-invisible border-color fade; press-scale (below, and
+   deliberately declared after this block) still wins on actual press since
+   it targets the same `transform` property with equal specificity but later
+   source order — so a hover-then-press always resolves to the press-down
+   scale, never a stuck lift. */
 .accent-glow-hover {
   transition:
-    box-shadow 220ms var(--ease-liquid),
-    border-color 220ms var(--ease-liquid),
-    color 220ms var(--ease-liquid);
+    transform 160ms var(--ease-liquid),
+    background-color 200ms var(--ease-liquid),
+    box-shadow 200ms var(--ease-liquid),
+    border-color 200ms var(--ease-liquid),
+    color 200ms var(--ease-liquid);
 }
 .accent-glow-hover:hover,
+.accent-glow-hover:focus-visible,
 .accent-glow-hover[data-active="true"] {
-  border-color: rgb(var(--color-accent-glow) / 0.65);
+  border-color: rgb(var(--color-accent-glow) / 0.6);
+  background-color: rgb(var(--color-accent-glow) / 0.08);
+  /* A crisp 1px ring plus a short, tight-radius shadow reads as a deliberate
+     focus/selection state (Figma/Linear-style) — the old double diffuse halo
+     (two wide, low blur-radius shadows) read closer to a neon sign than a
+     professional tool's feedback. */
   box-shadow:
-    0 0 18px rgb(var(--color-accent-glow) / 0.4),
-    0 0 36px rgb(var(--color-accent-glow) / 0.18);
+    0 0 0 1px rgb(var(--color-accent-glow) / 0.3),
+    0 3px 10px -3px rgb(var(--color-accent-glow) / 0.4);
+}
+.accent-glow-hover:hover {
+  transform: translateY(-1px);
 }
 
 /* Tactile press feedback shared by every button/pill in the app — a quick,
@@ -360,6 +408,106 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 .press-scale:active {
   transform: scale(0.96);
+  transition-duration: 90ms;
+}
+
+/* Header toolbar button (ToolbarIconButton): icon + label always visible, so
+   its feedback is a background wash + 1px lift on hover, an accent glow
+   while active/open, and a snappier press-down than the general press-scale
+   (this button is wide and low, so a barely-there scale reads weaker here
+   than on a small round pill). All three live in one class, not composed
+   from accent-glow-hover/press-scale, because the active-state background
+   and the hover-state background would otherwise both be plain CSS custom
+   properties fighting over the same unlayered specificity — simplest to
+   just own the full state machine in one place. */
+.toolbar-btn {
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: rgb(var(--chrome-text) / 0.82);
+  transition:
+    transform 160ms var(--ease-liquid),
+    background-color 160ms var(--ease-liquid),
+    border-color 160ms var(--ease-liquid),
+    color 160ms var(--ease-liquid),
+    box-shadow 160ms var(--ease-liquid);
+}
+.toolbar-btn:hover,
+.toolbar-btn:focus-visible {
+  background-color: rgb(var(--chrome-text) / 0.09);
+  border-color: rgb(var(--chrome-border) / 0.2);
+  color: rgb(var(--chrome-text));
+  transform: translateY(-1px);
+}
+.toolbar-btn[data-active="true"] {
+  border-color: rgb(var(--color-accent-glow) / 0.55);
+  background-color: rgb(var(--color-accent-glow) / 0.12);
+  color: var(--color-accent);
+  box-shadow: 0 0 0 1px rgb(var(--color-accent-glow) / 0.25);
+}
+.toolbar-btn:active {
+  transform: translateY(0) scale(0.97);
+  transition-duration: 90ms;
+}
+
+/* Filled accent button — the one loud control in the header (Export), same
+   role as Canva's purple Share button: everything else in the chrome is
+   outline/glass, this is the single filled, unmissable action. */
+.accent-btn {
+  border: 1px solid rgb(var(--color-accent-glow) / 0.7);
+  background: linear-gradient(180deg, rgb(var(--color-accent-glow) / 0.95), var(--color-accent-dim));
+  color: white;
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.28),
+    0 0 20px rgb(var(--color-accent-glow) / 0.35);
+  transition:
+    transform 160ms var(--ease-liquid),
+    box-shadow 160ms var(--ease-liquid),
+    filter 160ms var(--ease-liquid);
+}
+.accent-btn:hover,
+.accent-btn:focus-visible {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.32),
+    0 0 28px rgb(var(--color-accent-glow) / 0.5);
+}
+.accent-btn:active {
+  transform: translateY(0) scale(0.97);
+  transition-duration: 90ms;
+}
+
+/* Rail button (RailIconButton): the vertical counterpart to .toolbar-btn —
+   icon stacked above a small label instead of side-by-side, since the rail
+   itself is narrow. Hover is a plain background wash, no scale/lift — a
+   toolbar icon visibly growing on hover reads as a mobile-game affordance,
+   not a professional tool's (Figma/Illustrator's own tool rails only ever
+   swap background on hover). Active/open gets the same restrained accent
+   ring as every other chrome control. */
+.rail-btn {
+  border: 1px solid transparent;
+  background-color: transparent;
+  color: rgb(var(--chrome-text) / 0.78);
+  transition:
+    background-color 160ms var(--ease-liquid),
+    border-color 160ms var(--ease-liquid),
+    color 160ms var(--ease-liquid),
+    box-shadow 160ms var(--ease-liquid);
+}
+.rail-btn:hover,
+.rail-btn:focus-visible {
+  background-color: rgb(var(--chrome-text) / 0.09);
+  border-color: rgb(var(--chrome-border) / 0.2);
+  color: rgb(var(--chrome-text));
+}
+.rail-btn[data-active="true"] {
+  border-color: rgb(var(--color-accent-glow) / 0.55);
+  background-color: rgb(var(--color-accent-glow) / 0.12);
+  color: var(--color-accent);
+  box-shadow: 0 0 0 1px rgb(var(--color-accent-glow) / 0.25);
+}
+.rail-btn:active {
+  transform: scale(0.95);
   transition-duration: 90ms;
 }
 
@@ -408,7 +556,13 @@ input[type="number"]::-webkit-inner-spin-button {
   .glass-panel[data-pulse="true"] {
     animation: none !important;
   }
-  .press-scale:active {
+  .press-scale:active,
+  .accent-glow-hover:hover,
+  .toolbar-btn:hover,
+  .toolbar-btn:active,
+  .accent-btn:hover,
+  .accent-btn:active,
+  .rail-btn:active {
     transform: none;
   }
 }

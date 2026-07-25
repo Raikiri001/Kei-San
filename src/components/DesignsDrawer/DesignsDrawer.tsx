@@ -4,7 +4,13 @@ import { useUIStore } from "@/store/uiStore";
 import { useProjectStore } from "@/store/projectStore";
 import { deleteDesign, loadDesignsHistory } from "@/store/persistence";
 import { DesignCard } from "@/components/DesignsDrawer/DesignCard";
+import { HEADER_HEIGHT, RULER_THICKNESS } from "@/constants/defaults";
 import type { SavedDesign } from "@/store/types";
+
+/** Docks below the header *and* the ruler lane — leaving the ruler alone
+ * rather than the panel visually cutting into it, same reasoning as
+ * EffectsDrawer's PANEL_TOP. */
+const PANEL_TOP = HEADER_HEIGHT + RULER_THICKNESS;
 
 export function DesignsDrawer() {
   const open = useUIStore((s) => s.designsDrawerOpen);
@@ -37,13 +43,16 @@ export function DesignsDrawer() {
             universal page-dimming behind the drawer regardless of theme — tokenizing it
             to the light theme's near-white --chrome-bg would make it disappear. */}
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] data-[state=open]:animate-[fade-in_150ms_ease-out] data-[state=closed]:animate-[fade-out_120ms_ease-in]" />
-        <Dialog.Content className="glass-panel fixed right-0 top-0 z-50 flex h-full w-[340px] flex-col rounded-l-3xl p-6 shadow-2xl outline-none data-[state=open]:animate-[slide-in-right_240ms_cubic-bezier(0.22,1,0.36,1)] data-[state=closed]:animate-[slide-out-right_160ms_cubic-bezier(0.22,1,0.36,1)]">
-          <Dialog.Title className="mb-5 shrink-0 text-[13px] font-bold uppercase tracking-wide">My Designs</Dialog.Title>
+        <Dialog.Content
+          className="glass-panel fixed right-0 z-50 flex w-[360px] flex-col rounded-l-3xl p-7 shadow-2xl outline-none data-[state=open]:animate-[slide-in-right_240ms_cubic-bezier(0.22,1,0.36,1)] data-[state=closed]:animate-[slide-out-right_160ms_cubic-bezier(0.22,1,0.36,1)]"
+          style={{ top: PANEL_TOP, height: `calc(100% - ${PANEL_TOP}px)` }}
+        >
+          <Dialog.Title className="mb-6 shrink-0 text-[15px] font-semibold">My Designs</Dialog.Title>
 
           {designs.length === 0 ? (
             <p className="mt-8 text-center text-[12px] opacity-50">No saved designs yet.</p>
           ) : (
-            <div className="thin-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pb-4">
+            <div className="thin-scroll flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto pb-4">
               {designs.map((design) => (
                 <DesignCard
                   key={design.id}

@@ -12,7 +12,20 @@ import { LayerInspectorPanel } from "@/components/EffectsDrawer/LayerInspectorPa
 import { CloseIcon, SearchIcon } from "@/components/EffectsDrawer/icons";
 import { InfoTooltip } from "@/components/InfoTooltip";
 import { ALL_EFFECT_TYPES, CATEGORY_ORDER, EFFECT_CATEGORIES, EFFECT_LABELS } from "@/components/EffectsDrawer/effectLabels";
+import { HEADER_HEIGHT, RAIL_WIDTH, RULER_THICKNESS } from "@/constants/defaults";
 import type { StackableEffectType } from "@/store/types";
+
+/** Both floating panels dock below the *entire* ruler lane, not just clear of
+ * the rail — covering the top ruler read as the panel visually cutting into
+ * a tool you're actively trying to read (its ticks now show up right beside
+ * an in-progress edit), so every panel leaves the ruler alone regardless of
+ * which edge it shares with it. */
+const PANEL_TOP = HEADER_HEIGHT + RULER_THICKNESS;
+/** The stack panel (left-docked) starts clear of *both* the tool rail and the
+ * left ruler's own lane — unlike the top ruler, the left ruler stays visible
+ * the entire time this panel is open, since it sits inside the rail's own
+ * gap rather than the canvas's. */
+const STACK_PANEL_LEFT = RAIL_WIDTH + RULER_THICKNESS;
 
 const MIN_STACK_WIDTH = 380;
 const MAX_STACK_WIDTH = 760;
@@ -36,8 +49,8 @@ const EFFECTS_BY_CATEGORY: { category: string; types: StackableEffectType[] }[] 
 function SectionHeading({ children, hint }: { children: string; hint?: string }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="h-4 w-1 shrink-0 rounded-full" style={{ background: "var(--color-accent)" }} />
-      <h3 className="text-[16px] font-bold tracking-wide">{children}</h3>
+      <span className="h-3.5 w-1 shrink-0 rounded-full" style={{ background: "var(--color-accent)" }} />
+      <h3 className="text-[13px] font-semibold tracking-wide">{children}</h3>
       {hint && <InfoTooltip text={hint} label={`About ${children}`} side="bottom" />}
     </div>
   );
@@ -59,7 +72,7 @@ function PanelCloseButton({ onClick, label }: { onClick: () => void; label: stri
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="press-scale flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--chrome-border)/0.3)] opacity-70 hover:opacity-100"
+      className="accent-glow-hover press-scale flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--chrome-border)/0.3)] opacity-70 hover:opacity-100"
     >
       <span className="flex h-3.5 w-3.5 items-center justify-center">
         <CloseIcon />
@@ -151,8 +164,8 @@ export function EffectsDrawer() {
       <Dialog.Root open={open} onOpenChange={setOpen} modal={false}>
         <Dialog.Portal>
           <Dialog.Content
-            className="glass-panel fixed left-0 top-0 z-50 flex h-full max-w-[95vw] flex-col rounded-r-3xl p-7 shadow-2xl outline-none data-[state=open]:animate-[slide-in-left_200ms_ease-out] data-[state=closed]:animate-[slide-out-left_150ms_ease-out]"
-            style={{ width: stackWidth }}
+            className="glass-panel fixed z-50 flex max-w-[95vw] flex-col rounded-r-3xl p-8 shadow-2xl outline-none data-[state=open]:animate-[slide-in-left_220ms_cubic-bezier(0.22,1,0.36,1)] data-[state=closed]:animate-[slide-out-left_160ms_cubic-bezier(0.22,1,0.36,1)]"
+            style={{ width: stackWidth, left: STACK_PANEL_LEFT, top: PANEL_TOP, height: `calc(100% - ${PANEL_TOP}px)` }}
             onPointerMove={handleResizePointerMove}
             onPointerUp={handleResizePointerUp}
             onPointerDownOutside={(e) => e.preventDefault()}
@@ -164,8 +177,8 @@ export function EffectsDrawer() {
               style={{ touchAction: "none" }}
               aria-hidden="true"
             />
-            <div className="mb-5 flex shrink-0 items-center justify-between">
-              <Dialog.Title className="text-[15px] font-bold uppercase tracking-wide">Image Effects</Dialog.Title>
+            <div className="mb-6 flex shrink-0 items-center justify-between">
+              <Dialog.Title className="text-[16px] font-semibold">Image Effects</Dialog.Title>
               <Dialog.Close asChild>
                 <PanelCloseButton onClick={() => {}} label="Close Image Effects" />
               </Dialog.Close>
@@ -174,7 +187,7 @@ export function EffectsDrawer() {
             {!image ? (
               <p className="mt-8 text-center text-[12px] opacity-50">Select an image first.</p>
             ) : (
-              <div className="thin-scroll -mx-7 flex min-h-0 flex-1 flex-col overflow-y-auto px-7 pb-4">
+              <div className="thin-scroll -mx-8 flex min-h-0 flex-1 flex-col overflow-y-auto px-8 pb-6">
                 {/* Sticky: stays pinned at the top of the scroll area while
                     Presets/Effects scroll underneath it — the one section
                     you're always mid-editing, so it never scrolls out of
@@ -182,7 +195,7 @@ export function EffectsDrawer() {
                     (rather than re-blurring) since it's already inside the
                     blurred glass panel. */}
                 <section
-                  className="sticky top-0 z-10 shrink-0 pb-5"
+                  className="sticky top-0 z-10 shrink-0 pb-6"
                   style={{ background: "rgb(var(--chrome-bg))" }}
                 >
                   <div className="mb-4 flex items-start justify-between gap-3">
@@ -192,7 +205,7 @@ export function EffectsDrawer() {
                     <button
                       type="button"
                       onClick={() => addMixLayer(targetIds)}
-                      className="press-scale shrink-0 whitespace-nowrap rounded-full border border-[rgb(var(--chrome-border)/0.3)] px-3 py-1.5 text-[10px] uppercase tracking-wide opacity-70 hover:opacity-100"
+                      className="accent-glow-hover press-scale shrink-0 whitespace-nowrap rounded-full border border-[rgb(var(--chrome-border)/0.3)] px-3 py-1.5 text-[11px] font-medium opacity-80 hover:opacity-100"
                     >
                       + Layer Mix
                     </button>
@@ -201,7 +214,7 @@ export function EffectsDrawer() {
                   <div className="mt-5 border-b border-[rgb(var(--chrome-border)/0.15)]" />
                 </section>
 
-                <div className="flex flex-col gap-10 pt-8">
+                <div className="flex flex-col gap-12 pt-9">
                   <label className="relative block">
                     <span className="pointer-events-none absolute left-3.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 opacity-50">
                       <SearchIcon />
@@ -247,7 +260,7 @@ export function EffectsDrawer() {
                           <div className="flex flex-col gap-8">
                             {filteredEffectsByCategory.map(({ category, types }) => (
                               <div key={category}>
-                                <h4 className="mb-3 border-b border-[rgb(var(--chrome-border)/0.18)] pb-2 text-[13px] font-semibold uppercase tracking-wide opacity-90">
+                                <h4 className="mb-3 border-b border-[rgb(var(--chrome-border)/0.18)] pb-2 text-[13px] font-semibold opacity-90">
                                   {category}
                                 </h4>
                                 <div className={`grid ${gridCols} gap-4`}>
@@ -283,7 +296,8 @@ export function EffectsDrawer() {
       >
         <Dialog.Portal>
           <Dialog.Content
-            className="fixed right-0 top-0 z-50 flex h-full outline-none data-[state=open]:animate-[slide-in-right_200ms_ease-out] data-[state=closed]:animate-[slide-out-right_150ms_ease-out]"
+            className="fixed right-0 z-50 flex outline-none data-[state=open]:animate-[slide-in-right_220ms_cubic-bezier(0.22,1,0.36,1)] data-[state=closed]:animate-[slide-out-right_160ms_cubic-bezier(0.22,1,0.36,1)]"
+            style={{ top: PANEL_TOP, height: `calc(100% - ${PANEL_TOP}px)` }}
             onPointerDownOutside={(e) => e.preventDefault()}
             onInteractOutside={(e) => e.preventDefault()}
           >

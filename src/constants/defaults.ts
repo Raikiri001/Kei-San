@@ -8,6 +8,26 @@ export const MIN_ZOOM = 0.1;
 export const MAX_ZOOM = 4;
 export const DEFAULT_ZOOM = 1;
 
+/** Fixed top header bar height, true CSS px — document-level chrome only
+ * (name, undo/redo, save/export). Shared by App.tsx (insets the canvas
+ * viewport below it) and every floating side panel (EffectsDrawer,
+ * DesignsDrawer, LayerInspectorPanel), which dock flush against its bottom
+ * edge rather than leaving a gap. */
+export const HEADER_HEIGHT = 64;
+/** Fixed left tool rail width, true CSS px — content/canvas tools (Upload,
+ * Auto-Fill, Add Text, Canvas Settings, Background Color, Designs). Docks
+ * below the header, to the left of the ruler/canvas. Floating side panels
+ * that open from the left (EffectsDrawer's stack panel) start clear of this
+ * rail, not on top of it, so the rail stays usable while they're open. */
+export const RAIL_WIDTH = 84;
+/** Ruler bar thickness, true CSS px. The ruler sits in the gap between the
+ * rail and the canvas (and between the header and the canvas), and floating
+ * panels are deliberately NOT inset around it the way they're inset around
+ * the rail: EffectsDrawer/DesignsDrawer dock flush against the header,
+ * covering the top ruler's lane for their own width — only the *left* ruler
+ * (which sits inside the rail's own gap, not the canvas's) stays clear. */
+export const RULER_THICKNESS = 32;
+
 export const DISPLAY_SIZE_MIN = 20;
 export const DISPLAY_SIZE_MAX = 4000;
 /** Flat px step for the independent Width/Height steppers (image displayWidth/Height, text boxWidth/Height). */

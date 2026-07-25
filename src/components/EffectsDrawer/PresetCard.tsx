@@ -42,7 +42,7 @@ export function PresetCard({ preset, loadedImg, onAdd }: PresetCardProps) {
         +
       </span>
       <div className="px-3.5 py-3">
-        <div className="text-[12px] uppercase tracking-wide">{preset.name}</div>
+        <div className="text-[12.5px] font-medium">{preset.name}</div>
         <div className="mt-0.5 line-clamp-1 text-[10px] opacity-0 transition-opacity group-hover:opacity-60 group-focus-visible:opacity-60">
           {bundleSummary}
         </div>

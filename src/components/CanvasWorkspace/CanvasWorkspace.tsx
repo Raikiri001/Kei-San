@@ -402,13 +402,13 @@ export function CanvasWorkspace() {
         </div>
       </div>
 
-      <div className="glass-panel absolute bottom-5 right-5 flex items-center gap-1 rounded-full px-2 py-1.5">
+      <div className="glass-panel absolute bottom-6 right-6 flex items-center gap-1.5 rounded-full px-2.5 py-2">
         <button
           type="button"
           onClick={handleToggleTheme}
           title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          className="press-scale flex h-7 w-7 items-center justify-center rounded-full opacity-70 transition-[color,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-accent hover:opacity-100"
+          className="accent-glow-hover press-scale flex h-8 w-8 items-center justify-center rounded-full border border-transparent opacity-80 transition-[color,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-accent hover:opacity-100"
         >
           <span className="flex h-4 w-4 items-center justify-center">{theme === "dark" ? <MoonIcon /> : <SunIcon />}</span>
         </button>
@@ -419,9 +419,10 @@ export function CanvasWorkspace() {
           title="Pan tool (hold Space)"
           aria-label="Pan tool"
           aria-pressed={panToolActive}
+          data-active={panToolActive ? "true" : undefined}
           className={clsx(
-            "press-scale flex h-7 w-7 items-center justify-center rounded-full transition-[color,opacity,background-color,border-color] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)]",
-            panToolActive ? "border-accent/70 text-accent bg-[rgb(var(--color-accent-glow)/0.12)]" : "opacity-70 hover:opacity-100",
+            "accent-glow-hover press-scale flex h-8 w-8 items-center justify-center rounded-full border border-transparent opacity-80 transition-[color,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-accent hover:opacity-100",
+            panToolActive && "text-accent opacity-100",
           )}
         >
           <span className="flex h-4 w-4 items-center justify-center">
@@ -434,7 +435,7 @@ export function CanvasWorkspace() {
           onClick={handleResetView}
           title="Reset view (fit to screen)"
           aria-label="Reset view to fit screen"
-          className="press-scale flex h-7 w-7 items-center justify-center rounded-full opacity-70 transition-[color,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-accent hover:opacity-100"
+          className="accent-glow-hover press-scale flex h-8 w-8 items-center justify-center rounded-full border border-transparent opacity-80 transition-[color,opacity] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] hover:text-accent hover:opacity-100"
         >
           <span className="flex h-4 w-4 items-center justify-center">
             <ResetViewIcon />
@@ -446,7 +447,7 @@ export function CanvasWorkspace() {
           onClick={() => zoomBy(-0.1)}
           disabled={zoom <= MIN_ZOOM}
           aria-label="Zoom out"
-          className="press-scale flex h-7 w-7 items-center justify-center rounded-full text-sm transition-opacity duration-150 disabled:pointer-events-none disabled:opacity-30"
+          className="accent-glow-hover press-scale flex h-8 w-8 items-center justify-center rounded-full border border-transparent text-sm opacity-80 transition-opacity duration-150 hover:opacity-100 disabled:pointer-events-none disabled:opacity-30"
         >
           −
         </button>
@@ -456,7 +457,7 @@ export function CanvasWorkspace() {
           onClick={() => zoomBy(0.1)}
           disabled={zoom >= MAX_ZOOM}
           aria-label="Zoom in"
-          className="press-scale flex h-7 w-7 items-center justify-center rounded-full text-sm transition-opacity duration-150 disabled:pointer-events-none disabled:opacity-30"
+          className="accent-glow-hover press-scale flex h-8 w-8 items-center justify-center rounded-full border border-transparent text-sm opacity-80 transition-opacity duration-150 hover:opacity-100 disabled:pointer-events-none disabled:opacity-30"
         >
           +
         </button>

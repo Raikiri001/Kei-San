@@ -6,7 +6,8 @@ import { useClickOutside } from "@/hooks/useClickOutside";
 import { saveCurrentProject } from "@/store/persistence";
 import { GRID_PRESETS, RESOLUTION_PRESETS } from "@/constants/defaults";
 import { CanvasSettingsIcon } from "@/components/RadialMenu/icons";
-import { ToolbarIconButton } from "@/components/ControlDock/ToolbarIconButton";
+import { RailIconButton } from "@/components/ToolRail/RailIconButton";
+import { RailPopover } from "@/components/ToolRail/RailPopover";
 import { InfoTooltip } from "@/components/InfoTooltip";
 
 const inputClass = "glass-panel h-8 w-16 shrink-0 rounded-full px-2.5 text-[12px] tabular-nums outline-none focus:border-accent/60";
@@ -39,7 +40,8 @@ export function CanvasSettingsPopover() {
 
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  useClickOutside(rootRef, () => setOpen(false), open);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  useClickOutside([rootRef, popoverRef], () => setOpen(false), open);
 
   const widthDraft = useDraftNumber(project.width, {
     min: 64,
@@ -99,17 +101,23 @@ export function CanvasSettingsPopover() {
 
   return (
     <div ref={rootRef} className="relative">
-      <ToolbarIconButton
+      <RailIconButton
         onClick={() => setOpen((o) => !o)}
         icon={<CanvasSettingsIcon />}
-        label="Canvas Settings"
+        label="Canvas"
         ariaExpanded={open}
         active={open}
-        forceExpanded={open}
       />
 
+      {/* Opens to the right of the rail (not below) — the rail is only 84px
+          wide, nowhere near enough room for a 320px settings panel to unfurl
+          downward without overflowing its own trigger. Portaled (RailPopover)
+          rather than a plain absolute div: the rail is a scrollable
+          container (overflow-y-auto), which per the CSS overflow spec also
+          clips the x-axis, so an ordinary descendant popover flying out past
+          the rail's own right edge would get silently clipped. */}
       {open && (
-        <div className="glass-panel radial-appear absolute left-0 top-full z-40 mt-3 w-80 rounded-3xl p-6">
+        <RailPopover ref={popoverRef} anchorRef={rootRef} className="glass-panel radial-appear z-50 w-80 rounded-3xl p-6">
           <div className="flex flex-col gap-5">
             <div>
               <div className="mb-2 text-[10px] uppercase tracking-wide opacity-60">Canvas Size</div>
@@ -215,7 +223,7 @@ export function CanvasSettingsPopover() {
               </div>
             </div>
           </div>
-        </div>
+        </RailPopover>
       )}
     </div>
   );

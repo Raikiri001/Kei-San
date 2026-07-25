@@ -39,7 +39,7 @@ export function EffectCard({ type, loadedImg, onAdd }: EffectCardProps) {
         +
       </span>
       <div className="px-3.5 py-3">
-        <div className="text-[12px] uppercase tracking-wide">{EFFECT_LABELS[type]}</div>
+        <div className="text-[12.5px] font-medium">{EFFECT_LABELS[type]}</div>
         {/* Description stays out of the way until the card is actually being
             considered — revealed on hover/focus alongside the "+" badge above,
             same minimalism-by-default treatment as the rest of the app. */}

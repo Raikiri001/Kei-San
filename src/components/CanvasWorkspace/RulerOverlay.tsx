@@ -1,3 +1,5 @@
+import { RULER_THICKNESS } from "@/constants/defaults";
+
 interface RulerOverlayProps {
   /** Canvas true px dimensions — ticks are generated across 0..width / 0..height. */
   width: number;
@@ -11,8 +13,7 @@ interface RulerOverlayProps {
   hoverPos: { x: number; y: number } | null;
 }
 
-const RULER_THICKNESS = 40;
-const TICK_LENGTH = 6;
+const TICK_LENGTH = 5;
 // Both the plain tick labels and the accent readout pill anchor at this same
 // distance from the bar's canvas-facing edge, so the live coordinate reads as
 // sitting "on the same line" as the ordinary tick numbers instead of floating

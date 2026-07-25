@@ -55,7 +55,7 @@ export function GroupLayerRow({
         <button type="button" onClick={onToggleExpanded} aria-label={group.expanded ? "Collapse" : "Expand"} className="press-scale flex h-5 w-5 items-center justify-center">
           <ChevronIcon expanded={group.expanded} />
         </button>
-        <span className="flex-1 text-[12px] uppercase tracking-wide">{group.name}</span>
+        <span className="flex-1 text-[12.5px] font-medium">{group.name}</span>
         <button
           type="button"
           onClick={onToggleEnabled}

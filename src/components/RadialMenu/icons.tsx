@@ -378,6 +378,24 @@ export function CanvasSettingsIcon() {
   );
 }
 
+export function UndoIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M8 5 4 9l4 4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M4 9h8a4.5 4.5 0 0 1 0 9h-2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+export function RedoIcon() {
+  return (
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">
+      <path d="M12 5l4 4-4 4" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M16 9H8a4.5 4.5 0 0 0 0 9h2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 export function SaveIcon() {
   return (
     <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.4">

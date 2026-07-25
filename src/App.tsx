@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence } from "motion/react";
 import { CanvasWorkspace } from "@/components/CanvasWorkspace/CanvasWorkspace";
 import { ControlDock } from "@/components/ControlDock/ControlDock";
+import { ToolRail } from "@/components/ToolRail/ToolRail";
 import { RadialMenu } from "@/components/RadialMenu/RadialMenu";
 import { DesignsDrawer } from "@/components/DesignsDrawer/DesignsDrawer";
 import { EffectsDrawer } from "@/components/EffectsDrawer/EffectsDrawer";
@@ -9,6 +10,7 @@ import { UploadDialog } from "@/components/UploadDialog/UploadDialog";
 import { DiscardConfirmBar } from "@/components/DiscardConfirmBar";
 import { LoadingScreen } from "@/components/LoadingScreen";
 import { ensureFontsLoaded } from "@/constants/fonts";
+import { HEADER_HEIGHT, RAIL_WIDTH } from "@/constants/defaults";
 
 function App() {
   const [fontProgress, setFontProgress] = useState(0);
@@ -19,13 +21,15 @@ function App() {
 
   return (
     <div className="relative flex h-screen w-screen flex-col overflow-hidden">
-      <div className="absolute inset-0">
+      {/* Canvas viewport starts below the header and beside the tool rail —
+          both are now permanent chrome that reserves its own space, rather
+          than floating on top of a full-bleed workspace. */}
+      <div className="absolute bottom-0 right-0" style={{ top: HEADER_HEIGHT, left: RAIL_WIDTH }}>
         <CanvasWorkspace />
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 top-10 z-30 flex justify-center px-4">
-        <ControlDock />
-      </div>
+      <ControlDock />
+      <ToolRail />
 
       <RadialMenu />
       <DesignsDrawer />
