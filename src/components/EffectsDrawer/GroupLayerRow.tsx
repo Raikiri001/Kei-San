@@ -62,13 +62,15 @@ export function GroupLayerRow({
           aria-label={group.enabled ? "Disable" : "Enable"}
           className={clsx(
             "h-4 w-8 shrink-0 rounded-full border transition-colors",
-            group.enabled ? "border-[rgb(var(--status-active-rgb)/0.7)] bg-[rgb(var(--status-active-rgb)/0.3)]" : "border-white/20 bg-white/5",
+            group.enabled
+              ? "border-[rgb(var(--status-active-rgb)/0.7)] bg-[rgb(var(--status-active-rgb)/0.3)]"
+              : "border-[rgb(var(--bar-fg)/0.2)] bg-[rgb(var(--bar-fg)/0.05)]",
           )}
         >
           <span
             className={clsx(
               "block h-3 w-3 rounded-full bg-current transition-transform",
-              group.enabled ? "translate-x-4 text-[rgb(var(--status-active-rgb))]" : "translate-x-0.5 text-white/40",
+              group.enabled ? "translate-x-4 text-[rgb(var(--status-active-rgb))]" : "translate-x-0.5 text-[rgb(var(--bar-fg)/0.4)]",
             )}
           />
         </button>

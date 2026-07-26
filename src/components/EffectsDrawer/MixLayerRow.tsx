@@ -29,7 +29,7 @@ function AddEffectPicker({ onAdd }: { onAdd: (type: StackableEffectType) => void
         if (e.target.value) onAdd(e.target.value as StackableEffectType);
         e.target.value = "";
       }}
-      className="w-full rounded border border-[rgb(var(--chrome-border)/0.3)] bg-transparent px-2 py-1.5 text-[11px] uppercase tracking-wide opacity-70"
+      className="w-full rounded border border-[rgb(var(--bar-border)/0.3)] bg-transparent px-2 py-1.5 text-[11px] uppercase tracking-wide opacity-70"
     >
       <option value="" className="bg-black text-white">
         + Add Effect
@@ -140,8 +140,7 @@ export function MixLayerRow({
       <div
         className={clsx(
           "group list-row flex items-center gap-2 rounded-xl p-3 transition-colors",
-          mix.id === selectedLayerId &&
-            "border-accent bg-[rgb(var(--color-accent-glow)/0.1)] shadow-[0_0_0_1px_var(--color-accent)]",
+          mix.id === selectedLayerId && "border-[rgb(var(--bar-fg))] bg-[rgb(var(--bar-fg)/0.1)] shadow-[0_0_0_1px_rgb(var(--bar-fg))]",
         )}
       >
         {dragHandle}
@@ -153,7 +152,7 @@ export function MixLayerRow({
           onClick={() => onSelect(mix.id)}
           className={clsx(
             "flex-1 truncate text-left text-[12.5px] font-medium",
-            mix.id === selectedLayerId && "text-accent",
+            mix.id === selectedLayerId && "text-[rgb(var(--bar-fg))]",
           )}
         >
           Layer Mix
@@ -164,13 +163,15 @@ export function MixLayerRow({
           aria-label={mix.enabled ? "Disable" : "Enable"}
           className={clsx(
             "h-4 w-8 shrink-0 rounded-full border transition-colors",
-            mix.enabled ? "border-[rgb(var(--status-active-rgb)/0.7)] bg-[rgb(var(--status-active-rgb)/0.3)]" : "border-white/20 bg-white/5",
+            mix.enabled
+              ? "border-[rgb(var(--status-active-rgb)/0.7)] bg-[rgb(var(--status-active-rgb)/0.3)]"
+              : "border-[rgb(var(--bar-fg)/0.2)] bg-[rgb(var(--bar-fg)/0.05)]",
           )}
         >
           <span
             className={clsx(
               "block h-3 w-3 rounded-full bg-current transition-transform",
-              mix.enabled ? "translate-x-4 text-[rgb(var(--status-active-rgb))]" : "translate-x-0.5 text-white/40",
+              mix.enabled ? "translate-x-4 text-[rgb(var(--status-active-rgb))]" : "translate-x-0.5 text-[rgb(var(--bar-fg)/0.4)]",
             )}
           />
         </button>
@@ -185,7 +186,7 @@ export function MixLayerRow({
       </div>
 
       {mix.expanded && (
-        <div className="list-row ml-5 flex flex-col gap-4 rounded-2xl border-l-2 border-l-accent/30 p-3">
+        <div className="list-row ml-5 flex flex-col gap-4 rounded-2xl border-l-2 border-l-[rgb(var(--bar-fg)/0.3)] p-3">
           <div className="flex items-center gap-1.5">
             <span className="text-[10px] uppercase tracking-wide opacity-45">Branches</span>
             <InfoTooltip text='Select "Layer Mix" above to set how Branch A combines over Branch B.' label="About Branches" />

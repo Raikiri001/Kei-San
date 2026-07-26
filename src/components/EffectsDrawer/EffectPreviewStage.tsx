@@ -30,7 +30,7 @@ export function EffectPreviewStage({ loadedImg, layers, width, height, children 
   const canvasRef = useEffectThumbnail(loadedImg, width, height, (ctx, img, w, h) => drawEffectPreview(ctx, img, w, h, layers), [JSON.stringify(layers)]);
 
   return (
-    <div className="relative overflow-hidden rounded border border-[rgb(var(--chrome-border)/0.3)]" style={{ width, height }}>
+    <div className="relative overflow-hidden rounded border border-[rgb(var(--bar-border)/0.3)]" style={{ width, height }}>
       {loadedImg ? (
         <canvas ref={canvasRef} className="absolute inset-0 h-full w-full" />
       ) : (

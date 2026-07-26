@@ -79,13 +79,13 @@ export function DirectionPad({ label, angle, magnitude = 1, mode = "angle-only",
         ref={padRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        className="relative cursor-crosshair rounded border border-[rgb(var(--chrome-border)/0.3)] bg-white/5"
+        className="relative cursor-crosshair rounded border border-[rgb(var(--bar-border)/0.3)] bg-[rgb(var(--bar-fg)/0.05)]"
         style={{ width: PAD_SIZE, height: PAD_SIZE, touchAction: "none" }}
       >
-        <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-[rgb(var(--chrome-border)/0.25)]" />
-        <span className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-[rgb(var(--chrome-border)/0.25)]" />
+        <span className="absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-[rgb(var(--bar-border)/0.25)]" />
+        <span className="absolute left-0 top-1/2 h-px w-full -translate-y-1/2 bg-[rgb(var(--bar-border)/0.25)]" />
         <span
-          className="absolute rounded-full bg-accent"
+          className="absolute rounded-full bg-[rgb(var(--bar-fg))]"
           style={{ width: HANDLE_RADIUS * 2, height: HANDLE_RADIUS * 2, left: handleX - HANDLE_RADIUS, top: handleY - HANDLE_RADIUS }}
         />
       </div>

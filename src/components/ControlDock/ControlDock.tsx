@@ -12,6 +12,29 @@ function DockDivider() {
   return <div className="mx-1 h-6 w-px shrink-0" style={{ background: "rgb(var(--bar-border) / 0.14)" }} />;
 }
 
+/** The logo's dark outline (a layered text-shadow "stroke," since
+ * -webkit-text-stroke renders unevenly at this font-weight/size) — thicker
+ * and more opaque in light mode, where the bar itself is much lighter and a
+ * thin 1px stroke isn't enough separation to keep the white glyphs reading
+ * clearly; a subtler, thinner version is plenty in dark mode, where the
+ * white text already has strong contrast against the dark bar on its own. */
+function logoOutline(theme: "dark" | "light"): string {
+  const offset = theme === "light" ? 2 : 1;
+  const alpha = theme === "light" ? 0.75 : 0.55;
+  const diag = offset * 0.7;
+  return [
+    `-${offset}px 0 0 rgb(0 0 0 / ${alpha})`,
+    `${offset}px 0 0 rgb(0 0 0 / ${alpha})`,
+    `0 -${offset}px 0 rgb(0 0 0 / ${alpha})`,
+    `0 ${offset}px 0 rgb(0 0 0 / ${alpha})`,
+    `-${diag}px -${diag}px 0 rgb(0 0 0 / ${alpha})`,
+    `${diag}px -${diag}px 0 rgb(0 0 0 / ${alpha})`,
+    `-${diag}px ${diag}px 0 rgb(0 0 0 / ${alpha})`,
+    `${diag}px ${diag}px 0 rgb(0 0 0 / ${alpha})`,
+    `0 2px 6px rgb(0 0 0 / 0.35)`,
+  ].join(", ");
+}
+
 /**
  * The header: document-level chrome only — identity (logo/name), edit history
  * (undo/redo), and file lifecycle (new/save/export). Content-adding tools and
@@ -31,6 +54,7 @@ export function ControlDock() {
 
   const guardDirty = useUIStore((s) => s.guardDirty);
   const markClean = useUIStore((s) => s.markClean);
+  const theme = useUIStore((s) => s.theme);
 
   async function handleExport() {
     const canvas = await renderProjectToCanvas(project);
@@ -62,10 +86,9 @@ export function ControlDock() {
         <span
           className="text-[20px] font-black leading-none"
           style={{
-            fontFamily: '"Noto Sans JP", sans-serif',
+            fontFamily: '"Zen Kaku Gothic New", sans-serif',
             color: "#ffffff",
-            textShadow:
-              "-1px -1px 0 rgb(0 0 0 / 0.55), 1px -1px 0 rgb(0 0 0 / 0.55), -1px 1px 0 rgb(0 0 0 / 0.55), 1px 1px 0 rgb(0 0 0 / 0.55), 0 2px 6px rgb(0 0 0 / 0.35)",
+            textShadow: logoOutline(theme),
           }}
         >
           景さん

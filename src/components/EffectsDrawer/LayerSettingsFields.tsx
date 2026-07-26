@@ -385,9 +385,12 @@ const HALATION_INTENSITY_MIN = 0;
 const HALATION_INTENSITY_MAX = 3;
 
 /** Each channel's curve is drawn in that channel's own color (master stays neutral)
- * so the curve itself reads as "this is the red/green/blue channel" at a glance. */
+ * so the curve itself reads as "this is the red/green/blue channel" at a glance.
+ * Master uses bar-fg (not the fixed --color-accent-glow) since CurveField's own
+ * graph background is now theme-adaptive too — a fixed near-white line would
+ * nearly vanish against a light-mode graph. */
 const CURVE_CHANNEL_COLORS: Record<"master" | "red" | "green" | "blue", string> = {
-  master: "rgb(var(--color-accent-glow))",
+  master: "rgb(var(--bar-fg))",
   red: "#ef4444",
   green: "#22c55e",
   blue: "#3b82f6",
@@ -959,7 +962,7 @@ export function LayerSettingsFields({
               onClick={() => onUpdate({ seed: Math.floor(Math.random() * (GLITCH_SEED_MAX + 1)) })}
               aria-label="Reroll seed"
               title="Reroll seed"
-              className="press-scale mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded border border-[rgb(var(--chrome-border)/0.3)] opacity-70 hover:opacity-100"
+              className="press-scale mb-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded border border-[rgb(var(--bar-border)/0.3)] opacity-70 hover:opacity-100"
             >
               <ShuffleIcon />
             </button>

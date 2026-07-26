@@ -32,7 +32,7 @@ interface CurveFieldProps {
   color?: string;
 }
 
-export function CurveField({ label, points, onChange, color = "rgb(var(--color-accent-glow))" }: CurveFieldProps) {
+export function CurveField({ label, points, onChange, color = "rgb(var(--bar-fg))" }: CurveFieldProps) {
   const svgRef = useRef<SVGSVGElement>(null);
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const sorted = [...points].sort((a, b) => a.x - b.x);
@@ -102,16 +102,16 @@ export function CurveField({ label, points, onChange, color = "rgb(var(--color-a
         viewBox={`0 0 ${PAD} ${PAD}`}
         onClick={handleBackgroundClick}
         onPointerDown={(e) => e.stopPropagation()}
-        className="cursor-crosshair rounded border border-[rgb(var(--chrome-border)/0.3)] bg-white/5"
+        className="cursor-crosshair rounded border border-[rgb(var(--bar-border)/0.3)] bg-[rgb(var(--bar-fg)/0.05)]"
         style={{ width: "100%", aspectRatio: "1 / 1", touchAction: "none" }}
       >
         {[0.25, 0.5, 0.75].map((f) => (
-          <line key={`v${f}`} x1={f * PAD} y1={0} x2={f * PAD} y2={PAD} stroke="rgb(var(--chrome-border) / 0.15)" strokeWidth={1} />
+          <line key={`v${f}`} x1={f * PAD} y1={0} x2={f * PAD} y2={PAD} stroke="rgb(var(--bar-border) / 0.15)" strokeWidth={1} />
         ))}
         {[0.25, 0.5, 0.75].map((f) => (
-          <line key={`h${f}`} x1={0} y1={f * PAD} x2={PAD} y2={f * PAD} stroke="rgb(var(--chrome-border) / 0.15)" strokeWidth={1} />
+          <line key={`h${f}`} x1={0} y1={f * PAD} x2={PAD} y2={f * PAD} stroke="rgb(var(--bar-border) / 0.15)" strokeWidth={1} />
         ))}
-        <line x1={0} y1={PAD} x2={PAD} y2={0} stroke="rgb(var(--chrome-border) / 0.2)" strokeWidth={1} strokeDasharray="3 3" />
+        <line x1={0} y1={PAD} x2={PAD} y2={0} stroke="rgb(var(--bar-border) / 0.2)" strokeWidth={1} strokeDasharray="3 3" />
         <path d={pathD} fill="none" stroke={color} strokeWidth={2} />
         {sorted.map((p, i) => {
           const svgP = toSvg(p);

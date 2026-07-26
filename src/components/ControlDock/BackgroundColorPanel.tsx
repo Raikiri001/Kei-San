@@ -1,34 +1,31 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useProjectStore } from "@/store/projectStore";
-import { useClickOutside } from "@/hooks/useClickOutside";
+import { useUIStore } from "@/store/uiStore";
 import { loadImage } from "@/utils/fileToDataUrl";
 import { getColorSuggestions } from "@/canvas/colorExtraction";
 import { colorSuggestionsCache } from "@/canvas/analysisCaches";
-import { PaletteIcon } from "@/components/RadialMenu/icons";
 import { ColorPickerPanel } from "@/components/RadialMenu/contexts/ColorPickerPanel";
 import type { SuggestionGroup } from "@/components/RadialMenu/contexts/ColorSwatchPanel";
-import { RailIconButton } from "@/components/ToolRail/RailIconButton";
-import { RailPopover } from "@/components/ToolRail/RailPopover";
+import { LeftDockPanel } from "@/components/LeftDockPanel";
+import { BACKGROUND_COLOR_PANEL_WIDTH } from "@/constants/defaults";
 
 /**
- * Tool-rail home for the canvas background color picker — previously the sole
- * item behind a radial menu on background click, now a trigger next to Canvas
- * Settings since both configure canvas-level properties, not per-element ones.
+ * Background Color's left-docked panel — the canvas background color picker,
+ * previously a RailPopover flyout, now the same shared push/expand shell as
+ * every other rail panel.
  */
-export function BackgroundColorPopover() {
+export function BackgroundColorPanel() {
+  const open = useUIStore((s) => s.activeLeftPanel === "backgroundColor");
+  const closeLeftPanel = useUIStore((s) => s.closeLeftPanel);
   const backgroundColor = useProjectStore((s) => s.project.backgroundColor);
   const setBackgroundColor = useProjectStore((s) => s.setBackgroundColor);
   const backgroundAlpha = useProjectStore((s) => s.project.backgroundAlpha);
   const setBackgroundAlpha = useProjectStore((s) => s.setBackgroundAlpha);
   const images = useProjectStore((s) => s.project.images);
 
-  const [open, setOpen] = useState(false);
   const [, setWarmTick] = useState(0);
-  const rootRef = useRef<HTMLDivElement>(null);
-  const popoverRef = useRef<HTMLDivElement>(null);
-  useClickOutside([rootRef, popoverRef], () => setOpen(false), open);
 
-  // Suggestions are normally already cached at upload time (UploadDialog). This
+  // Suggestions are normally already cached at upload time (UploadPanel). This
   // only covers images restored from an older saved design that predates the
   // cache — decode+compute them once, outside the render loop (calling a hook
   // per-image in a variable-length loop would break the rules of hooks).
@@ -61,26 +58,14 @@ export function BackgroundColorPopover() {
     .filter((g): g is SuggestionGroup => g !== null);
 
   return (
-    <div ref={rootRef} className="relative">
-      <RailIconButton
-        onClick={() => setOpen((o) => !o)}
-        icon={<PaletteIcon />}
-        label="Color"
-        ariaExpanded={open}
-        active={open}
+    <LeftDockPanel open={open} onClose={closeLeftPanel} title="Background Color" width={BACKGROUND_COLOR_PANEL_WIDTH}>
+      <ColorPickerPanel
+        suggestionGroups={suggestionGroups}
+        value={backgroundColor}
+        alpha={backgroundAlpha}
+        onChange={setBackgroundColor}
+        onAlphaChange={setBackgroundAlpha}
       />
-
-      {open && (
-        <RailPopover ref={popoverRef} anchorRef={rootRef} className="glass-panel radial-appear z-50 rounded-3xl p-3">
-          <ColorPickerPanel
-            suggestionGroups={suggestionGroups}
-            value={backgroundColor}
-            alpha={backgroundAlpha}
-            onChange={setBackgroundColor}
-            onAlphaChange={setBackgroundAlpha}
-          />
-        </RailPopover>
-      )}
-    </div>
+    </LeftDockPanel>
   );
 }

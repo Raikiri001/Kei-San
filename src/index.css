@@ -2,7 +2,7 @@
 
 @theme {
   --font-mono: "JetBrains Mono", "SFMono-Regular", ui-monospace, Menlo, Consolas, monospace;
-  --font-sans: "Space Grotesk", "Noto Sans JP", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-sans: "Space Grotesk", "Zen Kaku Gothic New", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   /* Neutral near-white accent — no brand-blue anywhere in the chrome. Used
      for emphasis text and focus/selection rings, differentiated by
      weight/opacity rather than hue. */
@@ -124,31 +124,39 @@ body {
     0 12px 28px -14px rgb(0 0 0 / 0.5);
 }
 
-/* Docked drawer edge overrides — the Image/Text Effects stack panel and the
-   layer customization panel are now permanently-docked chrome (they push the
-   canvas/ruler over rather than floating on top of it — see App.tsx) flush
-   against the rail's right edge / the screen's own right edge respectively,
-   so — same reasoning as .header-bar/.rail-bar below — each drops
-   .glass-panel's all-around border for a single hairline on the one edge
-   that actually borders the canvas. */
-.stack-panel-bar {
+/* Docked drawer edge overrides for every theme-adaptive panel (the left
+ * rail panels — Image FX, Text FX, Upload, Canvas, Color, Designs — AND the
+ * right-docked layer customization panel, see .chrome-bar below): same
+ * flush-single-hairline treatment as .header-bar/.rail-bar, just on
+ * whichever edge actually borders the canvas, using bar-* tokens so the
+ * hairline flips with theme too. */
+.dock-panel-bar {
   border: none;
-  border-right: 1px solid rgb(var(--chrome-border) / 0.12);
+  border-right: 1px solid rgb(var(--bar-border) / 0.12);
+  box-shadow: 8px 0 20px -16px rgb(0 0 0 / 0.4);
 }
-.inspector-panel-bar {
+.dock-panel-bar-right {
   border: none;
-  border-left: 1px solid rgb(var(--chrome-border) / 0.12);
+  border-left: 1px solid rgb(var(--bar-border) / 0.12);
+  box-shadow: -8px 0 20px -16px rgb(0 0 0 / 0.4);
 }
 
-/* Structural chrome bar: header, rail and ruler are fixed, always-present
-   layout chrome (not floating cards, and the canvas viewport is always
-   inset clear of them — see App.tsx) so they get a plain flat surface in
-   --bar-bg instead of .glass-panel's blur/gradient, and — unlike
-   .glass-panel — actually flip light in light mode. A flat solid color is
-   also simply a calmer, more "arranged" bar than a blurred gradient full of
-   its own top-rim highlight. */
+/* Structural chrome bar: header, rail, ruler, every left-docked rail panel
+ * (Image FX, Text FX, Upload, Canvas, Color, Designs) AND the right-docked
+ * layer customization panel are all fixed, permanently-mounted layout
+ * chrome (not floating cards, and the canvas viewport is always pushed
+ * clear of them — see App.tsx) so they get a plain flat surface in
+ * --bar-bg instead of .glass-panel's dark-always one, and DO flip light in
+ * light mode — including their own text color, so nothing inside needs its
+ * own override just to stay legible once the surface behind it goes light.
+ * The exceptions are self-contained "tool/media" surfaces nested *inside*
+ * these panels — EffectCard/PresetCard/DesignCard thumbnails, the shared
+ * ColorPickerPanel widget, and the radial menu/popovers/dialogs that
+ * genuinely float over arbitrary canvas content — which all deliberately
+ * keep .glass-panel's dark-always look; see each one's own doc comment. */
 .chrome-bar {
   background: rgb(var(--bar-bg));
+  color: rgb(var(--bar-fg));
 }
 
 /* Header-bar: a full-width flush bar, so it only needs a bottom hairline +
@@ -179,29 +187,33 @@ body {
   border-right: 1px solid rgb(var(--bar-border) / 0.1);
 }
 
-/* Flat list row: used for individual rows inside an already-glass panel
-   (Active Stack's layer/group/mix rows, Layer Mix branches) — a plain
-   translucent fill and hairline border with NO backdrop-filter of its own.
-   Stacking .glass-panel's blur on .glass-panel's blur (glass-on-glass, many
-   times over in a tall list) was what made the Active Stack read as a grid
-   of mismatched frosted squares rather than one coherent list; this is the
-   flat, single-surface alternative every real layers panel (Figma,
-   Photoshop) actually uses for its rows. */
+/* Flat list row: individual rows inside the Active Stack (layer/group/mix
+   rows, Layer Mix branches) — a plain translucent fill and hairline border
+   with NO backdrop-filter of its own. Stacking .glass-panel's blur on
+   .glass-panel's blur (glass-on-glass, many times over in a tall list) was
+   what made the Active Stack read as a grid of mismatched frosted squares
+   rather than one coherent list; this is the flat, single-surface
+   alternative every real layers panel (Figma, Photoshop) actually uses for
+   its rows. Uses bar-* tokens (not chrome-*) since the Active Stack now
+   lives inside the theme-adaptive Image/Text Effects panel — this needs to
+   flip along with it. */
 .list-row {
-  background: rgb(var(--chrome-text) / 0.045);
-  border: 1px solid rgb(var(--chrome-border) / 0.08);
+  background: rgb(var(--bar-fg) / 0.045);
+  border: 1px solid rgb(var(--bar-border) / 0.1);
 }
 
-/* Sticky section backing (Active Stack header in the Effects Drawer): needs
-   to be fully opaque to occlude the list scrolling underneath it, but a flat
-   solid color in a *different* formula from .glass-panel's own gradient-
-   tinted background was the "I see it as a square" seam — a visibly
-   different-toned rectangle sitting on top of the glass panel. Reusing the
-   exact same top-rim gradient, just over a fully opaque base instead of
-   .glass-panel's translucent one, makes the sticky area read as a
-   continuation of the same surface rather than a separate patch. */
-.stack-sticky {
-  background: linear-gradient(180deg, rgb(255 255 255 / 0.05), transparent 64px), rgb(var(--chrome-bg));
+/* Bar-adaptive card: a subtly bordered/shadowed rounded surface for grouping
+   content inside a theme-adaptive panel — the Active Stack section
+   (Image/Text Effects: originally built to solve a sticky-header seam by
+   embracing a real bordered card instead of trying to blend invisibly, the
+   same "pinned section" treatment Notion/Linear use) and the Inspector
+   panel's own settings/blending/mask sections (InspectorSection), which
+   need the equivalent of .glass-panel's card look but in bar-* tokens so it
+   flips with theme instead of staying dark-always. */
+.bar-card {
+  background: rgb(var(--bar-bg));
+  border: 1px solid rgb(var(--bar-border) / 0.16);
+  box-shadow: 0 10px 24px -14px rgb(0 0 0 / 0.4);
 }
 
 /* Brief "materialize" glow pulse on a glass surface — reuses the data-pulse
@@ -471,6 +483,32 @@ input[type="number"]::-webkit-inner-spin-button {
     0 3px 8px -3px rgb(0 0 0 / 0.4);
 }
 .accent-glow-hover:hover {
+  transform: translateY(-1px);
+}
+
+/* Same hover/press feedback as .accent-glow-hover above, but bar-fg-based
+   instead of the fixed near-white --color-accent-glow — for controls living
+   directly on the theme-adaptive left-docked panels (Image/Text FX, Upload,
+   Canvas, Color, Designs), where a fixed-white wash would nearly vanish
+   against an already-light panel in light mode. */
+.bar-glow-hover {
+  transition:
+    transform 160ms var(--ease-liquid),
+    background-color 200ms var(--ease-liquid),
+    box-shadow 200ms var(--ease-liquid),
+    border-color 200ms var(--ease-liquid),
+    color 200ms var(--ease-liquid);
+}
+.bar-glow-hover:hover,
+.bar-glow-hover:focus-visible,
+.bar-glow-hover[data-active="true"] {
+  border-color: rgb(var(--bar-fg) / 0.3);
+  background-color: rgb(var(--bar-fg) / 0.08);
+  box-shadow:
+    0 0 0 1px rgb(var(--bar-fg) / 0.16),
+    0 3px 8px -3px rgb(0 0 0 / 0.4);
+}
+.bar-glow-hover:hover {
   transform: translateY(-1px);
 }
 

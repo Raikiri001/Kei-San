@@ -27,18 +27,20 @@ export function LayerRow({ layer, onToggleEnabled, onDelete, onSelect, selected,
     <div
       className={clsx(
         "group list-row flex items-center gap-2 rounded-xl p-3 transition-colors",
-        nested && "ml-5 border-l-2 border-l-accent/30",
+        nested && "ml-5 border-l-2 border-l-[rgb(var(--bar-fg)/0.3)]",
         // A clearly "being customized" state, not just a subtle border tint —
-        // matches the accent ring used elsewhere (toolbar/rail buttons) so
+        // matches the ring used elsewhere (toolbar/rail buttons) so
         // "selected for editing" reads the same way everywhere in the app.
-        selected && "border-accent bg-[rgb(var(--color-accent-glow)/0.1)] shadow-[0_0_0_1px_var(--color-accent)]",
+        // bar-fg-based (not the fixed near-white --color-accent) since this
+        // row now lives inside the theme-adaptive Active Stack panel.
+        selected && "border-[rgb(var(--bar-fg))] bg-[rgb(var(--bar-fg)/0.1)] shadow-[0_0_0_1px_rgb(var(--bar-fg))]",
       )}
     >
       {dragHandle}
       <button
         type="button"
         onClick={onSelect}
-        className={clsx("flex-1 truncate text-left text-[12.5px] font-medium", selected && "text-accent")}
+        className={clsx("flex-1 truncate text-left text-[12.5px] font-medium", selected && "text-[rgb(var(--bar-fg))]")}
       >
         {EFFECT_LABELS[layer.type]}
       </button>
@@ -48,13 +50,15 @@ export function LayerRow({ layer, onToggleEnabled, onDelete, onSelect, selected,
         aria-label={layer.enabled ? "Disable" : "Enable"}
         className={clsx(
           "h-4 w-8 shrink-0 rounded-full border transition-colors",
-          layer.enabled ? "border-[rgb(var(--status-active-rgb)/0.7)] bg-[rgb(var(--status-active-rgb)/0.3)]" : "border-white/20 bg-white/5",
+          layer.enabled
+            ? "border-[rgb(var(--status-active-rgb)/0.7)] bg-[rgb(var(--status-active-rgb)/0.3)]"
+            : "border-[rgb(var(--bar-fg)/0.2)] bg-[rgb(var(--bar-fg)/0.05)]",
         )}
       >
         <span
           className={clsx(
             "block h-3 w-3 rounded-full bg-current transition-transform",
-            layer.enabled ? "translate-x-4 text-[rgb(var(--status-active-rgb))]" : "translate-x-0.5 text-white/40",
+            layer.enabled ? "translate-x-4 text-[rgb(var(--status-active-rgb))]" : "translate-x-0.5 text-[rgb(var(--bar-fg)/0.4)]",
           )}
         />
       </button>

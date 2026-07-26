@@ -21,7 +21,7 @@ export function SegmentedField<T extends string>({ label, value, options, hint, 
         {label}
         {hint && <InfoTooltip text={hint} label={`About ${label}`} />}
       </span>
-      <div className="flex overflow-hidden rounded-full border border-[rgb(var(--chrome-border)/0.3)]">
+      <div className="flex overflow-hidden rounded-full border border-[rgb(var(--bar-border)/0.3)]">
         {options.map((option) => (
           <button
             key={option.value}
@@ -29,7 +29,7 @@ export function SegmentedField<T extends string>({ label, value, options, hint, 
             onClick={() => onChange(option.value)}
             className={clsx(
               "flex-1 px-2 py-1.5 text-[11px] uppercase tracking-wide transition-colors",
-              option.value === value ? "bg-accent/20 text-accent" : "opacity-60 hover:opacity-90",
+              option.value === value ? "bg-[rgb(var(--bar-fg)/0.15)] text-[rgb(var(--bar-fg))]" : "opacity-60 hover:opacity-90",
             )}
           >
             {option.label}

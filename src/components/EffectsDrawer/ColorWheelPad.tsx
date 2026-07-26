@@ -82,7 +82,7 @@ export function ColorWheelPad({ label, hue, saturation, onChange }: ColorWheelPa
         ref={padRef}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
-        className="relative cursor-crosshair rounded-full border border-[rgb(var(--chrome-border)/0.3)]"
+        className="relative cursor-crosshair rounded-full border border-[rgb(var(--bar-border)/0.3)]"
         style={{ width: PAD_SIZE, height: PAD_SIZE, touchAction: "none", background: HUE_WHEEL_BACKGROUND }}
       >
         <span className="pointer-events-none absolute inset-0 rounded-full" style={{ background: SATURATION_OVERLAY_BACKGROUND }} />

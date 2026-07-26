@@ -124,7 +124,7 @@ export function GradientStopEditor({ label, stops, onChange }: GradientStopEdito
         ref={barRef}
         onClick={handleBarClick}
         onPointerDown={(e) => e.stopPropagation()}
-        className="relative cursor-crosshair rounded border border-[rgb(var(--chrome-border)/0.3)]"
+        className="relative cursor-crosshair rounded border border-[rgb(var(--bar-border)/0.3)]"
         style={{ height: BAR_HEIGHT, background: gradientCss, touchAction: "none" }}
       >
         {sorted.map((s) => (
@@ -146,7 +146,7 @@ export function GradientStopEditor({ label, stops, onChange }: GradientStopEdito
             value={s.color}
             onChange={(hex) => onChange(stops.map((st) => (st.id === s.id ? { ...st, color: hex } : st)))}
             label="Gradient stop color"
-            className="h-6 w-8 shrink-0 cursor-pointer rounded border border-[rgb(var(--chrome-border)/0.3)]"
+            className="h-6 w-8 shrink-0 cursor-pointer rounded border border-[rgb(var(--bar-border)/0.3)]"
           />
         ))}
       </div>

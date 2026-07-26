@@ -25,13 +25,15 @@ export function ChannelSignalRow({ label, color, enabled, onToggle }: ChannelSig
         onClick={() => onToggle(!enabled)}
         className={clsx(
           "press-scale relative h-4 w-7 shrink-0 rounded-full border transition-colors",
-          enabled ? "border-accent bg-accent/40" : "border-[rgb(var(--chrome-border)/0.3)] bg-white/5",
+          enabled
+            ? "border-[rgb(var(--bar-fg)/0.7)] bg-[rgb(var(--bar-fg)/0.3)]"
+            : "border-[rgb(var(--bar-border)/0.3)] bg-[rgb(var(--bar-fg)/0.05)]",
         )}
       >
         <span
           className={clsx(
             "absolute top-0.5 h-3 w-3 rounded-full transition-transform",
-            enabled ? "translate-x-3.5 bg-accent" : "translate-x-0.5 bg-[rgb(var(--chrome-border))]",
+            enabled ? "translate-x-3.5 bg-[rgb(var(--bar-fg))]" : "translate-x-0.5 bg-[rgb(var(--bar-fg)/0.6)]",
           )}
         />
       </button>

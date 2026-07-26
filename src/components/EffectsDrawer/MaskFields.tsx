@@ -46,7 +46,7 @@ export function MaskFields({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="flex flex-col gap-2 border-t border-[rgb(var(--chrome-border)/0.15)] pt-2">
+    <div className="flex flex-col gap-2 border-t border-[rgb(var(--bar-border)/0.15)] pt-2">
       <div className="flex items-center justify-between text-[11px] uppercase tracking-wide opacity-70">
         <button type="button" onClick={() => setExpanded((v) => !v)} className="flex-1 text-left">
           Mask {expanded ? "▲" : "▼"}

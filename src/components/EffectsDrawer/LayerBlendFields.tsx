@@ -26,7 +26,7 @@ export function LayerBlendFields({ blend, onUpdate }: { blend: LayerBlend; onUpd
         <select
           value={blend.blendMode}
           onChange={(e) => onUpdate({ blendMode: e.target.value as BlendMode })}
-          className="rounded border border-[rgb(var(--chrome-border)/0.3)] bg-transparent px-1.5 py-1 text-[11px] uppercase tracking-wide"
+          className="rounded border border-[rgb(var(--bar-border)/0.3)] bg-transparent px-1.5 py-1 text-[11px] uppercase tracking-wide"
         >
           {BLEND_MODE_OPTIONS.map((opt) => (
             <option key={opt.value} value={opt.value} className="bg-black text-white">

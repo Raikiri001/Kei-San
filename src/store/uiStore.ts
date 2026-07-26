@@ -5,6 +5,12 @@ import type { GridNode } from "@/utils/grid";
 
 type Theme = "dark" | "light";
 
+/** Every panel that docks to the rail's right edge and pushes the
+ * ruler/canvas over — all mutually exclusive (only one can be open at a
+ * time, since they all occupy the same slot), all opened/closed through
+ * `openLeftPanel`/`closeLeftPanel` below. */
+export type LeftPanelKind = "effects" | "textEffects" | "upload" | "canvasSettings" | "backgroundColor" | "designs";
+
 interface UIStore {
   zoom: number;
   /** Viewport pan offset in screen px, applied alongside zoom on the canvas wrapper transform. */
@@ -31,11 +37,15 @@ interface UIStore {
    * project store until the drag commits. Null outside of an active group drag. */
   groupDragOffset: { dx: number; dy: number } | null;
   radialMenu: RadialMenuState | null;
-  designsDrawerOpen: boolean;
-  uploadDialogOpen: boolean;
-  /** The Image Effects gallery drawer — opened for a specific set of target image ids,
-   * mirroring radialMenu's own targetIds convention (see openEffectsDrawer below). */
-  effectsDrawerOpen: boolean;
+  /** Which left-docked panel (if any) is currently open — see LeftPanelKind.
+   * Every rail button that opens a panel (Upload, Image FX, Text FX, Canvas,
+   * Color, Designs) goes through this single slot instead of its own
+   * separate open flag, since only one can ever be open/pushing the canvas
+   * over at a time. */
+  activeLeftPanel: LeftPanelKind | null;
+  /** The Image Effects gallery's target image ids, mirroring radialMenu's own
+   * targetIds convention (see openEffectsDrawer below) — only meaningful
+   * while activeLeftPanel === "effects". */
   effectsDrawerTargetIds: string[];
   /** Current width of the Active Stack panel — user-resizable, lifted up from
    * local component state (rather than kept inside EffectsDrawer) so the
@@ -46,9 +56,6 @@ interface UIStore {
    * Inspector panel — also lifted up for the same reason: App.tsx needs to
    * know whether that panel is open to push the canvas's right edge in. */
   effectsSelectedLayerId: string | null;
-  /** The (currently empty-content) Text Effects panel — mutually exclusive
-   * with the Image Effects drawer, since both dock to the same left edge. */
-  textEffectsDrawerOpen: boolean;
   isDirty: boolean;
   /** The grid node an in-progress drag would snap to on release — drives the live anchor highlight. */
   dragPreviewNode: GridNode | null;
@@ -90,13 +97,13 @@ interface UIStore {
   closeRadialMenu: () => void;
   /** Repositions the currently-open menu (e.g. to keep it glued to an element being dragged) without changing its context/target. */
   moveRadialMenu: (x: number, y: number) => void;
-  setDesignsDrawerOpen: (open: boolean) => void;
-  setUploadDialogOpen: (open: boolean) => void;
+  /** Opens the given panel, or closes it if it's already the active one
+   * (rail buttons toggle). */
+  openLeftPanel: (kind: LeftPanelKind) => void;
+  closeLeftPanel: () => void;
   openEffectsDrawer: (targetIds: string[]) => void;
-  setEffectsDrawerOpen: (open: boolean) => void;
   setEffectsPanelWidth: (width: number) => void;
   setEffectsSelectedLayerId: (id: string | null) => void;
-  setTextEffectsDrawerOpen: (open: boolean) => void;
   setDragPreviewNode: (node: GridNode | null) => void;
   setAlignmentGuide: (x: number | null, y: number | null) => void;
   setEditingTextId: (id: string | null) => void;
@@ -125,13 +132,10 @@ export const useUIStore = create<UIStore>((set, get) => ({
   selectedElementIds: [],
   groupDragOffset: null,
   radialMenu: null,
-  designsDrawerOpen: false,
-  uploadDialogOpen: false,
-  effectsDrawerOpen: false,
+  activeLeftPanel: null,
   effectsDrawerTargetIds: [],
   effectsPanelWidth: EFFECTS_PANEL_DEFAULT_WIDTH,
   effectsSelectedLayerId: null,
-  textEffectsDrawerOpen: false,
   isDirty: false,
   dragPreviewNode: null,
   alignmentGuideX: null,
@@ -176,17 +180,16 @@ export const useUIStore = create<UIStore>((set, get) => ({
   moveRadialMenu: (x, y) =>
     set((s) => (s.radialMenu ? { radialMenu: { ...s.radialMenu, x, y } } : {})),
 
-  setDesignsDrawerOpen: (designsDrawerOpen) => set({ designsDrawerOpen }),
-  setUploadDialogOpen: (uploadDialogOpen) => set({ uploadDialogOpen }),
-  openEffectsDrawer: (targetIds) =>
-    set({ effectsDrawerOpen: true, effectsDrawerTargetIds: targetIds, textEffectsDrawerOpen: false, effectsSelectedLayerId: null }),
-  setEffectsDrawerOpen: (effectsDrawerOpen) =>
-    set({ effectsDrawerOpen, ...(effectsDrawerOpen ? {} : { effectsSelectedLayerId: null }) }),
+  openLeftPanel: (kind) =>
+    set((s) => ({
+      activeLeftPanel: s.activeLeftPanel === kind ? null : kind,
+      effectsSelectedLayerId: null,
+    })),
+  closeLeftPanel: () => set({ activeLeftPanel: null, effectsSelectedLayerId: null }),
+  openEffectsDrawer: (targetIds) => set({ activeLeftPanel: "effects", effectsDrawerTargetIds: targetIds, effectsSelectedLayerId: null }),
   setEffectsPanelWidth: (width) =>
     set({ effectsPanelWidth: Math.min(EFFECTS_PANEL_MAX_WIDTH, Math.max(EFFECTS_PANEL_MIN_WIDTH, width)) }),
   setEffectsSelectedLayerId: (effectsSelectedLayerId) => set({ effectsSelectedLayerId }),
-  setTextEffectsDrawerOpen: (textEffectsDrawerOpen) =>
-    set({ textEffectsDrawerOpen, ...(textEffectsDrawerOpen ? { effectsDrawerOpen: false, effectsSelectedLayerId: null } : {}) }),
   setDragPreviewNode: (dragPreviewNode) => set({ dragPreviewNode }),
   setAlignmentGuide: (alignmentGuideX, alignmentGuideY) => set({ alignmentGuideX, alignmentGuideY }),
   setEditingTextId: (editingTextId) => set({ editingTextId }),

@@ -97,7 +97,7 @@ export function MeshWarpEditor({ label, loadedImg, previewLayers, points, onChan
           <span className="text-[11px] uppercase tracking-wide opacity-70">{label}</span>
           <InfoTooltip text="Drag any grid point to warp the image around it." label={`About ${label}`} />
         </div>
-        <button type="button" onClick={handleReset} className="press-scale rounded border border-[rgb(var(--chrome-border)/0.3)] px-2 py-0.5 text-[10.5px] font-medium opacity-70 hover:opacity-100">
+        <button type="button" onClick={handleReset} className="press-scale rounded border border-[rgb(var(--bar-border)/0.3)] px-2 py-0.5 text-[10.5px] font-medium opacity-70 hover:opacity-100">
           Reset
         </button>
       </div>

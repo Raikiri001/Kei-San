@@ -38,6 +38,13 @@ export const EFFECTS_PANEL_DEFAULT_WIDTH = 420;
 /** Text Effects' left-docked panel — fixed width, no resize handle (empty
  * placeholder content for now). */
 export const TEXT_EFFECTS_PANEL_WIDTH = 320;
+/** Every other left-docked panel — Upload, Canvas Settings, Background
+ * Color, My Designs — all share the same fixed-width push/expand treatment
+ * as Image/Text Effects (see uiStore's `activeLeftPanel`, LeftDockPanel.tsx). */
+export const UPLOAD_PANEL_WIDTH = 360;
+export const CANVAS_SETTINGS_PANEL_WIDTH = 320;
+export const BACKGROUND_COLOR_PANEL_WIDTH = 320;
+export const DESIGNS_PANEL_WIDTH = 360;
 /** The right-docked "customize this layer" panel opened from the Active Stack. */
 export const LAYER_INSPECTOR_WIDTH = 340;
 /** Shared duration/easing for every panel-push transition (the docked

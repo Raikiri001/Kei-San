@@ -9,7 +9,7 @@ import type { EffectLayer, LayerBlend, LayerMask, MixLayer } from "@/store/types
 
 function InspectorSection({ title, hint, children }: { title: string; hint: string; children: React.ReactNode }) {
   return (
-    <div className="glass-panel flex flex-col gap-4 rounded-2xl p-4">
+    <div className="bar-card flex flex-col gap-4 rounded-2xl p-4">
       <div className="flex items-center gap-2">
         <h4 className="text-[11px] uppercase tracking-wide opacity-70">{title}</h4>
         <InfoTooltip text={hint} label={`About ${title}`} />
@@ -44,14 +44,15 @@ export function LayerInspectorPanel({ layer, width, loadedImg, onClose, onUpdate
     // independent open state, docked flush to the screen's own right edge,
     // not adjacent to the stack panel) — flush-right like the stack panel is
     // flush-left, so it drops the all-around border/radius for a single
-    // left-edge hairline via .inspector-panel-bar.
-    <div className="thin-scroll glass-panel inspector-panel-bar flex h-full flex-col gap-5 overflow-y-auto p-6" style={{ width }}>
+    // left-edge hairline via .dock-panel-bar-right. Theme-adaptive
+    // (.chrome-bar) like every other rail panel now — not .glass-panel.
+    <div className="thin-scroll chrome-bar dock-panel-bar-right flex h-full flex-col gap-5 overflow-y-auto p-6" style={{ width }}>
       <div className="flex items-center justify-between gap-3">
         {/* The name of the effect being customized — same bold treatment as
             the stack panel's own section headings, so both panels' headers
             read as one consistent system. */}
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="h-4 w-1 shrink-0 rounded-full" style={{ background: "var(--color-accent)" }} />
+          <span className="h-4 w-1 shrink-0 rounded-full" style={{ background: "rgb(var(--bar-fg))" }} />
           <h3 className="truncate text-[16px] font-bold tracking-wide">{title}</h3>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -61,7 +62,7 @@ export function LayerInspectorPanel({ layer, width, loadedImg, onClose, onUpdate
               onClick={() => onUpdate(randomizeEffectParams(layer))}
               aria-label="Randomize settings"
               title="Randomize"
-              className="press-scale flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--chrome-border)/0.3)] opacity-70 hover:opacity-100"
+              className="bar-glow-hover press-scale flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--bar-border)/0.3)] opacity-70 hover:opacity-100"
             >
               <span className="flex h-3.5 w-3.5 items-center justify-center">
                 <ShuffleIcon />
@@ -79,7 +80,7 @@ export function LayerInspectorPanel({ layer, width, loadedImg, onClose, onUpdate
               }}
               aria-label="Reset to defaults"
               title="Reset to defaults"
-              className="press-scale flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--chrome-border)/0.3)] opacity-70 hover:opacity-100"
+              className="bar-glow-hover press-scale flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--bar-border)/0.3)] opacity-70 hover:opacity-100"
             >
               <span className="flex h-3.5 w-3.5 items-center justify-center">
                 <ResetIcon />
@@ -93,7 +94,7 @@ export function LayerInspectorPanel({ layer, width, loadedImg, onClose, onUpdate
             type="button"
             onClick={onClose}
             aria-label="Close settings"
-            className="press-scale flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--chrome-border)/0.3)] opacity-70 hover:opacity-100"
+            className="bar-glow-hover press-scale flex h-8 w-8 items-center justify-center rounded-full border border-[rgb(var(--bar-border)/0.3)] opacity-70 hover:opacity-100"
           >
             <span className="flex h-3.5 w-3.5 items-center justify-center">
               <CloseIcon />
