@@ -2,7 +2,7 @@ export const DEFAULT_WIDTH = 1920;
 export const DEFAULT_HEIGHT = 1080;
 export const DEFAULT_ROWS = 1;
 export const DEFAULT_COLS = 1;
-export const DEFAULT_BACKGROUND = "#121212";
+export const DEFAULT_BACKGROUND = "#ffffff";
 
 export const MIN_ZOOM = 0.1;
 export const MAX_ZOOM = 4;

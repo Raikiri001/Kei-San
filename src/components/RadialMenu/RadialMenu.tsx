@@ -113,7 +113,7 @@ export function RadialMenu() {
   return (
     <div
       ref={rootRef}
-      className="radial-appear pointer-events-none fixed z-50"
+      className="bar-adaptive-glass radial-appear pointer-events-none fixed z-50"
       style={{ left: radialMenu.x, top: radialMenu.y }}
     >
       <div className="pointer-events-auto relative h-0 w-0">

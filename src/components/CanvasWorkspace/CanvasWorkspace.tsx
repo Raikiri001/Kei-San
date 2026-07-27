@@ -402,7 +402,7 @@ export function CanvasWorkspace() {
         </div>
       </div>
 
-      <div className="glass-panel absolute bottom-6 right-6 flex items-center gap-1.5 rounded-full px-2.5 py-2">
+      <div className="glass-panel bar-adaptive-glass absolute bottom-6 right-6 flex items-center gap-1.5 rounded-full px-2.5 py-2">
         <button
           type="button"
           onClick={handleToggleTheme}

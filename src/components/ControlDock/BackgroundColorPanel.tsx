@@ -59,13 +59,15 @@ export function BackgroundColorPanel() {
 
   return (
     <LeftDockPanel open={open} onClose={closeLeftPanel} title="Background Color" width={BACKGROUND_COLOR_PANEL_WIDTH}>
-      <ColorPickerPanel
-        suggestionGroups={suggestionGroups}
-        value={backgroundColor}
-        alpha={backgroundAlpha}
-        onChange={setBackgroundColor}
-        onAlphaChange={setBackgroundAlpha}
-      />
+      <div className="bar-adaptive-glass">
+        <ColorPickerPanel
+          suggestionGroups={suggestionGroups}
+          value={backgroundColor}
+          alpha={backgroundAlpha}
+          onChange={setBackgroundColor}
+          onAlphaChange={setBackgroundAlpha}
+        />
+      </div>
     </LeftDockPanel>
   );
 }

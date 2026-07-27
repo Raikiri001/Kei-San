@@ -10,16 +10,21 @@
 }
 
 /* Neutral glass token system. Every floating glass surface in the app (dock,
-   radial menu, drawers, dialogs, popovers) uses one constant, quiet
-   graphite-tinted glass with near-white text in BOTH themes: they either
-   float directly over arbitrary, unpredictable canvas/wallpaper imagery
-   (where true theme-adaptive translucency would make contrast unpredictable
-   depending on what's under the pointer), or — for the couple of scrimmed
-   dialogs — dark glass with white text simply stays legible and consistent
-   regardless of theme, which reads as more deliberate than flipping to light
-   glass with dark text for those two alone. Only the page backdrop behind
-   the canvas (--page-bg) actually changes between themes, so switching
-   themes still reads as a real light/dark switch. */
+   drawers, dialogs, popovers) uses one constant, quiet graphite-tinted glass
+   with near-white text in BOTH themes by default — for the couple of
+   scrimmed dialogs (DiscardConfirmBar, InfoTooltip) that's because dark glass
+   with white text simply stays legible and consistent regardless of theme,
+   which reads as more deliberate than flipping to light glass with dark text
+   for those two alone. The radial menu opts back OUT of that default (see
+   .bar-adaptive-glass below, applied at its root) even though it floats
+   directly over arbitrary, unpredictable canvas/wallpaper imagery — normally
+   the reason to keep a surface dark-always, since true theme-adaptive
+   translucency would make contrast unpredictable depending on what's under
+   the pointer — because its own pills are fully opaque, not translucent, so
+   there's no actual content-dependent contrast risk, just a deliberate
+   choice to match the rest of the chrome. Only the page backdrop behind the
+   canvas (--page-bg) used to be the one thing that changed between themes;
+   now the radial menu does too. */
 :root {
   color-scheme: dark;
 
@@ -118,10 +123,40 @@ body {
 .glass-panel {
   background:
     linear-gradient(180deg, rgb(255 255 255 / 0.05), transparent 64px), rgb(var(--chrome-bg));
+  /* Explicit, not just inherited: this panel's own text needs to stay the fixed
+     near-white --chrome-text described above regardless of theme, but plenty of
+     call sites (EffectCard/PresetCard/DesignCard, the color picker's hex/RGB
+     inputs) nest directly inside a theme-adaptive .chrome-bar panel (Image FX,
+     Color, Designs) whose OWN text flips dark in light mode — without this, that
+     ancestor's dark text color inherits straight through onto this dark-always
+     background and reads as invisible dark-on-dark in light mode. */
+  color: rgb(var(--chrome-text));
   border: 1px solid rgb(var(--chrome-border) / 0.1);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.06),
     0 12px 28px -14px rgb(0 0 0 / 0.5);
+}
+
+/* Opts a subtree of otherwise-dark-always .glass-panel/.accent-glow-hover
+ * surfaces into flipping with theme instead — by locally redefining the
+ * fixed tokens they read (--chrome-bg/--chrome-text/--chrome-border/
+ * --color-accent-glow/--color-accent) to their theme-adaptive bar-*
+ * equivalents, every .glass-panel and .accent-glow-hover descendant (plus any
+ * plain text-accent/bg-accent utility) picks up the swap for free, with zero
+ * changes to those shared components. Applied at: the Effects/Presets/
+ * Designs gallery cards and the Background Color panel (docked inside an
+ * already-adaptive panel), the canvas viewport's own bottom-right zoom/pan
+ * bar (fixed chrome that never moves to sit over unpredictable image
+ * content), and the radial menu's own root (RadialMenu.tsx — floats over
+ * arbitrary image content, but its pills are fully opaque, so unlike a
+ * translucent surface there's no actual content-dependent contrast risk in
+ * letting it flip too; see the glass token system's own doc comment above). */
+.bar-adaptive-glass {
+  --chrome-bg: var(--bar-bg);
+  --chrome-text: var(--bar-fg);
+  --chrome-border: var(--bar-border);
+  --color-accent-glow: var(--bar-fg);
+  --color-accent: rgb(var(--bar-fg));
 }
 
 /* Docked drawer edge overrides for every theme-adaptive panel (the left
@@ -149,11 +184,18 @@ body {
  * --bar-bg instead of .glass-panel's dark-always one, and DO flip light in
  * light mode — including their own text color, so nothing inside needs its
  * own override just to stay legible once the surface behind it goes light.
- * The exceptions are self-contained "tool/media" surfaces nested *inside*
- * these panels — EffectCard/PresetCard/DesignCard thumbnails, the shared
- * ColorPickerPanel widget, and the radial menu/popovers/dialogs that
- * genuinely float over arbitrary canvas content — which all deliberately
- * keep .glass-panel's dark-always look; see each one's own doc comment. */
+ * The remaining exceptions are surfaces whose own background is genuinely
+ * translucent over arbitrary canvas/image content at an unpredictable screen
+ * position — DiscardConfirmBar, InfoTooltip, and other scrimmed
+ * dialogs/tooltips — which keep .glass-panel's dark-always look since true
+ * theme-adaptive translucency there would make contrast unpredictable
+ * depending on what's under the pointer. EffectCard/PresetCard/DesignCard,
+ * the Background Color panel's ColorPickerPanel widget, and the radial
+ * menu's own pills used to be dark-always too, but either never float over
+ * arbitrary content (always docked inside one of these already-adaptive
+ * panels) or, for the radial menu, are fully opaque rather than translucent
+ * (so no content-dependent contrast risk) — see .bar-adaptive-glass below
+ * for how they now flip instead. */
 .chrome-bar {
   background: rgb(var(--bar-bg));
   color: rgb(var(--bar-fg));
@@ -484,6 +526,26 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 .accent-glow-hover:hover {
   transform: translateY(-1px);
+}
+
+/* IconPill (the radial menu's pills) combines .glass-panel — an opaque,
+   dark-always backing — with .accent-glow-hover's generic hover wash above.
+   That wash's own `background-color` is a near-transparent white on its own
+   (correct for the plain-transparent buttons accent-glow-hover is otherwise
+   used on, e.g. CanvasWorkspace's zoom-bar buttons, which have no background
+   of their own to protect), but layered onto an element that's ALSO
+   .glass-panel it wins the cascade outright and replaces — not tints —
+   .glass-panel's opaque background-color, leaving the pill's own icon/label
+   reading straight through to whatever's behind it on hover/focus/active
+   (the "see-through button" behavior). Re-expressing the same wash as an
+   extra background *image* layer instead keeps the solid color underneath
+   intact, so the pill stays fully opaque while still showing the tint. */
+.glass-panel.accent-glow-hover:hover,
+.glass-panel.accent-glow-hover:focus-visible,
+.glass-panel.accent-glow-hover[data-active="true"] {
+  background-color: rgb(var(--chrome-bg));
+  background-image:
+    linear-gradient(rgb(255 255 255 / 0.08), rgb(255 255 255 / 0.08)), linear-gradient(180deg, rgb(255 255 255 / 0.05), transparent 64px);
 }
 
 /* Same hover/press feedback as .accent-glow-hover above, but bar-fg-based

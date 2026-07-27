@@ -172,7 +172,7 @@ export function EffectsDrawer() {
                 />
               </label>
 
-              <div className="thin-scroll -mx-6 mt-6 min-h-0 flex-1 overflow-y-auto px-6">
+              <div className="bar-adaptive-glass thin-scroll -mx-6 mt-6 min-h-0 flex-1 overflow-y-auto px-6">
                 {noResults ? (
                   <p className="text-[12px] opacity-50">No presets or effects match "{query}".</p>
                 ) : (

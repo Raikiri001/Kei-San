@@ -71,7 +71,7 @@ export const BUILT_IN_PRESETS: ImageEffectPreset[] = [
   },
   {
     id: "thin-paper-print-redux",
-    name: "Thin Paper Print",
+    name: "Newsprint Print",
     entries: [
       { type: "filmGrain", enabled: true, amount: 0.15, size: 1.5 },
       { type: "contrast", enabled: true, brightness: 20, contrast: -30 },
@@ -80,7 +80,7 @@ export const BUILT_IN_PRESETS: ImageEffectPreset[] = [
   },
   {
     id: "wet-paper-redux",
-    name: "Wet Paper",
+    name: "Damp Ink",
     entries: [
       { type: "filmGrain", enabled: true, amount: 0.35, size: 4 },
       { type: "vignette", enabled: true, centerX: 0.5, centerY: 0.5, radiusX: 0.55, radiusY: 0.55, rotation: 0, feather: 0.3, amount: -0.5 },

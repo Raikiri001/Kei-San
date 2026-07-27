@@ -41,7 +41,7 @@ export function DesignsDrawer() {
       {designs.length === 0 ? (
         <p className="mt-8 text-center text-[12px] opacity-50">No saved designs yet.</p>
       ) : (
-        <div className="thin-scroll -mx-6 flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-6 pb-4">
+        <div className="bar-adaptive-glass thin-scroll -mx-6 flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-6 pb-4">
           {designs.map((design) => (
             <DesignCard key={design.id} design={design} onSelect={() => handleSelect(design)} onDelete={() => handleDelete(design.id)} />
           ))}

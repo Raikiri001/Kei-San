@@ -23,9 +23,6 @@ const DOT_PITCH_MAX = 40;
 const SHIFT_DISTANCE_MIN = 0;
 const SHIFT_DISTANCE_MAX = 100;
 
-const SHIFT_ANGLE_MIN = 0;
-const SHIFT_ANGLE_MAX = 359;
-
 const SHIFT_AMOUNT_MIN = -2;
 const SHIFT_AMOUNT_MAX = 2;
 
@@ -245,9 +242,6 @@ const DOF_FOCUS_SIZE_MAX = 1;
 
 const DOF_FEATHER_MIN = 0;
 const DOF_FEATHER_MAX = 1;
-
-const DOF_ANGLE_MIN = 0;
-const DOF_ANGLE_MAX = 360;
 
 const DOF_BLUR_RADIUS_MIN = 0;
 const DOF_BLUR_RADIUS_MAX = 40;
@@ -774,7 +768,7 @@ export function LayerSettingsFields({
             unit="px"
             onChange={(distance) => onUpdate({ distance })}
           />
-          <SliderField label="Angle" value={layer.angle} min={SHIFT_ANGLE_MIN} max={SHIFT_ANGLE_MAX} unit="°" onChange={(angle) => onUpdate({ angle })} />
+          <DirectionPad label="Blur Direction" angle={layer.angle} onChange={(angle) => onUpdate({ angle })} />
         </div>
       );
     case "cameraShake":
@@ -1628,9 +1622,7 @@ export function LayerSettingsFields({
             />
           )}
           <SliderField label="Feather" value={layer.feather} min={DOF_FEATHER_MIN} max={DOF_FEATHER_MAX} step={0.01} decimals={2} onChange={(feather) => onUpdate({ feather })} />
-          {layer.shape === "tiltShift" && (
-            <SliderField label="Band Angle" value={layer.angle} min={DOF_ANGLE_MIN} max={DOF_ANGLE_MAX} step={1} decimals={0} onChange={(angle) => onUpdate({ angle })} />
-          )}
+          {layer.shape === "tiltShift" && <DirectionPad label="Band Angle" angle={layer.angle} onChange={(angle) => onUpdate({ angle })} />}
           <SliderField
             label="Blur Radius"
             value={layer.blurRadius}

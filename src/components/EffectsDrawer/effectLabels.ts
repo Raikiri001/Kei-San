@@ -4,15 +4,17 @@ import type { StackableEffectType } from "@/store/types";
  *
  * A handful of these intentionally diverge from the obvious/generic name for what the
  * effect does (e.g. "Faceted" rather than "Cubify", "Fluted Glass" rather than "Reeded
- * Glass") — confirmed against a competing effects tool's own public effect list,
- * distinctive/coined names it uses were renamed here so this app doesn't just read as
- * a copy. Plain industry-standard terms that happen to coincide (Curves, Levels,
- * Vignette, Threshold, Duotone, Gaussian Blur, Bloom, CRT, LED, Frame Drop, Grunge,
- * Vintage Film, Motion Trails, Modulation, Ink Bleed, Blob Tracker, Star Glow — kept
- * as plain "Glow", ...) were deliberately left alone (or shortened, for CRT/LED) —
- * renaming a term the whole industry already uses (or one the user specifically
- * prefers unchanged) wouldn't differentiate anything, it'd just make the effect
- * harder to recognize. */
+ * Glass", "Newsprint"/"Damp Ink" rather than "Thin Paper"/"Wet Paper") — confirmed
+ * against a competing effects tool's own public effect list, distinctive/coined names
+ * it uses were renamed here so this app doesn't just read as a copy. Plain
+ * industry-standard terms that happen to coincide (Curves, Levels, Vignette,
+ * Threshold, Duotone, Gaussian Blur, Bloom, CRT, LED, Frame Drop, Grunge, Vintage
+ * Film, Motion Trails, Modulation, Ink Bleed, Blob Tracker, Star Glow — kept as plain
+ * "Glow", ...) were deliberately left alone (or shortened, for CRT/LED) — renaming a
+ * term the whole industry already uses (or one the user specifically prefers
+ * unchanged) wouldn't differentiate anything, it'd just make the effect harder to
+ * recognize. The underlying `thinPaper`/`wetPaper` type ids are internal and don't
+ * need to match the display name. */
 export const EFFECT_LABELS: Record<StackableEffectType, string> = {
   halftone: "Halftone",
   rgbShift: "RGB Shift",
@@ -35,8 +37,8 @@ export const EFFECT_LABELS: Record<StackableEffectType, string> = {
   grunge: "Grunge",
   vintagePrint: "Vintage Print",
   mixedMedia: "Mixed Media",
-  thinPaper: "Thin Paper",
-  wetPaper: "Wet Paper",
+  thinPaper: "Newsprint",
+  wetPaper: "Damp Ink",
   teleshopping: "Teleshopping",
   blobTracker: "Blob Tracker",
   curves: "Curves",
@@ -202,15 +204,15 @@ export const EFFECT_CATEGORIES: Record<StackableEffectType, string> = {
   xerox: "Print & Halftone",
   pixelate: "Print & Halftone",
   ascii: "Print & Halftone",
-  grunge: "Texture & Paper",
-  vintagePrint: "Texture & Paper",
-  mixedMedia: "Texture & Paper",
-  thinPaper: "Texture & Paper",
-  wetPaper: "Texture & Paper",
-  teleshopping: "Texture & Paper",
-  blobTracker: "Texture & Paper",
-  inkBleed: "Texture & Paper",
-  paperScan: "Texture & Paper",
+  grunge: "Texture & Grain",
+  vintagePrint: "Texture & Grain",
+  mixedMedia: "Texture & Grain",
+  thinPaper: "Texture & Grain",
+  wetPaper: "Texture & Grain",
+  teleshopping: "Texture & Grain",
+  blobTracker: "Texture & Grain",
+  inkBleed: "Texture & Grain",
+  paperScan: "Texture & Grain",
   stripe: "Glitch & Signal",
   noise: "Glitch & Signal",
   frameDrop: "Glitch & Signal",
@@ -240,7 +242,7 @@ export const EFFECT_CATEGORIES: Record<StackableEffectType, string> = {
 
 /** Fixed display order for category sections — categories not yet represented by any
  * effect type simply produce an empty group, filtered out before rendering. */
-export const CATEGORY_ORDER = ["Blur & Glow", "Distort", "Glitch & Signal", "Print & Halftone", "Texture & Paper", "Film", "Color Grading", "Effects"];
+export const CATEGORY_ORDER = ["Blur & Glow", "Distort", "Glitch & Signal", "Print & Halftone", "Texture & Grain", "Film", "Color Grading", "Effects"];
 
 /** Every currently-implemented stackable effect type, in gallery display order —
  * the single source of truth both the main Effects gallery (EffectsDrawer.tsx) and
