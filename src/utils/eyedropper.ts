@@ -11,7 +11,7 @@ export function isEyeDropperSupported(): boolean {
 export async function pickColorWithEyeDropper(): Promise<string | null> {
   if (!isEyeDropperSupported()) return null;
   try {
-    const eyeDropper = new window.EyeDropper();
+    const eyeDropper = new window.EyeDropper!();
     const result = await eyeDropper.open();
     return result.sRGBHex;
   } catch {
