@@ -23,14 +23,16 @@ A simple, browser-based image editor built for one thing: making cool, custom wa
 - Horizontal or vertical (Japanese-style) orientation.
 - Glyph warp (stretch), color with independent alpha, and an optional colored outer glow.
 
-### Effects (65+ real-time WebGL2 shaders)
-A big gallery of GPU-rendered image effects, all previewed live before you commit to them, grouped roughly by category:
-- **Color grading**: curves, levels, exposure, contrast, white balance, hue/saturation, hue curves, color balance, color grading, color matrix, gradient map, duotone, monochrome, black & white, threshold.
-- **Blur & optics**: Gaussian, motion, radial, zoom, circular, and blur/sharpen, plus depth of field, bloom, star glow, and halation.
-- **Distortion & warp**: swirl, pinch, ripple, perspective, polar coordinates, elastic grid, cubify, displacement, reeded glass.
-- **Retro & print**: halftone, dither, xerox, risograph, thermal, paper scan, ink bleed, wet/thin paper, grunge, vintage print/film, classic film, film grain, emboss.
-- **Glitch & broadcast**: RGB shift/gain, glitch, VHS, NTSC, CRT screen, LED screen, modulation, frame drop, motion trails, camera shake, noise, stripe, teleshopping, mixed media.
-- **Special**: ASCII-art overlay and a "blob tracker" scan-line overlay.
+### Effects (70+ real-time WebGL2 shaders)
+A big gallery of GPU-rendered image effects, all previewed live before you commit to them, grouped exactly as they are in the app's own Effects gallery:
+- **Blur & Glow**: Gaussian Blur, Motion Blur, Camera Shake, Bloom, Glow, Edge Blend, Circular Blur, Radial Blur, Zoom Blur, Blur/Sharp, Depth of Field.
+- **Distort**: Swirl, Pinch, Perspective, Ripple, Emboss, Polar Warp, Warp Grid.
+- **Glitch & Signal**: RGB Shift, Glitch, VHS, NTSC, Modulation, LED, Stripe, Noise, Frame Drop, CRT.
+- **Print & Halftone**: Halftone, Dither, Xerox, Pocket LCD, ASCII Art.
+- **Texture & Grain**: Grunge, Vintage Print, Mixed Media, Newsprint, Damp Ink, Teleshopping, Blob Tracker, Ink Bleed, Flatbed Scan.
+- **Film**: Black & White, Classic Film, Vintage Film, Displacement, Film Grain, Halation.
+- **Color Grading**: Curves, Levels, Exposure, Brightness/Contrast, White Balance, Hue/Saturation, Color Balance, Gradient Map, Duotone, Monochrome, Thermal, Color Matrix, RGB Gain, Hue Curves, Color Grading.
+- **Effects**: Motion Trails, Vignette, Threshold, Fluted Glass, Faceted, Transform, Risograph.
 
 ### Layers
 - Stack any number of effects on a single image, each independently toggleable, reorderable, and deletable.
