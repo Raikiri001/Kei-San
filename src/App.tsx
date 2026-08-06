@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnimatePresence } from "motion/react";
 import { useUIStore } from "@/store/uiStore";
+import { useImageUpload } from "@/hooks/useImageUpload";
+import { UploadIcon } from "@/components/RadialMenu/icons";
 import { CanvasWorkspace } from "@/components/CanvasWorkspace/CanvasWorkspace";
 import { ControlDock } from "@/components/ControlDock/ControlDock";
 import { ToolRail } from "@/components/ToolRail/ToolRail";
@@ -34,6 +36,54 @@ function App() {
     ensureFontsLoaded(setFontProgress);
   }, []);
 
+  // Window-wide "drop an image anywhere" support — dropping a file on the
+  // canvas, the header, the rail, wherever, goes through the exact same
+  // upload pipeline as the Upload panel's own dropzone (see useImageUpload),
+  // so it lands on the canvas AND shows up in that panel's persistent
+  // uploaded-images list, same as a deliberate upload would. A plain
+  // dragenter/dragleave pair can't reliably tell "left the window" from "moved
+  // over a child element" (both fire the same events), so a running counter —
+  // incremented on every enter, decremented on every leave, overlay visible
+  // whenever it's above zero — is what actually survives dragging across
+  // descendants instead of flickering the overlay on/off.
+  const uploadFiles = useImageUpload();
+  const openLeftPanel = useUIStore((s) => s.openLeftPanel);
+  const [isDraggingFileOverWindow, setIsDraggingFileOverWindow] = useState(false);
+  const dragDepthRef = useRef(0);
+
+  function isFileDrag(e: React.DragEvent) {
+    return e.dataTransfer.types.includes("Files");
+  }
+
+  function handleWindowDragEnter(e: React.DragEvent) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepthRef.current += 1;
+    setIsDraggingFileOverWindow(true);
+  }
+
+  function handleWindowDragOver(e: React.DragEvent) {
+    // Every dragover must preventDefault, not just dragenter — a browser's
+    // default handling of an un-prevented drop is to navigate away and show
+    // the raw dropped file instead of firing the drop event at all.
+    if (isFileDrag(e)) e.preventDefault();
+  }
+
+  function handleWindowDragLeave(e: React.DragEvent) {
+    if (!isFileDrag(e)) return;
+    dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+    if (dragDepthRef.current === 0) setIsDraggingFileOverWindow(false);
+  }
+
+  function handleWindowDrop(e: React.DragEvent) {
+    if (!isFileDrag(e)) return;
+    e.preventDefault();
+    dragDepthRef.current = 0;
+    setIsDraggingFileOverWindow(false);
+    uploadFiles(e.dataTransfer.files);
+    if (activeLeftPanel !== "upload") openLeftPanel("upload");
+  }
+
   // Every rail panel (Upload, Image FX, Text FX, Canvas, Color, Designs)
   // docks to the left, pushing the canvas (and, since the ruler lives inside
   // it, the ruler too) over by exactly its own width rather than floating on
@@ -56,7 +106,13 @@ function App() {
   const rightDrawerWidth = activeLeftPanel === "effects" && effectsSelectedLayerId ? LAYER_INSPECTOR_WIDTH : 0;
 
   return (
-    <div className="relative flex h-screen w-screen flex-col overflow-hidden">
+    <div
+      className="relative flex h-screen w-screen flex-col overflow-hidden"
+      onDragEnter={handleWindowDragEnter}
+      onDragOver={handleWindowDragOver}
+      onDragLeave={handleWindowDragLeave}
+      onDrop={handleWindowDrop}
+    >
       {/* Canvas viewport starts below the header and beside the tool rail —
           both are permanent chrome that reserves its own space, rather than
           floating on top of a full-bleed workspace. left/right also shift
@@ -88,6 +144,21 @@ function App() {
       <TextEffectsDrawer />
       <DiscardConfirmBar />
       <AnimatePresence>{fontProgress < 1 && <LoadingScreen key="loading" progress={fontProgress} />}</AnimatePresence>
+
+      {/* Window-wide drop affordance — same visual language as the Upload
+          panel's own dropzone (dashed border, upload glyph), just full-screen,
+          so dropping a file anywhere on the app gives the same "yes, this is
+          about to add an image" feedback as dropping it there directly. */}
+      {isDraggingFileOverWindow && (
+        <div className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center bg-black/40">
+          <div className="glass-panel flex flex-col items-center gap-4 rounded-3xl border-2 border-dashed border-[rgb(var(--chrome-border)/0.5)] px-16 py-14 text-center">
+            <span className="flex h-9 w-9 items-center justify-center">
+              <UploadIcon />
+            </span>
+            <span className="text-[14px]">Drop to add image</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

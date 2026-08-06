@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import { useProjectStore } from "@/store/projectStore";
 import { useUIStore } from "@/store/uiStore";
+import { ASSET_DRAG_MIME, useAssetLibraryStore } from "@/store/assetLibraryStore";
+import { spawnAsset } from "@/utils/spawnAsset";
 import { MAX_ZOOM, MIN_ZOOM } from "@/constants/defaults";
 import { hexToRgba } from "@/canvas/colorExtraction";
 import { GridOverlay } from "@/components/CanvasWorkspace/GridOverlay";
@@ -338,6 +340,31 @@ export function CanvasWorkspace() {
     }
   }
 
+  // Drag-from-Upload-panel support (UploadedImageCard's own drag source) —
+  // spawns the dragged asset at the exact drop point instead of the centered
+  // default a plain click uses. Keyed off ASSET_DRAG_MIME specifically so
+  // this never fires for (and never fights over the drop with) App.tsx's own
+  // window-wide real-file drop handler, which only reacts to actual OS files.
+  function isAssetDrag(e: React.DragEvent) {
+    return e.dataTransfer.types.includes(ASSET_DRAG_MIME);
+  }
+
+  function handleAssetDragOver(e: React.DragEvent) {
+    if (!isAssetDrag(e)) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "copy";
+  }
+
+  function handleAssetDrop(e: React.DragEvent) {
+    if (!isAssetDrag(e)) return;
+    e.preventDefault();
+    const assetId = e.dataTransfer.getData(ASSET_DRAG_MIME);
+    const asset = useAssetLibraryStore.getState().assets.find((a) => a.id === assetId);
+    if (!asset) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    spawnAsset(asset, { x: (e.clientX - rect.left) / zoom, y: (e.clientY - rect.top) / zoom });
+  }
+
   return (
     <div
       ref={viewportRef}
@@ -357,6 +384,8 @@ export function CanvasWorkspace() {
           onPointerUp={handleBgPointerUp}
           onPointerMove={handleCanvasPointerMove}
           onPointerLeave={() => setHoverPos(null)}
+          onDragOver={handleAssetDragOver}
+          onDrop={handleAssetDrop}
           className="relative touch-none shadow-[0_0_0_1px_rgb(var(--canvas-ring)/0.16),0_0_60px_-10px_rgb(var(--color-accent-glow)/0.25),0_40px_120px_-20px_rgb(0_0_0/0.6)]"
           style={{ width, height, isolation: "isolate" }}
         >
